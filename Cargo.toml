@@ -3,7 +3,7 @@ version = "0.0.1"
 
 [workspace]
 resolver = "2"
-members = ["common", "file"]
+members = ["common", "file", "log"]
 
 [workspace.dependencies]
 bytes = "1"

@@ -21,18 +21,18 @@ impl FileMgr {
         Ok(Self { block_size, holder })
     }
 
-    pub fn read(&self, block_id: BlockId) -> DbResult<Page> {
+    pub fn read(&self, block_id: &BlockId) -> DbResult<Page> {
         let mut open_files = self.holder.lock().unwrap();
         let mut fd = open_files.get(&block_id.filename)?;
         fd.seek(SeekFrom::Start(
             block_id.num as u64 * self.block_size as u64,
         ))?;
         let mut buffer = vec![0u8; self.block_size];
-        fd.read_exact(&mut buffer).unwrap();
+        fd.read_exact(&mut buffer)?;
         Ok(Page::from(buffer.as_slice()))
     }
 
-    pub fn write(&self, block_id: BlockId, page: Page) -> DbResult<()> {
+    pub fn write(&self, block_id: &BlockId, page: &Page) -> DbResult<()> {
         let mut open_files = self.holder.lock().map_err(DbError::lock)?;
         let mut fd = open_files.get(&block_id.filename)?;
         fd.seek(SeekFrom::Start(
@@ -44,7 +44,7 @@ impl FileMgr {
 
     pub fn append(&self, filename: &str) -> DbResult<BlockId> {
         let mut lock = self.holder.lock().map_err(DbError::lock)?;
-        let block_num = size(&mut lock, filename)?;
+        let block_num = size(&mut lock, filename, self.block_size as u64)?;
         let block_id = BlockId::new(filename, block_num as usize);
         let mut fd = lock.get(filename)?;
         let buffer = vec![0u8; self.block_size];
@@ -53,9 +53,9 @@ impl FileMgr {
         Ok(block_id)
     }
 
-    pub fn size(&self, filename: &str) -> DbResult<u64> {
+    pub fn length(&self, filename: &str) -> DbResult<u64> {
         let mut lock = self.holder.lock().map_err(DbError::lock)?;
-        size(&mut lock, filename)
+        length(&mut lock, filename)
     }
 
     pub fn block_size(&self) -> usize {
@@ -63,7 +63,12 @@ impl FileMgr {
     }
 }
 
-fn size(lock: &mut MutexGuard<'_, FileHolder>, filename: &str) -> DbResult<u64> {
+fn size(lock: &mut MutexGuard<'_, FileHolder>, filename: &str, block_size: u64) -> DbResult<u64> {
+    let length = length(lock, filename)?;
+    Ok(length / block_size)
+}
+
+fn length(lock: &mut MutexGuard<'_, FileHolder>, filename: &str) -> DbResult<u64> {
     let mut fd = lock.get(filename)?;
     let size = fd.seek(SeekFrom::End(0))?;
     Ok(size)
@@ -81,7 +86,7 @@ mod tests {
         let size = 256;
         let mgr = FileMgr::new(dir.path(), size).unwrap();
         mgr.append("test").unwrap();
-        let calculated = mgr.size("test").unwrap();
+        let calculated = mgr.length("test").unwrap();
         assert_eq!(calculated, size as u64);
     }
 
@@ -102,11 +107,11 @@ mod tests {
 
         let pos2 = pos1 + size;
         p1.set_i32(pos2, 345);
-        mgr.write(block_id.clone(), p1).unwrap();
+        mgr.write(&block_id, &p1).unwrap();
 
-        let p2 = mgr.read(block_id).unwrap();
+        let p2 = mgr.read(&block_id).unwrap();
 
         assert_eq!(p2.get_i32(pos2), i32_value);
-        assert_eq!(p2.get_string(pos1, str_value.len()), str_value);
+        assert_eq!(p2.get_string(pos1), str_value);
     }
 }

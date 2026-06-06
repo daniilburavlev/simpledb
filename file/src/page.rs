@@ -23,17 +23,21 @@ impl Page {
         i32::from_be_bytes(buffer[offset..offset + 4].try_into().unwrap())
     }
 
-    pub fn set_bytes(&mut self, offset: usize, bytes: &[u8]) {
+    pub fn set_bytes(&mut self, mut offset: usize, bytes: &[u8]) {
+        self.set_i32(offset, bytes.len() as i32);
+        offset += 4;
         let buffer = &mut self.buffer;
         buffer[offset..offset + bytes.len()].copy_from_slice(bytes);
     }
 
-    pub fn get_bytes(&self, offset: usize, len: usize) -> &[u8] {
+    pub fn get_bytes(&self, mut offset: usize) -> &[u8] {
+        let len = self.get_i32(offset) as usize;
+        offset += 4;
         &self.buffer[offset..offset + len]
     }
 
-    pub fn get_string(&self, offset: usize, len: usize) -> String {
-        let bytes = self.get_bytes(offset, len);
+    pub fn get_string(&self, offset: usize) -> String {
+        let bytes = self.get_bytes(offset);
         String::from_utf8_lossy(bytes).to_string()
     }
 
@@ -43,10 +47,10 @@ impl Page {
     }
 
     pub fn max_length(value: &str) -> usize {
-        value.len()
+        4 + value.len()
     }
 
-    pub(crate) fn contents(&self) -> &[u8] {
+    pub fn contents(&self) -> &[u8] {
         &self.buffer
     }
 }

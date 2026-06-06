@@ -1,0 +1,11 @@
+[package]
+name = "log"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+file = { path = "../file" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
