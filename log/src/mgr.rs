@@ -78,7 +78,7 @@ impl Log {
     }
 }
 
-struct LogIterator {
+pub struct LogIterator {
     fm: Arc<FileMgr>,
     block: BlockId,
     page: Page,
@@ -141,7 +141,7 @@ impl LogMgr {
         lock.flush(lsn)
     }
 
-    fn iter(&self) -> DbResult<LogIterator> {
+    pub fn iter(&self) -> DbResult<LogIterator> {
         let mut lock = self.log.lock().map_err(DbError::lock)?;
         lock.iter()
     }
@@ -151,44 +151,45 @@ impl LogMgr {
 mod tests {
 
     use tempfile::tempdir;
+    use file::page::I32_SIZE;
     use super::*;
 
     #[test]
-    fn print_log() {
+    fn iterator() {
         let dir = tempdir().unwrap();
         let file_mgr = Arc::new(FileMgr::new(dir.path(), 64).unwrap());
 
         let log_mgr = LogMgr::new(&file_mgr, "log".to_string()).unwrap();
         create_records(&log_mgr, 1, 35);
-        print_log_records(&log_mgr);
+        check_records(&log_mgr, 35);
         create_records(&log_mgr, 36, 70);
         log_mgr.flush(65).unwrap();
-        print_log_records(&log_mgr);
+        check_records(&log_mgr, 70);
     }
 
-    fn print_log_records(lm: &LogMgr) {
+    fn check_records(lm: &LogMgr, mut value: i32) {
         for bytes in lm.iter().unwrap() {
             let page = Page::from(bytes.as_slice());
             let record = page.get_string(0);
-            println!("record: {} - {}", record, page.get_u16(Page::str_space(&record)))
+            assert_eq!(record, format!("record{}", value));
+            assert_eq!(100 + value, page.get_i32(Page::str_space(&record)));
+            value -= 1;
         }
     }
 
     fn create_records(lm: &LogMgr, start: usize, end: usize) {
-        for i in start..end {
-            let (rec, size) = create_log_record(i);
-            let lsn = lm.append(rec.as_slice()).unwrap();
-            print!("{} ", lsn);
+        for i in start..=end {
+            let rec= create_log_record(i);
+            lm.append(rec.as_slice()).unwrap();
         }
-        println!();
     }
 
-    fn create_log_record(i: usize) -> (Vec<u8>, usize) {
+    fn create_log_record(i: usize) -> Vec<u8> {
         let s = format!("record{}", i);
         let npos = Page::str_space(&s);
-        let mut p = Page::new(npos + U16_SIZE);
+        let mut p = Page::new(npos + I32_SIZE);
         p.set_string(0, s);
-        p.set_u16(npos, i as u16 + 100);
-        (p.contents().to_vec(), npos)
+        p.set_i32(npos, i as i32 + 100);
+        p.contents().to_vec()
     }
 }
