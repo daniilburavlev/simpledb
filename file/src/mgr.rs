@@ -23,12 +23,16 @@ impl FileMgr {
 
     pub fn read(&self, block_id: &BlockId) -> DbResult<Page> {
         let mut open_files = self.holder.lock().unwrap();
+        let length = length(&mut open_files, &block_id.filename)?;
         let mut fd = open_files.get(&block_id.filename)?;
         fd.seek(SeekFrom::Start(
             block_id.num as u64 * self.block_size as u64,
         ))?;
         let mut buffer = vec![0u8; self.block_size];
-        fd.read_exact(&mut buffer)?;
+        let required = (self.block_size * block_id.num) as u64;
+        if length > required {
+            fd.read_exact(&mut buffer)?;
+        }
         Ok(Page::from(buffer.as_slice()))
     }
 

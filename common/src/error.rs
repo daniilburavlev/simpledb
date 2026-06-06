@@ -8,6 +8,10 @@ pub enum DbError {
     IO(#[from] std::io::Error),
     #[error("cannot get lock")]
     Lock,
+    #[error("empty buffer block")]
+    EmtyBufferBlock,
+    #[error("buffer aborted")]
+    BufferAbort,
 }
 
 impl DbError {

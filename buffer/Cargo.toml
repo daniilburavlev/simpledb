@@ -1,0 +1,13 @@
+[package]
+name = "buffer"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+chrono = { workspace = true }
+file = { path = "../file" }
+log = { path = "../log" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
