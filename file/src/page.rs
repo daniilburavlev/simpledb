@@ -7,32 +7,46 @@ pub struct Page {
     buffer: BytesMut,
 }
 
+pub const U8_SIZE: usize = 1;
+pub const U16_SIZE: usize = 2;
+pub const I32_SIZE: usize = 4;
+
 impl Page {
     pub fn new(block_size: usize) -> Self {
         let buffer = vec![0u8; block_size];
         Self::from(buffer.as_slice())
     }
 
+    pub fn set_u16(&mut self, offset: usize, value: u16) {
+        let buffer = &mut self.buffer;
+        buffer[offset..offset + U16_SIZE].copy_from_slice(&value.to_be_bytes());
+    }
+
+    pub fn get_u16(&self, offset: usize) -> u16 {
+        let buffer = &self.buffer;
+        u16::from_be_bytes(buffer[offset..offset + U16_SIZE].try_into().unwrap())
+    }
+
     pub fn set_i32(&mut self, offset: usize, value: i32) {
         let buffer = &mut self.buffer;
-        buffer[offset..offset + 4].copy_from_slice(&value.to_be_bytes());
+        buffer[offset..offset + I32_SIZE].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn get_i32(&self, offset: usize) -> i32 {
         let buffer = &self.buffer;
-        i32::from_be_bytes(buffer[offset..offset + 4].try_into().unwrap())
+        i32::from_be_bytes(buffer[offset..offset + I32_SIZE].try_into().unwrap())
     }
 
     pub fn set_bytes(&mut self, mut offset: usize, bytes: &[u8]) {
-        self.set_i32(offset, bytes.len() as i32);
-        offset += 4;
+        self.set_u16(offset, bytes.len() as u16);
+        offset += U16_SIZE;
         let buffer = &mut self.buffer;
         buffer[offset..offset + bytes.len()].copy_from_slice(bytes);
     }
 
     pub fn get_bytes(&self, mut offset: usize) -> &[u8] {
-        let len = self.get_i32(offset) as usize;
-        offset += 4;
+        let len = self.get_u16(offset) as usize;
+        offset += U16_SIZE;
         &self.buffer[offset..offset + len]
     }
 
@@ -46,8 +60,12 @@ impl Page {
         self.set_bytes(offset, bytes);
     }
 
-    pub fn max_length(value: &str) -> usize {
-        4 + value.len()
+    pub fn str_space(value: &str) -> usize {
+        U16_SIZE + value.len()
+    }
+
+    pub fn bytes_space(len: usize) -> usize {
+        U16_SIZE + len
     }
 
     pub fn contents(&self) -> &[u8] {
