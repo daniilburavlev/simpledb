@@ -87,7 +87,7 @@ impl Page {
         String::from_utf8_lossy(bytes).to_string()
     }
 
-    pub fn set_string(&mut self, offset: usize, value: String) {
+    pub fn set_string(&mut self, offset: usize, value: &str) {
         let bytes = value.as_bytes();
         self.set_bytes(offset, bytes);
     }

@@ -144,6 +144,7 @@ impl LogRecord {
             Self::Checkpoint => CHECKPOINT_TXNUM,
             Self::Start(txnum) => *txnum,
             Self::Commit(txnum) => *txnum,
+            Self::SetI32 { txnum, .. } => *txnum,
             Self::SetString { txnum, .. } => *txnum,
             _ => -1,
         }
@@ -168,7 +169,7 @@ impl LogRecord {
                 block,
             } => {
                 tx.pin(block)?;
-                tx.set_string(block, *offset, value.clone(), false)?;
+                tx.set_string(block, *offset, value, false)?;
                 tx.unpin(block)?;
             }
             _ => {}
@@ -218,7 +219,7 @@ pub fn write_i32_to_log(
     let mut page = Page::new(rec_len);
     page.set_u8(0, SETI32);
     page.set_i32(txnum_pos, txnum);
-    page.set_string(filename_pos, block.filename.clone());
+    page.set_string(filename_pos, &block.filename);
     page.set_i32(block_pos, block.num);
     page.set_u16(offset_pos, offset as u16);
     page.set_i32(value_pos, value);
@@ -241,10 +242,10 @@ pub fn write_string_to_log(
     let mut page = Page::new(rec_len);
     page.set_u8(0, SETSTRING);
     page.set_i32(txnum_pos, txnum);
-    page.set_string(filename_pos, block.filename.clone());
+    page.set_string(filename_pos, &block.filename);
     page.set_i32(block_pos, block.num);
     page.set_u16(offset_pos, offset as u16);
-    page.set_string(value_pos, value);
+    page.set_string(value_pos, &value);
     lm.append(page.contents())
 }
 

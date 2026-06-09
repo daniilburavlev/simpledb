@@ -105,7 +105,7 @@ impl Transaction {
         &self,
         block: &BlockId,
         offset: usize,
-        value: String,
+        value: &str,
         ok_to_log: bool,
     ) -> DbResult<()> {
         self.concurrency_mgr.x_lock(block)?;
@@ -113,7 +113,7 @@ impl Transaction {
             return Err(DbError::UnexistedBuffer);
         };
         let lsn = if ok_to_log {
-            self.rm.set_string(&buffer, offset, value.clone())?
+            self.rm.set_string(&buffer, offset, value)?
         } else {
             -1
         };
@@ -147,5 +147,41 @@ impl Transaction {
 
     pub fn block_size(&self) -> usize {
         self.fm.block_size()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use file::mgr::FileMgr;
+    use tempfile::tempdir;
+
+    use crate::{
+        lock_table::LockTable,
+        log::{write_commit_to_log, write_i32_to_log},
+        txnum_generator::TxNumGenerator,
+    };
+
+    use super::*;
+
+    #[test]
+    fn recover() {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
+        let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
+        let txnum_generator = TxNumGenerator::default();
+        let lock_table = Arc::new(LockTable::default());
+
+        let block = BlockId::new("testfile", 1);
+
+        let value = 1337;
+
+        write_i32_to_log(&lm, 1, &block, 0, value).unwrap();
+        write_commit_to_log(&lm, 1).unwrap();
+
+        let tx = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        tx.pin(&block).unwrap();
+        tx.recover().unwrap();
     }
 }

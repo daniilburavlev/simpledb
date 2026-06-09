@@ -104,7 +104,7 @@ mod tests {
 
         let str_value = "abcdefghjklm";
 
-        p1.set_string(pos1, String::from(str_value));
+        p1.set_string(pos1, str_value);
         let size = Page::str_space(str_value);
 
         let i32_value = 345;

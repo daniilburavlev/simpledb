@@ -188,7 +188,7 @@ mod tests {
         let s = format!("record{}", i);
         let npos = Page::str_space(&s);
         let mut p = Page::new(npos + I32_SIZE);
-        p.set_string(0, s);
+        p.set_string(0, &s);
         p.set_i32(npos, i as i32 + 100);
         p.contents().to_vec()
     }

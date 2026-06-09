@@ -151,7 +151,7 @@ impl Buffer {
         Ok(lock.contents.get_i32(offset))
     }
 
-    pub fn set_string(&self, offset: usize, value: String) -> DbResult<()> {
+    pub fn set_string(&self, offset: usize, value: &str) -> DbResult<()> {
         let mut lock = self.buffer.lock().map_err(DbError::lock)?;
         lock.contents.set_string(offset, value);
         Ok(())
@@ -171,5 +171,34 @@ impl Buffer {
     pub fn get_bytes(&self, offset: usize) -> DbResult<Vec<u8>> {
         let lock = self.buffer.lock().map_err(DbError::lock)?;
         Ok(lock.contents.get_bytes(offset).to_vec())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn get_set() {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
+
+        let buffer = Buffer::new(&fm, &lm).unwrap();
+
+        buffer.set_u16(0, 12).unwrap();
+        let value = buffer.get_u16(0).unwrap();
+        assert_eq!(value, 12);
+
+        buffer.set_string(20, "test").unwrap();
+        let value = buffer.get_string(20).unwrap();
+        assert_eq!("test", value);
+
+        let bytes = vec![0u8; 15];
+        buffer.set_bytes(100, &bytes).unwrap();
+        let value = buffer.get_bytes(100).unwrap();
+        assert_eq!(&bytes, &value);
     }
 }
