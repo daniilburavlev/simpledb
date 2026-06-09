@@ -48,7 +48,7 @@ impl BufferLock {
 
     fn assign_to_block(&mut self, block: &BlockId) -> DbResult<()> {
         self.flush()?;
-        self.contents = self.fm.read(&block)?;
+        self.contents = self.fm.read(block)?;
         self.block = Some(block.clone());
         self.pins = 0;
         Ok(())
@@ -59,7 +59,7 @@ impl BufferLock {
             let Some(block) = &self.block else {
                 return Err(DbError::EmtyBufferBlock);
             };
-            self.lm.flush(self.lsn as u64)?;
+            self.lm.flush(self.lsn)?;
             self.fm.write(block, &self.contents)?;
             self.txnum = -1;
         }

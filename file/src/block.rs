@@ -3,11 +3,11 @@ use std::hash::Hash;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockId {
     pub filename: String,
-    pub num: usize,
+    pub num: i32,
 }
 
 impl BlockId {
-    pub fn new(filename: &str, num: usize) -> Self {
+    pub fn new(filename: &str, num: i32) -> Self {
         Self {
             filename: filename.to_string(),
             num,

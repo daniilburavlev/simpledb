@@ -1,16 +1,16 @@
 use std::sync::{Arc, Mutex};
 
 use common::{DbResult, error::DbError};
-use file::{block::BlockId, mgr::FileMgr, page::Page};
 use file::page::U16_SIZE;
+use file::{block::BlockId, mgr::FileMgr, page::Page};
 
 struct Log {
     fm: Arc<FileMgr>,
     logfile: String,
     logpage: Page,
     current_block: BlockId,
-    latest_lsn: u64,
-    last_saved_lsn: u64,
+    latest_lsn: i32,
+    last_saved_lsn: i32,
 }
 
 impl Log {
@@ -23,7 +23,7 @@ impl Log {
             fm.write(&block, &page)?;
             (block, page)
         } else {
-            let block = BlockId::new(&logfile, logsize as usize - 1);
+            let block = BlockId::new(&logfile, logsize as i32 - 1);
             let page = fm.read(&block)?;
             (block, page)
         };
@@ -37,7 +37,7 @@ impl Log {
         })
     }
 
-    fn append(&mut self, logrec: &[u8]) -> DbResult<u64> {
+    fn append(&mut self, logrec: &[u8]) -> DbResult<i32> {
         let mut boundary = self.logpage.get_u16(0) as usize;
         let bytesneeded = Page::bytes_space(logrec.len());
         if bytesneeded + U16_SIZE > boundary {
@@ -59,7 +59,7 @@ impl Log {
         Ok(block)
     }
 
-    fn flush(&mut self, lsn: u64) -> DbResult<()> {
+    fn flush(&mut self, lsn: i32) -> DbResult<()> {
         if lsn > self.last_saved_lsn {
             self._flush()?;
         }
@@ -131,12 +131,12 @@ impl LogMgr {
         })
     }
 
-    pub fn append(&self, logrec: &[u8]) -> DbResult<u64> {
+    pub fn append(&self, logrec: &[u8]) -> DbResult<i32> {
         let mut lock = self.log.lock().map_err(DbError::lock)?;
         lock.append(logrec)
     }
 
-    pub fn flush(&self, lsn: u64) -> DbResult<()> {
+    pub fn flush(&self, lsn: i32) -> DbResult<()> {
         let mut lock = self.log.lock().map_err(DbError::lock)?;
         lock.flush(lsn)
     }
@@ -150,9 +150,9 @@ impl LogMgr {
 #[cfg(test)]
 mod tests {
 
-    use tempfile::tempdir;
-    use file::page::I32_SIZE;
     use super::*;
+    use file::page::I32_SIZE;
+    use tempfile::tempdir;
 
     #[test]
     fn iterator() {
@@ -179,7 +179,7 @@ mod tests {
 
     fn create_records(lm: &LogMgr, start: usize, end: usize) {
         for i in start..=end {
-            let rec= create_log_record(i);
+            let rec = create_log_record(i);
             lm.append(rec.as_slice()).unwrap();
         }
     }

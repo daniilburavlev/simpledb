@@ -12,6 +12,14 @@ pub enum DbError {
     EmtyBufferBlock,
     #[error("buffer aborted")]
     BufferAbort,
+    #[error("decoding error")]
+    Decoding,
+    #[error("lock abort")]
+    LockAbort,
+    #[error("lock timeout")]
+    LockTimeout,
+    #[error("unexisted buffer")]
+    UnexistedBuffer,
 }
 
 impl DbError {

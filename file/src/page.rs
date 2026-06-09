@@ -9,12 +9,24 @@ pub struct Page {
 
 pub const U8_SIZE: usize = 1;
 pub const U16_SIZE: usize = 2;
+pub const U32_SIZE: usize = 4;
+pub const U64_SIZE: usize = 8;
 pub const I32_SIZE: usize = 4;
 
 impl Page {
     pub fn new(block_size: usize) -> Self {
         let buffer = vec![0u8; block_size];
         Self::from(buffer.as_slice())
+    }
+
+    pub fn set_u8(&mut self, offset: usize, value: u8) {
+        let buffer = &mut self.buffer;
+        buffer[offset..offset + U8_SIZE].copy_from_slice(&value.to_be_bytes());
+    }
+
+    pub fn get_u8(&self, offset: usize) -> u8 {
+        let buffer = &self.buffer;
+        u8::from_be_bytes(buffer[offset..offset + U8_SIZE].try_into().unwrap())
     }
 
     pub fn set_u16(&mut self, offset: usize, value: u16) {
@@ -25,6 +37,26 @@ impl Page {
     pub fn get_u16(&self, offset: usize) -> u16 {
         let buffer = &self.buffer;
         u16::from_be_bytes(buffer[offset..offset + U16_SIZE].try_into().unwrap())
+    }
+
+    pub fn set_u32(&mut self, offset: usize, value: u32) {
+        let buffer = &mut self.buffer;
+        buffer[offset..offset + U32_SIZE].copy_from_slice(&value.to_be_bytes());
+    }
+
+    pub fn get_u32(&self, offset: usize) -> u32 {
+        let buffer = &self.buffer;
+        u32::from_be_bytes(buffer[offset..offset + U32_SIZE].try_into().unwrap())
+    }
+
+    pub fn set_u64(&mut self, offset: usize, value: u64) {
+        let buffer = &mut self.buffer;
+        buffer[offset..offset + U64_SIZE].copy_from_slice(&value.to_be_bytes());
+    }
+
+    pub fn get_u64(&self, offset: usize) -> u64 {
+        let buffer = &self.buffer;
+        u64::from_be_bytes(buffer[offset..offset + U64_SIZE].try_into().unwrap())
     }
 
     pub fn set_i32(&mut self, offset: usize, value: i32) {

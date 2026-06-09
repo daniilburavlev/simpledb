@@ -1,12 +1,15 @@
 [package]
-name = "buffer"
+name = "transaction"
 edition = "2024"
 version.workspace = true
 
 [dependencies]
+buffer = { path = "../buffer/" }
+dashmap = { workspace = true }
 common = { path = "../common" }
 file = { path = "../file" }
 log = { path = "../log" }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

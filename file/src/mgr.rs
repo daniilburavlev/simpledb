@@ -29,7 +29,7 @@ impl FileMgr {
             block_id.num as u64 * self.block_size as u64,
         ))?;
         let mut buffer = vec![0u8; self.block_size];
-        let required = (self.block_size * block_id.num) as u64;
+        let required = (self.block_size * block_id.num as usize) as u64;
         if length > required {
             fd.read_exact(&mut buffer)?;
         }
@@ -49,7 +49,7 @@ impl FileMgr {
     pub fn append(&self, filename: &str) -> DbResult<BlockId> {
         let mut lock = self.holder.lock().map_err(DbError::lock)?;
         let block_num = size(&mut lock, filename, self.block_size as u64)?;
-        let block_id = BlockId::new(filename, block_num as usize);
+        let block_id = BlockId::new(filename, block_num as i32);
         let mut fd = lock.get(filename)?;
         let buffer = vec![0u8; self.block_size];
         fd.seek(SeekFrom::End(0))?;

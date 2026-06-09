@@ -4,18 +4,18 @@ use std::{
         atomic::{AtomicU32, Ordering},
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
-use chrono::Utc;
+use common::locks::lock_with_timeout;
 use common::{DbResult, error::DbError};
 use file::{block::BlockId, mgr::FileMgr};
 use log::mgr::LogMgr;
 
 use crate::buffer::Buffer;
 
-const MAX_WAIT_SECS: i64 = 10;
-const MAX_WAIT: Duration = Duration::from_secs(MAX_WAIT_SECS as u64);
+const MAX_WAIT: Duration = Duration::from_secs(10);
+const SLEEP: Duration = Duration::from_millis(1);
 
 struct BufferPool {
     pool: Vec<Buffer>,
@@ -45,20 +45,6 @@ impl BufferPool {
             }
         }
         Ok(())
-    }
-
-    fn pin(&self, block: &BlockId) -> DbResult<Buffer> {
-        let timestamp = Utc::now().timestamp();
-        let mut buffer = self.try_to_pin(block)?;
-        while buffer.is_none() && !waiting_too_long(timestamp) {
-            thread::sleep(MAX_WAIT);
-            buffer = self.try_to_pin(block)?;
-        }
-        if let Some(buffer) = buffer {
-            Ok(buffer)
-        } else {
-            Err(DbError::BufferAbort)
-        }
     }
 
     fn unpin(&self, buffer: Buffer) -> DbResult<()> {
@@ -129,19 +115,26 @@ impl BufferMgr {
     }
 
     pub fn pin(&self, block: &BlockId) -> DbResult<Buffer> {
-        let lock = self.pool.lock().map_err(DbError::lock)?;
-        lock.pin(block)
+        let start = Instant::now();
+        loop {
+            let lock = lock_with_timeout(&self.pool, MAX_WAIT)?;
+            match lock.try_to_pin(block)? {
+                Some(buffer) => {
+                    return Ok(buffer);
+                }
+                None if start.elapsed() >= MAX_WAIT => return Err(DbError::BufferAbort),
+                None => {
+                    drop(lock);
+                    thread::sleep(SLEEP)
+                }
+            };
+        }
     }
 
     pub fn unpin(&self, buffer: Buffer) -> DbResult<()> {
         let lock = self.pool.lock().map_err(DbError::lock)?;
         lock.unpin(buffer)
     }
-}
-
-fn waiting_too_long(timestamp: i64) -> bool {
-    let now = Utc::now().timestamp();
-    timestamp + MAX_WAIT_SECS > now
 }
 
 #[cfg(test)]
