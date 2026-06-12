@@ -1,13 +1,13 @@
 use std::{collections::HashSet, sync::Arc};
 
-use buffer::{buffer::Buffer, mgr::BufferMgr};
+use buffer::{buffer::BufferGuard, mgr::BufferMgr};
 use common::{DbResult, error::DbError};
 use log::mgr::LogMgr;
 
 use crate::{
     log::{
         LogRecord, write_checkpoint, write_commit_to_log, write_i32_to_log, write_rollback_to_log,
-        write_string_to_log,
+        write_string_to_log, write_u8_to_log,
     },
     transaction::Transaction,
 };
@@ -47,17 +47,25 @@ impl RecoveryMgr {
         self.lm.flush(lsn)
     }
 
-    pub fn set_i32(&self, buffer: &Buffer, offset: usize, _value: i32) -> DbResult<i32> {
-        let old_val = buffer.get_i32(offset)?;
-        let Some(block) = buffer.block()? else {
+    pub fn set_u8(&self, buffer: &BufferGuard<'_>, offset: usize, _value: u8) -> DbResult<i32> {
+        let old_val = buffer.get_u8(offset);
+        let Some(block) = buffer.block() else {
+            return Err(DbError::EmtyBufferBlock);
+        };
+        write_u8_to_log(&self.lm, self.txnum, &block, offset, old_val)
+    }
+
+    pub fn set_i32(&self, buffer: &BufferGuard<'_>, offset: usize, _value: i32) -> DbResult<i32> {
+        let old_val = buffer.get_i32(offset);
+        let Some(block) = buffer.block() else {
             return Err(DbError::EmtyBufferBlock);
         };
         write_i32_to_log(&self.lm, self.txnum, &block, offset, old_val)
     }
 
-    pub fn set_string(&self, buffer: &Buffer, offset: usize, _value: &str) -> DbResult<i32> {
-        let old_val = buffer.get_string(offset)?;
-        let Some(block) = buffer.block()? else {
+    pub fn set_string(&self, buffer: &BufferGuard<'_>, offset: usize, _value: &str) -> DbResult<i32> {
+        let old_val = buffer.get_string(offset);
+        let Some(block) = buffer.block() else {
             return Err(DbError::EmtyBufferBlock);
         };
         write_string_to_log(&self.lm, self.txnum, &block, offset, old_val)

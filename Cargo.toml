@@ -3,11 +3,11 @@ version = "0.0.1"
 
 [workspace]
 resolver = "2"
-members = ["buffer", "common", "file", "log", "transaction"]
+members = ["buffer", "common", "file", "log", "table", "transaction"]
 
 [workspace.dependencies]
-bytes = "1"
-dashmap = "6"
 thiserror = "2"
+bytes = "1"
+rand = "0.10"
 tempfile = "3"
 tracing = "0"

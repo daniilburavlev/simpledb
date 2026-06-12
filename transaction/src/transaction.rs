@@ -73,6 +73,28 @@ impl Transaction {
         Ok(())
     }
 
+    pub fn set_u8(
+        &self,
+        block: &BlockId,
+        offset: usize,
+        value: u8,
+        ok_to_log: bool,
+    ) -> DbResult<()> {
+        self.concurrency_mgr.x_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::UnexistedBuffer);
+        };
+        let mut guard = buffer.lock()?;
+        let lsn = if ok_to_log {
+            self.rm.set_u8(&guard, offset, value)?
+        } else {
+            -1
+        };
+        guard.set_u8(offset, value);
+        guard.set_modified(self.txnum, lsn);
+        Ok(())
+    }
+
     pub fn set_i32(
         &self,
         block: &BlockId,
@@ -84,13 +106,23 @@ impl Transaction {
         let Some(buffer) = self.buffers.get_buffer(block)? else {
             return Err(DbError::UnexistedBuffer);
         };
+        let mut guard = buffer.lock()?;
         let lsn = if ok_to_log {
-            self.rm.set_i32(&buffer, offset, value)?
+            self.rm.set_i32(&guard, offset, value)?
         } else {
             -1
         };
-        buffer.set_i32(offset, value)?;
-        buffer.set_modified(self.txnum, lsn)
+        guard.set_i32(offset, value);
+        guard.set_modified(self.txnum, lsn);
+        Ok(())
+    }
+
+    pub fn get_u8(&self, block: &BlockId, offset: usize) -> DbResult<u8> {
+        self.concurrency_mgr.s_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::BufferAbort);
+        };
+        buffer.get_u8(offset)
     }
 
     pub fn get_i32(&self, block: &BlockId, offset: usize) -> DbResult<i32> {
@@ -112,13 +144,15 @@ impl Transaction {
         let Some(buffer) = self.buffers.get_buffer(block)? else {
             return Err(DbError::UnexistedBuffer);
         };
+        let mut guard = buffer.lock()?;
         let lsn = if ok_to_log {
-            self.rm.set_string(&buffer, offset, value)?
+            self.rm.set_string(&guard, offset, value)?
         } else {
             -1
         };
-        buffer.set_string(offset, value)?;
-        buffer.set_modified(self.txnum, lsn)
+        guard.set_string(offset, value);
+        guard.set_modified(self.txnum, lsn);
+        Ok(())
     }
 
     pub fn get_string(&self, block: &BlockId, offset: usize) -> DbResult<String> {
@@ -148,6 +182,10 @@ impl Transaction {
     pub fn block_size(&self) -> usize {
         self.fm.block_size()
     }
+
+    pub fn txnum(&self) -> i32 {
+        self.txnum
+    }
 }
 
 #[cfg(test)]
@@ -156,32 +194,89 @@ mod tests {
     use file::mgr::FileMgr;
     use tempfile::tempdir;
 
-    use crate::{
-        lock_table::LockTable,
-        log::{write_commit_to_log, write_i32_to_log},
-        txnum_generator::TxNumGenerator,
-    };
+    use crate::{lock_table::LockTable, txnum_generator::TxNumGenerator};
+
+    fn setup(
+        dir: &std::path::Path,
+    ) -> (
+        Arc<FileMgr>,
+        Arc<LogMgr>,
+        Arc<BufferMgr>,
+        TxNumGenerator,
+        Arc<LockTable>,
+    ) {
+        let fm = Arc::new(FileMgr::new(dir, 512).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
+        let bm = Arc::new(BufferMgr::new(&fm, &lm, 8).unwrap());
+        let txgen = TxNumGenerator::default();
+        let lock_table = Arc::new(LockTable::default());
+        (fm, lm, bm, txgen, lock_table)
+    }
 
     use super::*;
 
     #[test]
-    fn recover() {
+    fn recover_undoes_uncommitted() {
         let dir = tempdir().unwrap();
-        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
-        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
-        let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
+        let (fm, lm, bm, txgen, lock_table) = setup(dir.path());
+
+        // allocate a real block on disk
+        let block = fm.append("testfile").unwrap();
+
+        // tx1: write initial value 100, commit (clean baseline)
+        let tx1 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx1.pin(&block).unwrap();
+        tx1.set_i32(&block, 0, 100, false).unwrap();
+        tx1.commit().unwrap();
+
+        // tx2: overwrite with 999 (logged), then flush to disk — simulates a crash
+        let tx2 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx2.pin(&block).unwrap();
+        tx2.set_i32(&block, 0, 999, true).unwrap();
+        bm.flush_all(tx2.txnum()).unwrap();
+        // no commit — crash; drop tx2 without releasing locks
+        drop(tx2);
+
+        // after a crash the lock table is reset (server restart)
         let lock_table = Arc::new(LockTable::default());
 
-        let block = BlockId::new("testfile", 1);
+        // tx3: recovery should undo tx2's write and restore 100
+        let tx3 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx3.recover().unwrap();
+        tx3.commit().unwrap();
 
-        let value = 1337;
+        // tx4: verify the value was restored
+        let tx4 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx4.pin(&block).unwrap();
+        let val = tx4.get_i32(&block, 0).unwrap();
+        tx4.commit().unwrap();
 
-        write_i32_to_log(&lm, 1, &block, 0, value).unwrap();
-        write_commit_to_log(&lm, 1).unwrap();
+        assert_eq!(val, 100);
+    }
 
-        let tx = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
-        tx.pin(&block).unwrap();
-        tx.recover().unwrap();
+    #[test]
+    fn recover_preserves_committed() {
+        let dir = tempdir().unwrap();
+        let (fm, lm, bm, txgen, lock_table) = setup(dir.path());
+
+        let block = fm.append("testfile").unwrap();
+
+        // tx1: write 42, commit
+        let tx1 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx1.pin(&block).unwrap();
+        tx1.set_i32(&block, 0, 42, true).unwrap();
+        tx1.commit().unwrap();
+
+        // tx2: recovery — tx1 was committed, so nothing should be undone
+        let tx2 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx2.pin(&block).unwrap();
+        tx2.recover().unwrap();
+
+        let tx3 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        tx3.pin(&block).unwrap();
+        let val = tx3.get_i32(&block, 0).unwrap();
+        tx3.commit().unwrap();
+
+        assert_eq!(val, 42);
     }
 }

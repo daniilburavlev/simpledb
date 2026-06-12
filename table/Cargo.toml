@@ -1,14 +1,15 @@
 [package]
-name = "transaction"
+name = "table"
 edition = "2024"
 version.workspace = true
 
 [dependencies]
-buffer = { path = "../buffer/" }
 common = { path = "../common" }
 file = { path = "../file" }
-log = { path = "../log" }
-tracing = { workspace = true }
+transaction = { path = "../transaction" }
 
 [dev-dependencies]
+buffer = { path = "../buffer" }
+log = { path = "../log" }
+rand = { workspace = true }
 tempfile = { workspace = true }

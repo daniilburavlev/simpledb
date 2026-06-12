@@ -20,6 +20,8 @@ pub enum DbError {
     LockTimeout,
     #[error("unexisted buffer")]
     UnexistedBuffer,
+    #[error("field not exists")]
+    FieldNotExists,
 }
 
 impl DbError {

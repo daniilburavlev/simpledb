@@ -203,6 +203,29 @@ fn write_op_txnum(lm: &LogMgr, op: u8, txnum: i32) -> DbResult<i32> {
     lm.append(page.contents())
 }
 
+pub fn write_u8_to_log(
+    lm: &LogMgr,
+    txnum: i32,
+    block: &BlockId,
+    offset: usize,
+    value: u8,
+) -> DbResult<i32> {
+    let txnum_pos = U8_SIZE;
+    let filename_pos = txnum_pos + I32_SIZE;
+    let block_pos = filename_pos + Page::str_space(&block.filename);
+    let offset_pos = block_pos + U32_SIZE;
+    let value_pos = offset_pos + U16_SIZE;
+    let rec_len = value_pos + I32_SIZE;
+    let mut page = Page::new(rec_len);
+    page.set_u8(0, SETI32);
+    page.set_i32(txnum_pos, txnum);
+    page.set_string(filename_pos, &block.filename);
+    page.set_i32(block_pos, block.num);
+    page.set_u16(offset_pos, offset as u16);
+    page.set_u8(value_pos, value);
+    lm.append(page.contents())
+}
+
 pub fn write_i32_to_log(
     lm: &LogMgr,
     txnum: i32,
