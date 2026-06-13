@@ -5,7 +5,12 @@ use file::block::BlockId;
 use transaction::transaction::Transaction;
 
 use crate::{
-    constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID,
+    constant::Constant,
+    field_info::FieldInfo,
+    layout::Layout,
+    record_page::RecordPage,
+    rid::RID,
+    scan::{Scan, UpdateScan},
 };
 
 struct TableScanLock {
@@ -69,7 +74,7 @@ impl TableScanLock {
 
     pub fn get_val(&self, fieldname: &str) -> DbResult<Constant> {
         let Some(info) = self.layout.schema().info(fieldname)? else {
-            return Err(DbError::FieldNotExists);
+            return Err(DbError::field_not_exists(fieldname));
         };
         match info {
             FieldInfo::Integer => Ok(Constant::Integer(self.get_i32(fieldname)?)),
@@ -162,79 +167,81 @@ impl TableScan {
             lock: RwLock::new(TableScanLock::new(tx, tablename, layout)?),
         })
     }
+}
 
-    pub fn close(&self) -> DbResult<()> {
-        let read = self.lock.read().map_err(DbError::lock)?;
-        read.close()
-    }
-
-    pub fn before_first(&self) -> DbResult<()> {
+impl Scan for TableScan {
+    fn before_first(&self) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.before_first()
     }
 
-    pub fn next(&self) -> DbResult<bool> {
+    fn next(&self) -> DbResult<bool> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.next()
     }
 
-    pub fn get_i32(&self, field: &str) -> DbResult<i32> {
+    fn get_i32(&self, field: &str) -> DbResult<i32> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_i32(field)
     }
 
-    pub fn get_string(&self, field: &str) -> DbResult<String> {
+    fn get_string(&self, field: &str) -> DbResult<String> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_string(field)
     }
 
-    pub fn get_val(&self, field: &str) -> DbResult<Constant> {
+    fn get_val(&self, field: &str) -> DbResult<Constant> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_val(field)
     }
 
-    pub fn has_field(&self, field: &str) -> DbResult<bool> {
+    fn has_field(&self, field: &str) -> DbResult<bool> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.has_field(field)
     }
 
-    pub fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
+    fn close(&self) -> DbResult<()> {
+        let read = self.lock.read().map_err(DbError::lock)?;
+        read.close()
+    }
+}
+
+impl UpdateScan for TableScan {
+    fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
         let write = self.lock.read().map_err(DbError::lock)?;
         write.set_i32(field, value)
     }
 
-    pub fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
+    fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.set_string(field, value)
     }
 
-    pub fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
+    fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.set_val(field, value)
     }
 
-    pub fn insert(&self) -> DbResult<()> {
+    fn insert(&self) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.insert()
     }
 
-    pub fn delete(&self) -> DbResult<()> {
+    fn delete(&self) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.delete()
     }
 
-    pub fn move_to_rid(&self, rid: RID) -> DbResult<()> {
+    fn move_to_rid(&self, rid: RID) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.move_to_rid(rid)
     }
 
-    pub fn get_rid(&self) -> DbResult<RID> {
+    fn get_rid(&self) -> DbResult<RID> {
         let read = self.lock.read().map_err(DbError::lock)?;
         Ok(read.get_rid())
     }
 }
-
-impl TableScan {}
 
 #[cfg(test)]
 mod tests {

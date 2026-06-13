@@ -5,10 +5,10 @@ use transaction::transaction::Transaction;
 
 use crate::{
     layout::Layout,
+    scan::{Scan, UpdateScan, table_scan::TableScan},
     schema::Schema,
     stat_mgr::{StatInfo, StatMgr},
     table_mgr::TableMgr,
-    table_scan::TableScan,
 };
 
 const IDX_TABLE: &str = "idx";
@@ -122,7 +122,7 @@ impl IndexMgr {
                 let field_name = ts.get_string(FIELD_NAME)?;
                 let layout = Arc::new(self.table_mgr.get_layout(table_name, tx)?);
                 let stat = self.stat_mgr.get_stat_info(table_name, &layout, tx)?;
-                let index = IndexInfo::new(index_name, field_name, layout.schema(), tx, stat);
+                let index = IndexInfo::new(index_name, field_name, layout.schema(), tx, stat)?;
                 result.insert(field_name, index);
             }
         }

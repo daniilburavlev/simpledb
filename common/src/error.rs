@@ -20,8 +20,8 @@ pub enum DbError {
     LockTimeout,
     #[error("unexisted buffer")]
     UnexistedBuffer,
-    #[error("field not exists")]
-    FieldNotExists,
+    #[error("field '{0}' not exists")]
+    FieldNotExists(String),
     #[error("unknown type")]
     UnknownType,
 }
@@ -30,6 +30,10 @@ impl DbError {
     pub fn lock<T: std::fmt::Display>(e: T) -> Self {
         tracing::info!("{}", e);
         Self::Lock
+    }
+
+    pub fn field_not_exists(field_name: &str) -> Self {
+        Self::FieldNotExists(field_name.to_string())
     }
 }
 

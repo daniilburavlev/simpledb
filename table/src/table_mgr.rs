@@ -3,7 +3,12 @@ use std::{collections::HashMap, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
-use crate::{field_info::FieldInfo, layout::Layout, schema::Schema, table_scan::TableScan};
+use crate::{
+    field_info::FieldInfo,
+    layout::Layout,
+    scan::{Scan, UpdateScan, table_scan::TableScan},
+    schema::Schema,
+};
 
 const MAX_NAME: u16 = 16;
 

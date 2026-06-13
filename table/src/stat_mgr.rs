@@ -8,8 +8,8 @@ use transaction::transaction::Transaction;
 
 use crate::{
     layout::Layout,
+    scan::{Scan, UpdateScan, table_scan::TableScan},
     table_mgr::{TABLE_NAME, TableMgr},
-    table_scan::TableScan,
 };
 
 #[derive(Clone, Debug)]

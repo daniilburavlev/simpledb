@@ -10,13 +10,13 @@ pub mod field_info;
 pub mod index_mgr;
 pub mod layout;
 pub mod metadata_mgr;
+pub mod predicate;
 pub mod record_page;
 pub mod rid;
 pub mod scan;
 pub mod schema;
 pub mod stat_mgr;
 pub mod table_mgr;
-pub mod table_scan;
 pub mod view_mgr;
 
 const LOG_FILE: &str = "wal";
