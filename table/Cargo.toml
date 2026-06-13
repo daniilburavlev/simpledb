@@ -4,12 +4,12 @@ edition = "2024"
 version.workspace = true
 
 [dependencies]
+buffer = { path = "../buffer" }
+log = { path = "../log" }
 common = { path = "../common" }
 file = { path = "../file" }
 transaction = { path = "../transaction" }
 
 [dev-dependencies]
-buffer = { path = "../buffer" }
-log = { path = "../log" }
 rand = { workspace = true }
 tempfile = { workspace = true }

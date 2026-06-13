@@ -250,7 +250,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn table_scane() {
+    fn table_scan() {
         let dir = tempdir().unwrap();
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());

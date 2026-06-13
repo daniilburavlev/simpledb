@@ -22,6 +22,8 @@ pub enum DbError {
     UnexistedBuffer,
     #[error("field not exists")]
     FieldNotExists,
+    #[error("unknown type")]
+    UnknownType,
 }
 
 impl DbError {
