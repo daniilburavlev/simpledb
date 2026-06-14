@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
@@ -10,7 +10,7 @@ pub mod select;
 pub mod table;
 
 pub trait Plan {
-    fn open(&self) -> DbResult<Box<dyn Scan>>;
+    fn open(&self) -> DbResult<Rc<dyn Scan>>;
 
     fn blocks_accessed(&self) -> DbResult<i32>;
 

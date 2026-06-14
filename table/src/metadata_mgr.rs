@@ -4,12 +4,12 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    index_mgr::{self, IndexInfo, IndexMgr},
+    index_mgr::{IndexInfo, IndexMgr},
     layout::Layout,
     schema::Schema,
     stat_mgr::{StatInfo, StatMgr},
-    table_mgr::{self, TableMgr},
-    view_mgr::{self, ViewMgr},
+    table_mgr::TableMgr,
+    view_mgr::ViewMgr,
 };
 
 pub struct MetadataMgr {
@@ -90,12 +90,6 @@ impl MetadataMgr {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, str::FromStr};
-
-    use crate::SimpleDB;
-
-    use super::*;
-
     #[test]
     fn metadata() {}
 }

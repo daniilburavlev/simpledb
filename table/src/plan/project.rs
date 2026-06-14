@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, rc::Rc, sync::Arc};
 
 use common::DbResult;
 
@@ -9,37 +9,40 @@ use crate::{
 };
 
 pub struct ProjectPlan {
-    plan: Box<dyn Plan>,
+    plan: Rc<dyn Plan>,
     schema: Arc<Schema>,
 }
 
 impl ProjectPlan {
-    pub fn new(plan: Box<dyn Plan>) -> Self {
-        Self {
-            plan,
-            schema: Arc::new(Schema::default()),
+    pub fn new(plan: Rc<dyn Plan>, fields: Vec<String>) -> DbResult<Self> {
+        let schema = Arc::new(Schema::default());
+        for field in fields {
+            schema.add(field, &schema)?;
         }
+        Ok(Self { plan, schema })
     }
+}
 
-    pub fn open(&self) -> DbResult<Box<dyn Scan>> {
+impl Plan for ProjectPlan {
+    fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let scan = self.plan.open()?;
         let fields: HashSet<String> = self.schema.fields()?.into_iter().map(|(f, _)| f).collect();
-        Ok(Box::new(ProjectScan::new(scan, fields)))
+        Ok(Rc::new(ProjectScan::new(scan, fields)))
     }
 
-    pub fn blocks_accessed(&self) -> DbResult<i32> {
+    fn blocks_accessed(&self) -> DbResult<i32> {
         self.plan.blocks_accessed()
     }
 
-    pub fn records_output(&self) -> DbResult<i32> {
+    fn records_output(&self) -> DbResult<i32> {
         self.plan.records_output()
     }
 
-    pub fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
         self.plan.distinct_values(field_name)
     }
 
-    pub fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Arc<Schema>> {
         Ok(Arc::clone(&self.schema))
     }
 }

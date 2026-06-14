@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 use common::{DbResult, error::DbError};
 
@@ -11,7 +14,7 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn evaluate(&self, scan: &Box<dyn Scan>) -> DbResult<Constant> {
+    pub fn evaluate(&self, scan: &Rc<dyn Scan>) -> DbResult<Constant> {
         match self {
             Self::Value(value) => Ok(value.clone()),
             Self::Field(field) => scan.get_val(field),
@@ -60,7 +63,7 @@ impl Term {
         Self { left, right }
     }
 
-    pub fn is_satisfied(&self, s: &Box<dyn Scan>) -> DbResult<bool> {
+    pub fn is_satisfied(&self, s: &Rc<dyn Scan>) -> DbResult<bool> {
         let left = self.left.evaluate(s)?;
         let right = self.right.evaluate(s)?;
         Ok(left == right)
@@ -70,7 +73,7 @@ impl Term {
         Ok(self.left.applies_to(schema)? && self.right.applies_to(schema)?)
     }
 
-    pub fn reduction_factor(&self, p: &Box<dyn Plan>) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Arc<dyn Plan>) -> DbResult<i32> {
         if let Some(left) = self.left.as_field_name()
             && let Some(right) = self.right.as_field_name()
         {
@@ -152,7 +155,7 @@ impl Predicate {
         Ok(())
     }
 
-    pub fn is_satisfied(&self, s: &Box<dyn Scan>) -> DbResult<bool> {
+    pub fn is_satisfied(&self, s: &Rc<dyn Scan>) -> DbResult<bool> {
         let read = self.terms.read().map_err(DbError::lock)?;
         for t in read.iter() {
             if !t.is_satisfied(s)? {
@@ -162,7 +165,7 @@ impl Predicate {
         Ok(true)
     }
 
-    pub fn reduction_factor(&self, p: &Box<dyn Plan>) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Arc<dyn Plan>) -> DbResult<i32> {
         let mut factor = 1;
         let read = self.terms.read().map_err(DbError::lock)?;
         for t in read.iter() {

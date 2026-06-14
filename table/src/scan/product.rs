@@ -1,14 +1,16 @@
+use std::rc::Rc;
+
 use common::DbResult;
 
 use crate::scan::Scan;
 
 pub struct ProductScan {
-    s1: Box<dyn Scan>,
-    s2: Box<dyn Scan>,
+    s1: Rc<dyn Scan>,
+    s2: Rc<dyn Scan>,
 }
 
 impl ProductScan {
-    pub fn new(s1: Box<dyn Scan>, s2: Box<dyn Scan>) -> DbResult<Self> {
+    pub fn new(s1: Rc<dyn Scan>, s2: Rc<dyn Scan>) -> DbResult<Self> {
         s1.next()?;
         Ok(Self { s1, s2 })
     }

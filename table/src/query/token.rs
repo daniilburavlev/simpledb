@@ -89,8 +89,10 @@ pub(crate) fn tokenize(query: &str) -> Result<Vec<Token>, DbError> {
                 let token: String = token_chars.into_iter().collect();
                 if let Some(token) = Token::parse(&token.to_lowercase()) {
                     tokens.push(token);
+                } else if let Ok(value) = token.parse::<i32>() {
+                    tokens.push(Token::Element(Constant::Integer(value)));
                 } else {
-                    tokens.push(Token::Element(Constant::Integer(token.parse().unwrap())));
+                    tokens.push(Token::Element(Constant::Varchar(token)))
                 }
             }
             if is_markable_delimeter(c) {

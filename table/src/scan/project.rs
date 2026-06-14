@@ -1,16 +1,16 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use common::error::DbError;
 
 use crate::scan::Scan;
 
 pub struct ProjectScan {
-    scan: Box<dyn Scan>,
+    scan: Rc<dyn Scan>,
     fields: HashSet<String>,
 }
 
 impl ProjectScan {
-    pub fn new(scan: Box<dyn Scan>, fields: HashSet<String>) -> Self {
+    pub fn new(scan: Rc<dyn Scan>, fields: HashSet<String>) -> Self {
         Self { scan, fields }
     }
 }

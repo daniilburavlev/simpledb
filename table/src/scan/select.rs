@@ -1,14 +1,16 @@
+use std::rc::Rc;
+
 use common::DbResult;
 
 use crate::{predicate::Predicate, scan::Scan};
 
 pub struct SelectScan {
-    scan: Box<dyn Scan>,
+    scan: Rc<dyn Scan>,
     predicate: Predicate,
 }
 
 impl SelectScan {
-    pub fn new(scan: Box<dyn Scan>, predicate: Predicate) -> Self {
+    pub fn new(scan: Rc<dyn Scan>, predicate: Predicate) -> Self {
         Self { scan, predicate }
     }
 }

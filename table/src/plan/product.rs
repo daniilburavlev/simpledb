@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
@@ -9,13 +9,13 @@ use crate::{
 };
 
 pub struct ProductPlan {
-    p1: Box<dyn Plan>,
-    p2: Box<dyn Plan>,
+    p1: Rc<dyn Plan>,
+    p2: Rc<dyn Plan>,
     schema: Arc<Schema>,
 }
 
 impl ProductPlan {
-    pub fn new(p1: Box<dyn Plan>, p2: Box<dyn Plan>) -> DbResult<Self> {
+    pub fn new(p1: Rc<dyn Plan>, p2: Rc<dyn Plan>) -> DbResult<Self> {
         let schema = Arc::new(Schema::default());
         let s1 = p1.schema()?;
         let s2 = p2.schema()?;
@@ -26,10 +26,10 @@ impl ProductPlan {
 }
 
 impl Plan for ProductPlan {
-    fn open(&self) -> DbResult<Box<dyn Scan>> {
+    fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let s1 = self.p1.open()?;
         let s2 = self.p2.open()?;
-        Ok(Box::new(ProductScan::new(s1, s2)?))
+        Ok(Rc::new(ProductScan::new(s1, s2)?))
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {

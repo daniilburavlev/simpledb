@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
@@ -10,20 +10,20 @@ use crate::{
 };
 
 pub struct SelectPlan {
-    plan: Box<dyn Plan>,
+    plan: Arc<dyn Plan>,
     predicate: Predicate,
 }
 
 impl SelectPlan {
-    pub fn new(plan: Box<dyn Plan>, predicate: Predicate) -> Self {
+    pub fn new(plan: Arc<dyn Plan>, predicate: Predicate) -> Self {
         Self { plan, predicate }
     }
 }
 
 impl SelectPlan {
-    pub fn open(&self) -> DbResult<Box<dyn Scan>> {
+    pub fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let s = self.plan.open()?;
-        Ok(Box::new(SelectScan::new(s, self.predicate.clone())))
+        Ok(Rc::new(SelectScan::new(s, self.predicate.clone())))
     }
 
     pub fn blocks_accessed(&self) -> DbResult<i32> {

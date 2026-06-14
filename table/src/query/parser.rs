@@ -256,3 +256,15 @@ impl Parser {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn select() {
+        let parser = Parser::new("SELECT * FROM users").unwrap();
+        let command = parser.query().unwrap();
+        println!()
+    }
+}
