@@ -2,25 +2,29 @@ use std::{collections::HashSet, sync::Arc};
 
 use common::DbResult;
 
-use crate::{plan::Plan, scan::project_scan::ProjectScan, schema::Schema};
+use crate::{
+    plan::Plan,
+    scan::{Scan, project::ProjectScan},
+    schema::Schema,
+};
 
 pub struct ProjectPlan {
-    plan: Box<Plan>,
+    plan: Box<dyn Plan>,
     schema: Arc<Schema>,
 }
 
 impl ProjectPlan {
-    pub fn new(plan: Box<Plan>) -> Self {
+    pub fn new(plan: Box<dyn Plan>) -> Self {
         Self {
             plan,
             schema: Arc::new(Schema::default()),
         }
     }
 
-    pub fn open(&self) -> DbResult<ProjectScan> {
+    pub fn open(&self) -> DbResult<Box<dyn Scan>> {
         let scan = self.plan.open()?;
         let fields: HashSet<String> = self.schema.fields()?.into_iter().map(|(f, _)| f).collect();
-        Ok(ProjectScan::new(Box::new(scan), fields))
+        Ok(Box::new(ProjectScan::new(scan, fields)))
     }
 
     pub fn blocks_accessed(&self) -> DbResult<i32> {

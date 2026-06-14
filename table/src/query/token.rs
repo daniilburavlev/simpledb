@@ -1,5 +1,6 @@
 use common::error::DbError;
-use table::constant::Constant;
+
+use crate::constant::Constant;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
@@ -51,11 +52,7 @@ impl Token {
     }
 
     pub(crate) fn is_keyword(&self) -> bool {
-        match self {
-            Self::Delimiter(_) => false,
-            Self::Element(_) => false,
-            _ => true,
-        }
+        !matches!(self, Self::Delimiter(_) | Self::Element(_))
     }
 }
 

@@ -2,12 +2,7 @@ use std::sync::Arc;
 
 use common::DbResult;
 
-use crate::{scan::Scan, schema::Schema};
-
-pub mod product;
-pub mod project;
-pub mod select;
-pub mod table;
+use crate::scan::Scan;
 
 pub trait Plan {
     fn open(&self) -> DbResult<Box<dyn Scan>>;

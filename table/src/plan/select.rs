@@ -2,23 +2,28 @@ use std::sync::Arc;
 
 use common::DbResult;
 
-use crate::{plan::Plan, predicate::Predicate, scan::select_scan::SelectScan, schema::Schema};
+use crate::{
+    plan::Plan,
+    predicate::Predicate,
+    scan::{Scan, select::SelectScan},
+    schema::Schema,
+};
 
 pub struct SelectPlan {
-    plan: Box<Plan>,
+    plan: Box<dyn Plan>,
     predicate: Predicate,
 }
 
 impl SelectPlan {
-    pub fn new(plan: Box<Plan>, predicate: Predicate) -> Self {
+    pub fn new(plan: Box<dyn Plan>, predicate: Predicate) -> Self {
         Self { plan, predicate }
     }
 }
 
 impl SelectPlan {
-    pub fn open(&self) -> DbResult<SelectScan> {
+    pub fn open(&self) -> DbResult<Box<dyn Scan>> {
         let s = self.plan.open()?;
-        Ok(SelectScan::new(Box::new(s), self.predicate.clone()))
+        Ok(Box::new(SelectScan::new(s, self.predicate.clone())))
     }
 
     pub fn blocks_accessed(&self) -> DbResult<i32> {

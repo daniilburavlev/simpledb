@@ -2,7 +2,7 @@ use std::sync::atomic::AtomicU16;
 
 use common::{DbResult, error::DbError};
 
-use crate::token::{Token, tokenize};
+use crate::query::token::{Token, tokenize};
 
 pub(crate) struct Tokenizer {
     current_pos: AtomicU16,

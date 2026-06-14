@@ -5,7 +5,7 @@ use transaction::transaction::Transaction;
 
 use crate::{
     layout::Layout,
-    scan::table_scan::TableScan,
+    scan::{Scan, table::TableScan},
     schema::Schema,
     stat_mgr::{StatInfo, StatMgr},
     table_mgr::TableMgr,

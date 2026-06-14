@@ -4,7 +4,10 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    layout::Layout, metadata_mgr::MetadataMgr, scan::table_scan::TableScan, schema::Schema,
+    layout::Layout,
+    metadata_mgr::MetadataMgr,
+    scan::{Scan, table::TableScan},
+    schema::Schema,
     stat_mgr::StatInfo,
 };
 
@@ -29,8 +32,12 @@ impl TablePlan {
 }
 
 impl TablePlan {
-    pub fn open(&self) -> DbResult<TableScan> {
-        TableScan::new(&self.tx, &self.table, &self.layout)
+    pub fn open(&self) -> DbResult<Box<dyn Scan>> {
+        Ok(Box::new(TableScan::new(
+            &self.tx,
+            &self.table,
+            &self.layout,
+        )?))
     }
 
     pub fn blocks_accessed(&self) -> DbResult<i32> {
@@ -41,7 +48,7 @@ impl TablePlan {
         Ok(self.stat.records_output())
     }
 
-    pub fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    pub fn distinct_values(&self, _: &str) -> DbResult<i32> {
         Ok(self.stat.distinct_values())
     }
 

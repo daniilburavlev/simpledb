@@ -28,6 +28,8 @@ pub enum DbError {
     EOF(String),
     #[error("bad syntax")]
     BadSyntax,
+    #[error("{0}")]
+    Other(String),
 }
 
 impl DbError {
@@ -38,6 +40,10 @@ impl DbError {
 
     pub fn field_not_exists(field_name: &str) -> Self {
         Self::FieldNotExists(field_name.to_string())
+    }
+
+    pub fn other(msg: &str) -> Self {
+        Self::Other(msg.to_string())
     }
 }
 

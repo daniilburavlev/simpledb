@@ -3,7 +3,7 @@ version = "0.0.1"
 
 [workspace]
 resolver = "2"
-members = ["buffer", "common", "file", "log", "query", "table", "transaction"]
+members = ["buffer", "common", "file", "log", "table", "transaction"]
 
 [workspace.dependencies]
 thiserror = "2"

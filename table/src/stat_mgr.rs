@@ -8,7 +8,7 @@ use transaction::transaction::Transaction;
 
 use crate::{
     layout::Layout,
-    scan::table_scan::TableScan,
+    scan::{Scan, table::TableScan},
     table_mgr::{TABLE_NAME, TableMgr},
 };
 

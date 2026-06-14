@@ -1,4 +1,4 @@
-use table::{
+use crate::{
     constant::Constant,
     predicate::{Expression, Predicate},
     schema::Schema,

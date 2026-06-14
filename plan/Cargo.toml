@@ -1,9 +1,7 @@
 [package]
-name = "query"
+name = "plan"
 edition = "2024"
 version.workspace = true
 
 [dependencies]
 common = { path = "../common" }
-table = { path = "../table" }
-transaction = { path = "../transaction" }

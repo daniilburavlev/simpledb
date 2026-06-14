@@ -1,7 +1,9 @@
 use common::{DbResult, error::DbError};
-use table::constant::Constant;
 
-use crate::{token::Token, tokenizer::Tokenizer};
+use crate::{
+    constant::Constant,
+    query::{token::Token, tokenizer::Tokenizer},
+};
 
 pub struct Lexer {
     tokenizer: Tokenizer,
@@ -54,7 +56,7 @@ impl Lexer {
         if !self.match_delim(c) {
             return Err(DbError::BadSyntax);
         }
-        self.tokenizer.next();
+        self.tokenizer.next()?;
         Ok(())
     }
 
@@ -63,7 +65,7 @@ impl Lexer {
             self.tokenizer.next()?;
             Ok(Constant::Integer(value))
         } else {
-            return Err(DbError::BadSyntax);
+            Err(DbError::BadSyntax)
         }
     }
 
@@ -72,7 +74,7 @@ impl Lexer {
             self.tokenizer.next()?;
             Ok(Constant::Varchar(value))
         } else {
-            return Err(DbError::BadSyntax);
+            Err(DbError::BadSyntax)
         }
     }
 

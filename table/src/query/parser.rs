@@ -1,16 +1,16 @@
 use common::{DbResult, error::DbError};
-use table::{
-    constant::Constant,
-    predicate::{Expression, Predicate, Term},
-    schema::Schema,
-};
 
 use crate::{
-    command::{
-        Command, DeleteData, IndexData, InsertData, QueryData, TableData, UpdateData, ViewData,
+    constant::Constant,
+    predicate::{Expression, Predicate, Term},
+    query::{
+        command::{
+            Command, DeleteData, IndexData, InsertData, QueryData, TableData, UpdateData, ViewData,
+        },
+        lexer::Lexer,
+        token::Token,
     },
-    lexer::Lexer,
-    token::Token,
+    schema::Schema,
 };
 
 pub(crate) struct Parser {

@@ -3,7 +3,11 @@ use std::sync::Arc;
 use common::DbResult;
 use transaction::transaction::Transaction;
 
-use crate::{scan::table_scan::TableScan, schema::Schema, table_mgr::TableMgr};
+use crate::{
+    scan::{Scan, table::TableScan},
+    schema::Schema,
+    table_mgr::TableMgr,
+};
 
 const MAX_NAME: u16 = 16;
 const MAX_VIEW_DEF: u16 = 100;
