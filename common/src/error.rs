@@ -24,6 +24,10 @@ pub enum DbError {
     FieldNotExists(String),
     #[error("unknown type")]
     UnknownType,
+    #[error("EOF: {0}")]
+    EOF(String),
+    #[error("bad syntax")]
+    BadSyntax,
 }
 
 impl DbError {

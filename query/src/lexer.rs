@@ -1,33 +1,101 @@
 use std::collections::{HashMap, HashSet};
 
-use common::DbResult;
+use common::{DbResult, error::DbError};
+use table::constant::Constant;
+
+use crate::{
+    token::{Token, tokenize},
+    tokenizer::Tokenizer,
+};
 
 pub struct Lexer {
-    keywords: HashSet<String>,
+    tokenizer: Tokenizer,
 }
 
 impl Lexer {
     pub fn new(s: &str) -> DbResult<Self> {
-        let keywords = Self::init_keywords();
-        Ok(Self { keywords })
+        Ok(Self {
+            tokenizer: Tokenizer::new(s)?,
+        })
     }
 
-    fn init_keywords() -> HashSet<String> {
-        let mut keywords = HashSet::new();
-        keywords.insert("select".to_string());
-        keywords.insert("from".to_string());
-        keywords.insert("where".to_string());
-        keywords.insert("and".to_string());
-        keywords.insert("set".to_string());
-        keywords.insert("create".to_string());
-        keywords.insert("table".to_string());
-        keywords.insert("varchar".to_string());
-        keywords.insert("int".to_string());
-        keywords.insert("integer".to_string());
-        keywords.insert("view".to_string());
-        keywords.insert("as".to_string());
-        keywords.insert("index".to_string());
-        keywords.insert("on".to_string());
-        keywords
+    pub fn match_delim(&self, c: char) -> bool {
+        matches!(self.tokenizer.current(), Some(Token::Delimiter(c)))
+    }
+
+    pub fn match_int_constant(&self) -> bool {
+        matches!(
+            self.tokenizer.current(),
+            Some(Token::Element(Constant::Integer(_)))
+        )
+    }
+
+    pub fn match_string_constant(&self) -> bool {
+        matches!(
+            self.tokenizer.current(),
+            Some(Token::Element(Constant::Varchar(_)))
+        )
+    }
+
+    pub fn match_keyword(&self, expected: Token) -> bool {
+        if let Some(token) = self.tokenizer.current()
+            && token == expected
+        {
+            return true;
+        }
+        false
+    }
+
+    pub fn match_id(&self) -> bool {
+        if let Some(token) = self.tokenizer.current()
+            && !token.is_keyword()
+        {
+            return true;
+        }
+        false
+    }
+
+    pub fn eat_delimiter(&self, c: char) -> DbResult<()> {
+        if !self.match_delim(c) {
+            return Err(DbError::BadSyntax);
+        }
+        self.tokenizer.next();
+        Ok(())
+    }
+
+    pub fn eat_int_constant(&self) -> DbResult<Constant> {
+        if let Some(Token::Element(Constant::Integer(value))) = self.tokenizer.current() {
+            self.tokenizer.next()?;
+            Ok(Constant::Integer(value))
+        } else {
+            return Err(DbError::BadSyntax);
+        }
+    }
+
+    pub fn eat_string_constant(&self) -> DbResult<Constant> {
+        if let Some(Token::Element(Constant::Varchar(value))) = self.tokenizer.current() {
+            self.tokenizer.next()?;
+            Ok(Constant::Varchar(value))
+        } else {
+            return Err(DbError::BadSyntax);
+        }
+    }
+
+    pub fn eat_keyword(&self, expected: Token) -> DbResult<()> {
+        if let Some(token) = self.tokenizer.current()
+            && token == expected
+        {
+            self.tokenizer.next()?;
+            return Ok(());
+        }
+        Err(DbError::BadSyntax)
+    }
+
+    pub fn eat_id(&self) -> DbResult<String> {
+        if let Some(Token::Element(Constant::Varchar(id))) = self.tokenizer.current() {
+            self.tokenizer.next()?;
+            return Ok(id);
+        }
+        Err(DbError::BadSyntax)
     }
 }
