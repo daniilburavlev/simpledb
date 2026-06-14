@@ -7,7 +7,7 @@ use crate::{
     index_mgr::{self, IndexInfo, IndexMgr},
     layout::Layout,
     schema::Schema,
-    stat_mgr::StatMgr,
+    stat_mgr::{StatInfo, StatMgr},
     table_mgr::{self, TableMgr},
     view_mgr::{self, ViewMgr},
 };
@@ -68,6 +68,15 @@ impl MetadataMgr {
     ) -> DbResult<()> {
         self.index_mgr
             .create_index(idx_name, table_name, field_name, tx)
+    }
+
+    pub fn get_stat_info(
+        &self,
+        table: &str,
+        layout: &Arc<Layout>,
+        tx: &Arc<Transaction>,
+    ) -> DbResult<StatInfo> {
+        self.stat_mgr.get_stat_info(table, layout, tx)
     }
 
     pub fn get_index_info(

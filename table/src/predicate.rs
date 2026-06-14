@@ -1,8 +1,8 @@
-use std::{i32, sync::RwLock};
+use std::sync::{Arc, RwLock};
 
 use common::{DbResult, error::DbError};
 
-use crate::{constant::Constant, scan::Scan, schema::Schema};
+use crate::{constant::Constant, plan::Plan, scan::Scan, schema::Schema};
 
 #[derive(Clone)]
 pub enum Expression {
@@ -11,7 +11,7 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn evaluate(&self, scan: &dyn Scan) -> DbResult<Constant> {
+    pub fn evaluate(&self, scan: &Scan) -> DbResult<Constant> {
         match self {
             Self::Value(value) => Ok(value.clone()),
             Self::Field(field) => scan.get_val(field),
@@ -60,7 +60,7 @@ impl Term {
         Self { left, right }
     }
 
-    pub fn is_satisfied(&self, s: &dyn Scan) -> DbResult<bool> {
+    pub fn is_satisfied(&self, s: &Scan) -> DbResult<bool> {
         let left = self.left.evaluate(s)?;
         let right = self.right.evaluate(s)?;
         Ok(left == right)
@@ -70,17 +70,17 @@ impl Term {
         Ok(self.left.applies_to(schema)? && self.right.applies_to(schema)?)
     }
 
-    pub fn reduction_factor(&self, p: Plan) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Plan) -> DbResult<i32> {
         if let Some(left) = self.left.as_field_name()
             && let Some(right) = self.right.as_field_name()
         {
-            return Ok(p.distinct_values(left).max(p.distinct_values(right)));
+            return Ok(p.distinct_values(left)?.max(p.distinct_values(right)?));
         }
         if let Some(left) = self.left.as_field_name() {
-            return Ok(p.distinct_values(left));
+            return p.distinct_values(left);
         }
         if let Some(right) = self.right.as_field_name() {
-            return Ok(p.distinct_values(right));
+            return p.distinct_values(right);
         }
         if let Some(left) = self.left.as_constant()
             && let Some(right) = self.right.as_constant()
@@ -131,15 +131,15 @@ impl std::fmt::Display for Term {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Predicate {
-    terms: RwLock<Vec<Term>>,
+    terms: Arc<RwLock<Vec<Term>>>,
 }
 
 impl Predicate {
     pub fn new(term: Term) -> Self {
         Self {
-            terms: RwLock::new(vec![term]),
+            terms: Arc::new(RwLock::new(vec![term])),
         }
     }
 
@@ -152,7 +152,7 @@ impl Predicate {
         Ok(())
     }
 
-    pub fn is_satisfid(&self, s: &dyn Scan) -> DbResult<bool> {
+    pub fn is_satisfied(&self, s: &Scan) -> DbResult<bool> {
         let read = self.terms.read().map_err(DbError::lock)?;
         for t in read.iter() {
             if !t.is_satisfied(s)? {
@@ -165,7 +165,6 @@ impl Predicate {
     pub fn reduction_factor(&self, p: &Plan) -> DbResult<i32> {
         let mut factor = 1;
         let read = self.terms.read().map_err(DbError::lock)?;
-
         for t in read.iter() {
             factor *= t.reduction_factor(p)?;
         }
@@ -229,7 +228,7 @@ impl Predicate {
 
 impl std::fmt::Display for Predicate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let terms = self.terms.read().map_err(|_| std::fmt::Error::default())?;
+        let terms = self.terms.read().map_err(|_| std::fmt::Error)?;
         for (i, t) in terms.iter().enumerate() {
             if i == 0 {
                 write!(f, "{}", t)?;

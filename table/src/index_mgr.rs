@@ -5,7 +5,7 @@ use transaction::transaction::Transaction;
 
 use crate::{
     layout::Layout,
-    scan::{Scan, UpdateScan, table_scan::TableScan},
+    scan::table_scan::TableScan,
     schema::Schema,
     stat_mgr::{StatInfo, StatMgr},
     table_mgr::TableMgr,
@@ -44,14 +44,15 @@ impl IndexInfo {
         todo!()
     }
 
-    pub fn open(&self) -> DbResult<Index> {
-        todo!()
-    }
+    // pub fn open(&self) -> DbResult<Index> {
+    //  todo!()
+    //}
 
     pub fn block_accessed(&self) -> DbResult<i32> {
         let rpb = self.tx.block_size() / self.layout.slotsize() as usize;
-        let num_blocks = self.stat.records_output() / rpb;
-        HashIndex::searchCost(num_blocks, rpb)
+        // let num_blocks = self.stat.records_output() / rpb;
+        //     HashIndex::searchCost(num_blocks, rpb)
+        todo!()
     }
 
     pub fn records_output(&self) -> i32 {
@@ -122,8 +123,9 @@ impl IndexMgr {
                 let field_name = ts.get_string(FIELD_NAME)?;
                 let layout = Arc::new(self.table_mgr.get_layout(table_name, tx)?);
                 let stat = self.stat_mgr.get_stat_info(table_name, &layout, tx)?;
-                let index = IndexInfo::new(index_name, field_name, layout.schema(), tx, stat)?;
-                result.insert(field_name, index);
+                // let index = IndexInfo::new(index_name, field_name, layout.schema(), tx, stat)?;
+                // result.insert(field_name, index);
+                todo!()
             }
         }
         ts.close()?;

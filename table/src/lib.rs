@@ -10,6 +10,7 @@ pub mod field_info;
 pub mod index_mgr;
 pub mod layout;
 pub mod metadata_mgr;
+pub mod plan;
 pub mod predicate;
 pub mod record_page;
 pub mod rid;

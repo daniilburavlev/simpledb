@@ -1,7 +1,7 @@
 use common::{DbResult, error::DbError};
 use table::{
     constant::Constant,
-    predicate::{self, Expression, Predicate, Term},
+    predicate::{Expression, Predicate, Term},
     schema::Schema,
 };
 
@@ -55,7 +55,7 @@ impl Parser {
         let pred = Predicate::new(self.term()?);
         if self.lexer.match_keyword(Token::And) {
             self.lexer.eat_keyword(Token::And)?;
-            pred.conjoin_with(&self.predicate()?);
+            pred.conjoin_with(&self.predicate()?)?;
         }
         Ok(pred)
     }
@@ -143,7 +143,7 @@ impl Parser {
     fn delete(&self) -> DbResult<Command> {
         self.lexer.eat_keyword(Token::Delete)?;
         self.lexer.eat_keyword(Token::From)?;
-        let table_name = self.lexer.eat_id()?;
+        let name = self.lexer.eat_id()?;
         let mut predicate = Predicate::default();
         if self.lexer.match_keyword(Token::Where) {
             self.lexer.eat_keyword(Token::Where)?;

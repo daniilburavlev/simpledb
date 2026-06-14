@@ -1,7 +1,7 @@
-use common::{DbResult, error::DbError};
+use common::error::DbError;
 use table::constant::Constant;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
     Select,
     From,

@@ -5,12 +5,7 @@ use file::block::BlockId;
 use transaction::transaction::Transaction;
 
 use crate::{
-    constant::Constant,
-    field_info::FieldInfo,
-    layout::Layout,
-    record_page::RecordPage,
-    rid::RID,
-    scan::{Scan, UpdateScan},
+    constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID,
 };
 
 struct TableScanLock {
@@ -78,7 +73,7 @@ impl TableScanLock {
         };
         match info {
             FieldInfo::Integer => Ok(Constant::Integer(self.get_i32(fieldname)?)),
-            FieldInfo::Varchar(_) => Ok(Constant::String(self.get_string(fieldname)?)),
+            FieldInfo::Varchar(_) => Ok(Constant::Varchar(self.get_string(fieldname)?)),
         }
     }
 
@@ -101,7 +96,7 @@ impl TableScanLock {
     pub fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
         match value {
             Constant::Integer(value) => self.set_i32(field, value),
-            Constant::String(value) => self.set_string(field, &value),
+            Constant::Varchar(value) => self.set_string(field, &value),
         }
     }
 
@@ -167,77 +162,72 @@ impl TableScan {
             lock: RwLock::new(TableScanLock::new(tx, tablename, layout)?),
         })
     }
-}
 
-impl Scan for TableScan {
-    fn before_first(&self) -> DbResult<()> {
+    pub fn before_first(&self) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.before_first()
     }
 
-    fn next(&self) -> DbResult<bool> {
+    pub fn next(&self) -> DbResult<bool> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.next()
     }
 
-    fn get_i32(&self, field: &str) -> DbResult<i32> {
+    pub fn get_i32(&self, field: &str) -> DbResult<i32> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_i32(field)
     }
 
-    fn get_string(&self, field: &str) -> DbResult<String> {
+    pub fn get_string(&self, field: &str) -> DbResult<String> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_string(field)
     }
 
-    fn get_val(&self, field: &str) -> DbResult<Constant> {
+    pub fn get_val(&self, field: &str) -> DbResult<Constant> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.get_val(field)
     }
 
-    fn has_field(&self, field: &str) -> DbResult<bool> {
+    pub fn has_field(&self, field: &str) -> DbResult<bool> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.has_field(field)
     }
 
-    fn close(&self) -> DbResult<()> {
+    pub fn close(&self) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.close()
     }
-}
-
-impl UpdateScan for TableScan {
-    fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
+    pub fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
         let write = self.lock.read().map_err(DbError::lock)?;
         write.set_i32(field, value)
     }
 
-    fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
+    pub fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.set_string(field, value)
     }
 
-    fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
+    pub fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.set_val(field, value)
     }
 
-    fn insert(&self) -> DbResult<()> {
+    pub fn insert(&self) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.insert()
     }
 
-    fn delete(&self) -> DbResult<()> {
+    pub fn delete(&self) -> DbResult<()> {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.delete()
     }
 
-    fn move_to_rid(&self, rid: RID) -> DbResult<()> {
+    pub fn move_to_rid(&self, rid: RID) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.move_to_rid(rid)
     }
 
-    fn get_rid(&self) -> DbResult<RID> {
+    pub fn get_rid(&self) -> DbResult<RID> {
         let read = self.lock.read().map_err(DbError::lock)?;
         Ok(read.get_rid())
     }

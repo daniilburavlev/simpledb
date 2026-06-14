@@ -19,7 +19,8 @@ impl Tokenizer {
     }
 
     pub(crate) fn current(&self) -> Option<Token> {
-        if self.current_pos < self.tokens.len() {
+        if (self.current_pos.load(std::sync::atomic::Ordering::SeqCst) as usize) < self.tokens.len()
+        {
             let pos = self.current_pos.load(std::sync::atomic::Ordering::SeqCst) as usize;
             return self.tokens.get(pos).cloned();
         }

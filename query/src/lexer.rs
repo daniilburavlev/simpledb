@@ -1,12 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
 use common::{DbResult, error::DbError};
 use table::constant::Constant;
 
-use crate::{
-    token::{Token, tokenize},
-    tokenizer::Tokenizer,
-};
+use crate::{token::Token, tokenizer::Tokenizer};
 
 pub struct Lexer {
     tokenizer: Tokenizer,
@@ -20,7 +15,7 @@ impl Lexer {
     }
 
     pub fn match_delim(&self, c: char) -> bool {
-        matches!(self.tokenizer.current(), Some(Token::Delimiter(c)))
+        self.tokenizer.current() == Some(Token::Delimiter(c))
     }
 
     pub fn match_int_constant(&self) -> bool {

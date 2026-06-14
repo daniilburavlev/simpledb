@@ -1,9 +1,6 @@
-use std::sync::Condvar;
-
 use table::{
     constant::Constant,
-    predicate::{self, Expression, Predicate},
-    scan::table_scan::TableScan,
+    predicate::{Expression, Predicate},
     schema::Schema,
 };
 
@@ -43,7 +40,7 @@ impl std::fmt::Display for QueryData {
         }
         let predicate = self.predicate.to_string();
         if !predicate.is_empty() {
-            write!(" WHERE {}", predicate)?;
+            write!(f, " WHERE {}", predicate)?;
         }
         Ok(())
     }

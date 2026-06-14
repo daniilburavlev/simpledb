@@ -1,24 +1,24 @@
 use common::DbResult;
 
-use crate::scan::{Scan, UpdateScan};
+use crate::{predicate::Predicate, scan::Scan};
 
-pub struct SelectScan<S: Scan> {
-    scan: S,
+pub struct SelectScan {
+    scan: Box<Scan>,
     predicate: Predicate,
 }
 
-impl<S: Scan> SelectScan<S> {
-    pub fn new(scan: S, predicate: Predicate) -> Self {
+impl SelectScan {
+    pub fn new(scan: Box<Scan>, predicate: Predicate) -> Self {
         Self { scan, predicate }
     }
 }
 
-impl<S: Scan> Scan for SelectScan<S> {
-    fn before_first(&self) -> common::DbResult<()> {
+impl SelectScan {
+    pub fn before_first(&self) -> common::DbResult<()> {
         self.scan.before_first()
     }
 
-    fn next(&self) -> common::DbResult<bool> {
+    pub fn next(&self) -> common::DbResult<bool> {
         while self.scan.next()? {
             if self.predicate.is_satisfied(&self.scan)? {
                 return Ok(true);
@@ -27,53 +27,55 @@ impl<S: Scan> Scan for SelectScan<S> {
         Ok(false)
     }
 
-    fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
+    pub fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
         self.scan.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> common::DbResult<String> {
+    pub fn get_string(&self, field_name: &str) -> common::DbResult<String> {
         self.scan.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
+    pub fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
         self.scan.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
+    pub fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
         self.scan.has_field(field_name)
     }
 
-    fn close(&self) -> common::DbResult<()> {
+    pub fn close(&self) -> common::DbResult<()> {
         self.scan.close()
     }
-}
 
-impl<S: UpdateScan> UpdateScan for SelectScan<S> {
-    fn set_i32(&self, field_name: &str, value: i32) -> DbResult<()> {
+    pub fn set_i32(&self, field_name: &str, value: i32) -> DbResult<()> {
         self.scan.set_i32(field_name, value)
     }
 
-    fn set_string(&self, field_name: &str, value: &str) -> common::DbResult<()> {
+    pub fn set_string(&self, field_name: &str, value: &str) -> common::DbResult<()> {
         self.scan.set_string(field_name, value)
     }
 
-    fn set_val(&self, field_name: &str, value: crate::constant::Constant) -> common::DbResult<()> {
+    pub fn set_val(
+        &self,
+        field_name: &str,
+        value: crate::constant::Constant,
+    ) -> common::DbResult<()> {
         self.scan.set_val(field_name, value)
     }
 
-    fn insert(&self) -> common::DbResult<()> {
+    pub fn insert(&self) -> common::DbResult<()> {
         self.scan.insert()
     }
 
-    fn delete(&self) -> common::DbResult<()> {
+    pub fn delete(&self) -> common::DbResult<()> {
         self.scan.delete()
     }
 
-    fn get_rid(&self) -> common::DbResult<crate::rid::RID> {
+    pub fn get_rid(&self) -> common::DbResult<crate::rid::RID> {
         self.scan.get_rid()
     }
 
-    fn move_to_rid(&self, rid: crate::rid::RID) -> common::DbResult<()> {
+    pub fn move_to_rid(&self, rid: crate::rid::RID) -> common::DbResult<()> {
         self.scan.move_to_rid(rid)
     }
 }
