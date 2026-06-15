@@ -33,3 +33,12 @@ impl FieldInfo {
         }
     }
 }
+
+impl std::fmt::Display for FieldInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Integer => write!(f, "INTEGER"),
+            Self::Varchar(len) => write!(f, "VARCHAR({})", len),
+        }
+    }
+}

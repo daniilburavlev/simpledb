@@ -201,6 +201,7 @@ impl Parser {
 
     fn field_definitions(&self) -> DbResult<Schema> {
         let schema = Schema::default();
+        self.field_definition(&schema)?;
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
             self.field_definition(&schema)?;
@@ -248,7 +249,7 @@ impl Parser {
         let table = self.lexer.eat_id()?;
         self.lexer.eat_delimiter('(')?;
         let field = self.field()?;
-        self.lexer.eat_delimiter('(')?;
+        self.lexer.eat_delimiter(')')?;
         Ok(Command::CreateIndex(IndexData {
             index,
             table,
@@ -262,9 +263,66 @@ mod tests {
     use super::*;
 
     #[test]
+    fn create_table() {
+        let query = "CREATE TABLE users(name VARCHAR(256), age INTEGER)";
+        let parser = Parser::new(query).unwrap();
+        let create = parser.create().unwrap();
+        assert_eq!(query, create.to_string());
+    }
+
+    #[test]
+    fn create_view() {
+        let query = "CREATE VIEW users AS SELECT * FROM users";
+        let parser = Parser::new(query).unwrap();
+        let create = parser.create().unwrap();
+        assert_eq!(query, create.to_string());
+    }
+
+    #[test]
+    fn create_index() {
+        let query = "CREATE INDEX user_names ON users(name)";
+        let parser = Parser::new(query).unwrap();
+        let create = parser.create().unwrap();
+        assert_eq!(query, create.to_string());
+    }
+
+    #[test]
+    fn insert() {
+        let query = "INSERT INTO users(name, age) VALUES('User', 18)";
+        let parser = Parser::new(query).unwrap();
+        let insert = parser.insert().unwrap();
+        assert_eq!(query, insert.to_string());
+    }
+
+    #[test]
+    fn update() {
+        let query = "UPDATE users SET name='User' WHERE age=18";
+        let parser = Parser::new(query).unwrap();
+        let update = parser.update_cmd().unwrap();
+        assert_eq!(query, update.to_string());
+    }
+
+    #[test]
+    fn delete() {
+        let query = "DELETE FROM users WHERE age=18";
+        let parser = Parser::new(query).unwrap();
+        let insert = parser.update_cmd().unwrap();
+        assert_eq!(query, insert.to_string());
+    }
+
+    #[test]
     fn select() {
-        let parser = Parser::new("SELECT * FROM users").unwrap();
-        let command = parser.query().unwrap();
-        println!()
+        let query = "SELECT *, name, age FROM users";
+        let parser = Parser::new(query).unwrap();
+        let select = parser.query().unwrap();
+        assert_eq!(query, select.to_string());
+    }
+
+    #[test]
+    fn select_where() {
+        let query = "SELECT * FROM users WHERE name='User User'";
+        let parser = Parser::new(query).unwrap();
+        let select = parser.query().unwrap();
+        assert_eq!(query, select.to_string());
     }
 }

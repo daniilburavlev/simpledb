@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::RwLock};
+use std::{collections::HashMap, fmt::Debug, sync::RwLock};
 
 use common::{DbResult, error::DbError};
 
@@ -49,6 +49,12 @@ impl SchemaLock {
 
 pub struct Schema {
     lock: RwLock<SchemaLock>,
+}
+
+impl Debug for Schema {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Schema").finish()
+    }
 }
 
 impl Schema {

@@ -10,12 +10,12 @@ use crate::{
 };
 
 pub struct SelectPlan {
-    plan: Arc<dyn Plan>,
+    plan: Rc<dyn Plan>,
     predicate: Predicate,
 }
 
 impl SelectPlan {
-    pub fn new(plan: Arc<dyn Plan>, predicate: Predicate) -> Self {
+    pub fn new(plan: Rc<dyn Plan>, predicate: Predicate) -> Self {
         Self { plan, predicate }
     }
 }

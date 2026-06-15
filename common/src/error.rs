@@ -30,6 +30,8 @@ pub enum DbError {
     BadSyntax,
     #[error("{0}")]
     Other(String),
+    #[error("invalid values amount")]
+    InvalidValuesAmount,
 }
 
 impl DbError {

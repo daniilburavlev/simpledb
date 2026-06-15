@@ -22,12 +22,13 @@ pub enum Token {
     Index,
     On,
     As,
+    Field(String),
     Delimiter(char),
     Element(Constant),
 }
 
 impl Token {
-    pub fn parse(token: &str) -> Option<Self> {
+    fn parse(token: &str) -> Option<Self> {
         match token {
             "select" => Some(Self::Select),
             "from" => Some(Self::From),
@@ -52,7 +53,7 @@ impl Token {
     }
 
     pub(crate) fn is_keyword(&self) -> bool {
-        !matches!(self, Self::Delimiter(_) | Self::Element(_))
+        !matches!(self, Self::Field(_) | Self::Delimiter(_) | Self::Element(_))
     }
 }
 
@@ -92,7 +93,7 @@ pub(crate) fn tokenize(query: &str) -> Result<Vec<Token>, DbError> {
                 } else if let Ok(value) = token.parse::<i32>() {
                     tokens.push(Token::Element(Constant::Integer(value)));
                 } else {
-                    tokens.push(Token::Element(Constant::Varchar(token)))
+                    tokens.push(Token::Field(token))
                 }
             }
             if is_markable_delimeter(c) {
@@ -112,7 +113,7 @@ fn is_str_token(c: char) -> bool {
 }
 
 fn is_markable_delimeter(c: char) -> bool {
-    c == '(' || c == ')' || c == ','
+    c == '(' || c == ')' || c == ',' || c == '='
 }
 
 fn is_delimeter(c: char) -> bool {

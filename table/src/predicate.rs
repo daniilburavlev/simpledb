@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     rc::Rc,
     sync::{Arc, RwLock},
 };
@@ -7,7 +8,7 @@ use common::{DbResult, error::DbError};
 
 use crate::{constant::Constant, plan::Plan, scan::Scan, schema::Schema};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Value(Constant),
     Field(String),
@@ -52,7 +53,7 @@ impl std::fmt::Display for Expression {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Term {
     left: Expression,
     right: Expression,
@@ -73,7 +74,7 @@ impl Term {
         Ok(self.left.applies_to(schema)? && self.right.applies_to(schema)?)
     }
 
-    pub fn reduction_factor(&self, p: &Arc<dyn Plan>) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Rc<dyn Plan>) -> DbResult<i32> {
         if let Some(left) = self.left.as_field_name()
             && let Some(right) = self.right.as_field_name()
         {
@@ -165,7 +166,7 @@ impl Predicate {
         Ok(true)
     }
 
-    pub fn reduction_factor(&self, p: &Arc<dyn Plan>) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Rc<dyn Plan>) -> DbResult<i32> {
         let mut factor = 1;
         let read = self.terms.read().map_err(DbError::lock)?;
         for t in read.iter() {

@@ -45,6 +45,7 @@ impl Lexer {
 
     pub fn match_id(&self) -> bool {
         if let Some(token) = self.tokenizer.current()
+            && matches!(token, Token::Field(_))
             && !token.is_keyword()
         {
             return true;
@@ -89,7 +90,7 @@ impl Lexer {
     }
 
     pub fn eat_id(&self) -> DbResult<String> {
-        if let Some(Token::Element(Constant::Varchar(id))) = self.tokenizer.current() {
+        if let Some(Token::Field(id)) = self.tokenizer.current() {
             self.tokenizer.next()?;
             return Ok(id);
         }
