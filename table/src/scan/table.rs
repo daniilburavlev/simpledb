@@ -109,6 +109,7 @@ impl TableScanLock {
             } else {
                 self.move_to_block(self.rp.block().num + 1)?;
             }
+
             self.current_slot = self.rp.insert_after(self.current_slot)?;
         }
         Ok(())
@@ -164,6 +165,7 @@ impl TableScan {
         })
     }
 }
+
 impl Scan for TableScan {
     fn before_first(&self) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;

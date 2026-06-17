@@ -4,6 +4,7 @@ use common::DbResult;
 
 use crate::{scan::Scan, schema::Schema};
 
+pub mod index;
 pub mod product;
 pub mod project;
 pub mod select;

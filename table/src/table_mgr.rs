@@ -64,8 +64,8 @@ impl TableMgr {
 
         let tcat = TableScan::new(tx, TABLE_NAME, &self.table_catalog_layout)?;
         tcat.insert()?;
-        tcat.set_string("tname", table_name)?;
-        tcat.set_i32("slotsize", layout.slotsize() as i32)?;
+        tcat.set_string(TABLE_NAME, table_name)?;
+        tcat.set_i32(TABLE_SLOT_SIZE, layout.slotsize() as i32)?;
         tcat.close()?;
 
         let fcat = TableScan::new(tx, FIELDS_NAME, &self.fields_catalog_layout)?;
@@ -84,8 +84,9 @@ impl TableMgr {
         let mut size = -1;
         let tcat = TableScan::new(tx, TABLE_NAME, &self.table_catalog_layout)?;
         while tcat.next()? {
-            if tcat.get_string(TABLE_NAME)? == TABLE_NAME {
-                size += tcat.get_i32(TABLE_SLOT_SIZE)?;
+            if tcat.get_string(TABLE_NAME)? == table_name {
+                size = tcat.get_i32(TABLE_SLOT_SIZE)?;
+                break;
             }
         }
         tcat.close()?;

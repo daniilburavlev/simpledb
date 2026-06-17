@@ -7,7 +7,7 @@ pub enum DbError {
     #[error("IO: {0}")]
     IO(#[from] std::io::Error),
     #[error("cannot get lock")]
-    Lock,
+    MutexLock,
     #[error("empty buffer block")]
     EmtyBufferBlock,
     #[error("buffer aborted")]
@@ -32,12 +32,14 @@ pub enum DbError {
     Other(String),
     #[error("invalid values amount")]
     InvalidValuesAmount,
+    #[error("invalid field type")]
+    InvalidFieldType,
 }
 
 impl DbError {
     pub fn lock<T: std::fmt::Display>(e: T) -> Self {
         tracing::info!("{}", e);
-        Self::Lock
+        Self::MutexLock
     }
 
     pub fn field_not_exists(field_name: &str) -> Self {

@@ -21,6 +21,12 @@ impl FileMgr {
         Ok(Self { block_size, holder })
     }
 
+    pub fn is_new(&self) -> DbResult<bool> {
+        let holder = self.holder.lock().map_err(DbError::lock)?;
+        let mut entries = fs::read_dir(&holder.dir)?;
+        Ok(entries.next().is_some())
+    }
+
     pub fn read(&self, block_id: &BlockId) -> DbResult<Page> {
         let mut open_files = self.holder.lock().unwrap();
         let length = length(&mut open_files, &block_id.filename)?;

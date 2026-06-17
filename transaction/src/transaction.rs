@@ -170,7 +170,7 @@ impl Transaction {
     pub fn size(&self, filename: &str) -> DbResult<u64> {
         let dummy = BlockId::new(filename, END_OF_FILE);
         self.concurrency_mgr.s_lock(&dummy)?;
-        self.fm.length(filename)
+        Ok(self.fm.length(filename)? / self.fm.block_size() as u64)
     }
 
     pub fn append(&self, filename: &str) -> DbResult<BlockId> {

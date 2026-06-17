@@ -2,6 +2,7 @@ use common::{DbResult, error::DbError};
 
 use crate::{constant::Constant, rid::RID};
 
+pub mod index;
 pub mod product;
 pub mod project;
 pub mod select;

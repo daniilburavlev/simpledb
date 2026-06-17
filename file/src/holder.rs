@@ -9,7 +9,7 @@ use common::DbResult;
 use crate::open_file;
 
 pub(crate) struct FileHolder {
-    dir: PathBuf,
+    pub(crate) dir: PathBuf,
     open_files: HashMap<String, File>,
 }
 

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
+    index::{Index, b_tree::BTreeIndex, btree_page::VALUE},
     layout::Layout,
     scan::{Scan, table::TableScan},
     schema::Schema,
@@ -21,7 +22,6 @@ pub struct IndexInfo {
     idx_name: String,
     field_name: String,
     tx: Arc<Transaction>,
-    schema: Arc<Schema>,
     layout: Arc<Layout>,
     stat: StatInfo,
 }
@@ -34,25 +34,38 @@ impl IndexInfo {
         tx: &Arc<Transaction>,
         stat: StatInfo,
     ) -> DbResult<Self> {
-        todo!()
+        let layout = Arc::new(Self::create_idx_layout(&field_name, schema)?);
+        Ok(Self {
+            idx_name,
+            field_name,
+            tx: Arc::clone(tx),
+            layout,
+            stat,
+        })
     }
 
-    fn create_idx_layout() -> DbResult<Layout> {
-        let schema = Schema::default();
+    fn create_idx_layout(field_name: &str, table_schema: &Arc<Schema>) -> DbResult<Layout> {
+        let schema = Arc::new(Schema::default());
         schema.add_int_field("block".to_string())?;
         schema.add_int_field("id".to_string())?;
-        todo!()
+        if let Some(info) = table_schema.info(field_name)? {
+            schema.add_field(VALUE.to_string(), info)?;
+        }
+        Layout::new(&schema)
     }
 
-    // pub fn open(&self) -> DbResult<Index> {
-    //  todo!()
-    //}
+    pub fn open(&self) -> DbResult<Rc<dyn Index>> {
+        Ok(Rc::new(BTreeIndex::new(
+            &self.tx,
+            &self.idx_name,
+            &self.layout,
+        )?))
+    }
 
     pub fn block_accessed(&self) -> DbResult<i32> {
-        let rpb = self.tx.block_size() / self.layout.slotsize() as usize;
-        // let num_blocks = self.stat.records_output() / rpb;
-        //     HashIndex::searchCost(num_blocks, rpb)
-        todo!()
+        let rpb = self.tx.block_size() as i32 / self.layout.slotsize() as i32;
+        let num_blocks = self.stat.records_output() / rpb;
+        Ok(num_blocks)
     }
 
     pub fn records_output(&self) -> i32 {
@@ -123,9 +136,9 @@ impl IndexMgr {
                 let field_name = ts.get_string(FIELD_NAME)?;
                 let layout = Arc::new(self.table_mgr.get_layout(table_name, tx)?);
                 let stat = self.stat_mgr.get_stat_info(table_name, &layout, tx)?;
-                // let index = IndexInfo::new(index_name, field_name, layout.schema(), tx, stat)?;
-                // result.insert(field_name, index);
-                todo!()
+                let index =
+                    IndexInfo::new(idx_name, field_name.clone(), &layout.schema(), tx, stat)?;
+                result.insert(field_name, index);
             }
         }
         ts.close()?;
