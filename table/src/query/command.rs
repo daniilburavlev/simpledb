@@ -125,11 +125,7 @@ pub struct UpdateData {
 
 impl std::fmt::Display for UpdateData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "UPDATE {} SET {}={}",
-            self.table, self.field, self.value
-        )?;
+        write!(f, "UPDATE {} SET {}={}", self.table, self.field, self.value)?;
         let predicate = self.predicate.to_string();
         if !predicate.is_empty() {
             write!(f, " WHERE {}", predicate)?;

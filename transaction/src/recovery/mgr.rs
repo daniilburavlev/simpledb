@@ -63,7 +63,12 @@ impl RecoveryMgr {
         write_i32_to_log(&self.lm, self.txnum, &block, offset, old_val)
     }
 
-    pub fn set_string(&self, buffer: &BufferGuard<'_>, offset: usize, _value: &str) -> DbResult<i32> {
+    pub fn set_string(
+        &self,
+        buffer: &BufferGuard<'_>,
+        offset: usize,
+        _value: &str,
+    ) -> DbResult<i32> {
         let old_val = buffer.get_string(offset);
         let Some(block) = buffer.block() else {
             return Err(DbError::EmtyBufferBlock);

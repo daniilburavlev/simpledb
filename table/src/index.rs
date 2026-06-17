@@ -48,7 +48,8 @@ mod tests {
         schema.add_string_field("sname".to_string(), 16).unwrap();
         schema.add_int_field("majorid".to_string()).unwrap();
         md.create_table(table, &schema, &setup_tx).unwrap();
-        md.create_index("idx_majorid", table, "majorid", &setup_tx).unwrap();
+        md.create_index("idx_majorid", table, "majorid", &setup_tx)
+            .unwrap();
         setup_tx.commit().unwrap();
 
         let tx = db.get_tx().unwrap();
