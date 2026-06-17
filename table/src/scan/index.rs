@@ -42,7 +42,7 @@ impl Scan for IndexSelectScan {
         self.scan.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
         self.scan.get_val(field_name)
     }
 
@@ -63,7 +63,7 @@ impl Scan for IndexSelectScan {
         Err(common::error::DbError::other("cannot set string"))
     }
 
-    fn set_val(&self, _: &str, _: crate::constant::Constant) -> DbResult<()> {
+    fn set_val(&self, _: &str, _: Constant) -> DbResult<()> {
         Err(common::error::DbError::other("cannot set value"))
     }
 
