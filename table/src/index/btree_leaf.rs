@@ -47,7 +47,7 @@ impl BTreeLeafLock {
         self.contents.close()
     }
 
-    pub fn next(&mut self) -> DbResult<bool> {
+    pub fn go_next(&mut self) -> DbResult<bool> {
         self.current_slot += 1;
         if self.current_slot >= self.contents.get_num_recs()? {
             self.try_overflow()
@@ -120,7 +120,7 @@ impl BTreeLeafLock {
     }
 
     fn delete(&mut self, rid: RID) -> DbResult<()> {
-        while self.next()? {
+        while self.go_next()? {
             if self.get_data_rid()? == rid {
                 self.contents.delete(self.current_slot)?;
                 return Ok(());
@@ -153,7 +153,7 @@ impl BTreeLeaf {
 
     pub fn next(&self) -> DbResult<bool> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
-        write.next()
+        write.go_next()
     }
 
     pub fn get_data_rid(&self) -> DbResult<RID> {

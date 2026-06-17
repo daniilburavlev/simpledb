@@ -154,7 +154,7 @@ impl Scan for IndexJoinScan {
         if self.right.has_field(field_name)? {
             self.right.get_val(field_name)
         } else {
-            self.right.get_val(field_name)
+            self.left.get_val(field_name)
         }
     }
 
