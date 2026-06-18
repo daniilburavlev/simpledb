@@ -10,11 +10,11 @@ use crate::{
     schema::Schema,
 };
 
-const MAX_NAME: u16 = 16;
+const MAX_NAME: i32 = 16;
 
 pub(crate) const TABLE_NAME: &str = "sp_table";
 const TABLE_SLOT_SIZE: &str = "slot_size";
-const FIELDS_NAME: &str = "table_field";
+const FIELDS_NAME: &str = "sp_fields";
 
 const F_TYPE: &str = "type";
 const F_FIELD_NAME: &str = "field";
@@ -65,7 +65,7 @@ impl TableMgr {
         let tcat = TableScan::new(tx, TABLE_NAME, &self.table_catalog_layout)?;
         tcat.insert()?;
         tcat.set_string(TABLE_NAME, table_name)?;
-        tcat.set_i32(TABLE_SLOT_SIZE, layout.slotsize() as i32)?;
+        tcat.set_i32(TABLE_SLOT_SIZE, layout.slotsize())?;
         tcat.close()?;
 
         let fcat = TableScan::new(tx, FIELDS_NAME, &self.fields_catalog_layout)?;
@@ -73,9 +73,9 @@ impl TableMgr {
             fcat.insert()?;
             fcat.set_string(TABLE_NAME, table_name)?;
             fcat.set_string(F_FIELD_NAME, &field_name)?;
-            fcat.set_i32(F_TYPE, info.type_id() as i32)?;
-            fcat.set_i32(F_TYPE_LENGTH, info.length() as i32)?;
-            fcat.set_i32(F_OFFSET, layout.offset(&field_name) as i32)?;
+            fcat.set_i32(F_TYPE, info.type_id())?;
+            fcat.set_i32(F_TYPE_LENGTH, info.length())?;
+            fcat.set_i32(F_OFFSET, layout.offset(&field_name))?;
         }
         fcat.close()
     }
@@ -94,19 +94,18 @@ impl TableMgr {
         let mut offsets = HashMap::new();
         let fcat = TableScan::new(tx, FIELDS_NAME, &self.fields_catalog_layout)?;
         while fcat.next()? {
-            if fcat.get_string(TABLE_NAME)? == table_name {
+            let table = fcat.get_string(TABLE_NAME)?;
+            if table == table_name {
                 let field_name = fcat.get_string(F_FIELD_NAME)?;
                 let field_type = fcat.get_i32(F_TYPE)?;
                 let field_len = fcat.get_i32(F_TYPE_LENGTH)?;
                 let offset = fcat.get_i32(F_OFFSET)?;
-                schema.add_field(
-                    field_name.clone(),
-                    FieldInfo::new(field_type as u8, field_len as u16)?,
-                )?;
-                offsets.insert(field_name, offset as u16);
+                schema.add_field(field_name.clone(), FieldInfo::new(field_type, field_len)?)?;
+                offsets.insert(field_name, offset);
             }
         }
-        Ok(Layout::from(&schema, offsets, size as u16))
+        fcat.close()?;
+        Ok(Layout::from(&schema, offsets, size))
     }
 }
 
@@ -114,25 +113,16 @@ impl TableMgr {
 mod tests {
     use std::collections::HashSet;
 
-    use buffer::mgr::BufferMgr;
-    use file::mgr::FileMgr;
-    use log::mgr::LogMgr;
-    use tempfile::tempdir;
-    use transaction::{lock_table::LockTable, txnum_generator::TxNumGenerator};
-
     use super::*;
+    use crate::SimpleDB;
+    use tempfile::tempdir;
 
     #[test]
     fn manager() {
         let dir = tempdir().unwrap();
-        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
-        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
-        let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
-        let lock_table = Arc::new(LockTable::default());
+        let db = SimpleDB::new(dir.path()).unwrap();
 
-        let tx = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
-        let tx = Arc::new(tx);
+        let tx = db.get_tx().unwrap();
         let tm = TableMgr::new(true, &tx).unwrap();
 
         let schema = Arc::new(Schema::default());

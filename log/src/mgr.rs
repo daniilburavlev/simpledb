@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use common::{DbResult, error::DbError};
-use file::page::U16_SIZE;
+use file::page::I32_SIZE;
 use file::{block::BlockId, mgr::FileMgr, page::Page};
 
 struct Log {
@@ -19,7 +19,7 @@ impl Log {
         let (current_block, logpage) = if logsize == 0 {
             let mut page = Page::new(fm.block_size());
             let block = fm.append(&logfile)?;
-            page.set_u16(0, fm.block_size() as u16);
+            page.set_i32(0, fm.block_size().try_into().unwrap());
             fm.write(&block, &page)?;
             (block, page)
         } else {
@@ -38,23 +38,24 @@ impl Log {
     }
 
     fn append(&mut self, logrec: &[u8]) -> DbResult<i32> {
-        let mut boundary = self.logpage.get_u16(0) as usize;
+        let mut boundary = self.logpage.get_i32(0) as usize;
         let bytesneeded = Page::bytes_space(logrec.len());
-        if bytesneeded + U16_SIZE > boundary {
+        if bytesneeded + I32_SIZE > boundary {
             self._flush()?;
             self.current_block = self.append_block()?;
-            boundary = self.logpage.get_u16(0) as usize;
+            boundary = self.logpage.get_i32(0) as usize;
         }
         let recpos = boundary - bytesneeded;
         self.logpage.set_bytes(recpos, logrec);
-        self.logpage.set_u16(0, recpos as u16);
+        self.logpage.set_i32(0, recpos.try_into()?);
         self.latest_lsn += 1;
         Ok(self.latest_lsn)
     }
 
     fn append_block(&mut self) -> DbResult<BlockId> {
         let block = self.fm.append(&self.logfile)?;
-        self.logpage.set_u16(0, self.fm.block_size() as u16);
+        self.logpage
+            .set_i32(0, self.fm.block_size().try_into().unwrap());
         self.fm.write(&block, &self.logpage)?;
         Ok(block)
     }
@@ -89,7 +90,7 @@ pub struct LogIterator {
 impl LogIterator {
     fn new(fm: &Arc<FileMgr>, block: BlockId) -> DbResult<Self> {
         let page = fm.read(&block)?;
-        let boundary = page.get_u16(0) as usize;
+        let boundary = page.get_i32(0) as usize;
         Ok(Self {
             fm: Arc::clone(fm),
             block,
@@ -104,13 +105,13 @@ impl Iterator for LogIterator {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_pos >= self.fm.block_size() && self.block.num == 0 {
+        if self.current_pos >= self.fm.block_size().try_into().unwrap() && self.block.num == 0 {
             return None;
         }
-        if self.current_pos == self.fm.block_size() {
+        if self.current_pos == self.fm.block_size().try_into().unwrap() {
             self.block = BlockId::new(&self.block.filename, self.block.num - 1);
             self.page = self.fm.read(&self.block).ok()?;
-            self.boundary = self.page.get_u16(0) as usize;
+            self.boundary = self.page.get_i32(0).try_into().unwrap();
             self.current_pos = self.boundary;
         }
         let rec = self.page.get_bytes(self.current_pos);
@@ -149,7 +150,6 @@ impl LogMgr {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use file::page::I32_SIZE;
     use tempfile::tempdir;
@@ -187,7 +187,7 @@ mod tests {
     fn create_log_record(i: usize) -> Vec<u8> {
         let s = format!("record{}", i);
         let npos = Page::str_space(&s);
-        let mut p = Page::new(npos + I32_SIZE);
+        let mut p = Page::new((npos + I32_SIZE).try_into().unwrap());
         p.set_string(0, &s);
         p.set_i32(npos, i as i32 + 100);
         p.contents().to_vec()

@@ -7,7 +7,7 @@ use log::mgr::LogMgr;
 use crate::{
     log::{
         LogRecord, write_checkpoint, write_commit_to_log, write_i32_to_log, write_rollback_to_log,
-        write_string_to_log, write_u8_to_log,
+        write_string_to_log,
     },
     transaction::Transaction,
 };
@@ -45,14 +45,6 @@ impl RecoveryMgr {
         self.bm.flush_all(self.txnum)?;
         let lsn = write_checkpoint(&self.lm)?;
         self.lm.flush(lsn)
-    }
-
-    pub fn set_u8(&self, buffer: &BufferGuard<'_>, offset: usize, _value: u8) -> DbResult<i32> {
-        let old_val = buffer.get_u8(offset);
-        let Some(block) = buffer.block() else {
-            return Err(DbError::EmtyBufferBlock);
-        };
-        write_u8_to_log(&self.lm, self.txnum, &block, offset, old_val)
     }
 
     pub fn set_i32(&self, buffer: &BufferGuard<'_>, offset: usize, _value: i32) -> DbResult<i32> {

@@ -48,6 +48,7 @@ impl QueryPlanner for BasicQueryPlanner {
                 Rc::new(p2)
             };
         }
+        let p = Rc::new(SelectPlan::new(p, data.predicate));
         Ok(Rc::new(ProjectPlan::new(p, data.fields)?))
     }
 }

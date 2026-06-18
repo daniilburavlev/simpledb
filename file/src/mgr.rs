@@ -10,12 +10,12 @@ use common::{DbResult, error::DbError};
 use crate::{block::BlockId, holder::FileHolder, page::Page};
 
 pub struct FileMgr {
-    block_size: usize,
+    block_size: i32,
     holder: Mutex<FileHolder>,
 }
 
 impl FileMgr {
-    pub fn new(dir: &Path, block_size: usize) -> DbResult<Self> {
+    pub fn new(dir: &Path, block_size: i32) -> DbResult<Self> {
         fs::create_dir_all(dir)?;
         let holder = Mutex::new(FileHolder::new(dir));
         Ok(Self { block_size, holder })
@@ -29,14 +29,13 @@ impl FileMgr {
 
     pub fn read(&self, block_id: &BlockId) -> DbResult<Page> {
         let mut open_files = self.holder.lock().unwrap();
-        let length = length(&mut open_files, &block_id.filename)?;
+        let num_blocks = length(&mut open_files, &block_id.filename, self.block_size)?;
         let mut fd = open_files.get(&block_id.filename)?;
         fd.seek(SeekFrom::Start(
             block_id.num as u64 * self.block_size as u64,
         ))?;
-        let mut buffer = vec![0u8; self.block_size];
-        let required = (self.block_size * block_id.num as usize) as u64;
-        if length > required {
+        let mut buffer = vec![0u8; self.block_size as usize];
+        if num_blocks > block_id.num as u64 {
             fd.read_exact(&mut buffer)?;
         }
         Ok(Page::from(buffer.as_slice()))
@@ -54,10 +53,10 @@ impl FileMgr {
 
     pub fn append(&self, filename: &str) -> DbResult<BlockId> {
         let mut lock = self.holder.lock().map_err(DbError::lock)?;
-        let block_num = size(&mut lock, filename, self.block_size as u64)?;
+        let block_num = length(&mut lock, filename, self.block_size)?;
         let block_id = BlockId::new(filename, block_num as i32);
         let mut fd = lock.get(filename)?;
-        let buffer = vec![0u8; self.block_size];
+        let buffer = vec![0u8; self.block_size as usize];
         fd.seek(SeekFrom::End(0))?;
         fd.write_all(&buffer)?;
         Ok(block_id)
@@ -65,23 +64,22 @@ impl FileMgr {
 
     pub fn length(&self, filename: &str) -> DbResult<u64> {
         let mut lock = self.holder.lock().map_err(DbError::lock)?;
-        length(&mut lock, filename)
+        length(&mut lock, filename, self.block_size)
     }
 
-    pub fn block_size(&self) -> usize {
+    pub fn block_size(&self) -> i32 {
         self.block_size
     }
 }
 
-fn size(lock: &mut MutexGuard<'_, FileHolder>, filename: &str, block_size: u64) -> DbResult<u64> {
-    let length = length(lock, filename)?;
-    Ok(length / block_size)
-}
-
-fn length(lock: &mut MutexGuard<'_, FileHolder>, filename: &str) -> DbResult<u64> {
+fn length(
+    lock: &mut MutexGuard<'_, FileHolder>,
+    filename: &str,
+    block_size: i32,
+) -> DbResult<u64> {
     let mut fd = lock.get(filename)?;
     let size = fd.seek(SeekFrom::End(0))?;
-    Ok(size)
+    Ok(size / block_size as u64)
 }
 
 #[cfg(test)]
@@ -93,11 +91,12 @@ mod tests {
     #[test]
     fn append_size() {
         let dir = tempdir().unwrap();
-        let size = 256;
-        let mgr = FileMgr::new(dir.path(), size).unwrap();
+        let block_size = 256;
+        let mgr = FileMgr::new(dir.path(), block_size).unwrap();
         mgr.append("test").unwrap();
+        // length() now reports the file size in blocks, not bytes
         let calculated = mgr.length("test").unwrap();
-        assert_eq!(calculated, size as u64);
+        assert_eq!(calculated, 1);
     }
 
     #[test]

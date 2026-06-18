@@ -29,15 +29,13 @@ impl TableScanLock {
             let block = BlockId::new(&filename, 0);
             RecordPage::new(tx, block, layout)?
         };
-        let table_scan = Self {
+        Ok(Self {
             tx: Arc::clone(tx),
             layout: Arc::clone(layout),
             rp,
             current_slot: -1,
             filename,
-        };
-
-        Ok(table_scan)
+        })
     }
 
     fn close(&self) -> DbResult<()> {
@@ -109,7 +107,6 @@ impl TableScanLock {
             } else {
                 self.move_to_block(self.rp.block().num + 1)?;
             }
-
             self.current_slot = self.rp.insert_after(self.current_slot)?;
         }
         Ok(())
@@ -124,6 +121,7 @@ impl TableScanLock {
         let block = BlockId::new(&self.filename, rid.block_num());
         let rp = RecordPage::new(&self.tx, block, &self.layout)?;
         self.rp = rp;
+        self.current_slot = rid.slot();
         Ok(())
     }
 
@@ -201,6 +199,7 @@ impl Scan for TableScan {
         let read = self.lock.read().map_err(DbError::lock)?;
         read.close()
     }
+
     fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
         let write = self.lock.read().map_err(DbError::lock)?;
         write.set_i32(field, value)

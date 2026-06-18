@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{path::Path, rc::Rc, sync::Arc};
 
 use buffer::mgr::BufferMgr;
 use common::DbResult;
@@ -8,7 +8,14 @@ use transaction::{
     lock_table::LockTable, transaction::Transaction, txnum_generator::TxNumGenerator,
 };
 
-use crate::{metadata_mgr::MetadataMgr, query::planner::Planner};
+use crate::{
+    metadata_mgr::MetadataMgr,
+    query::{
+        basic_planner::{BasicQueryPlanner, BasicUpdatePlanner},
+        planner::Planner,
+    },
+    scan::Scan,
+};
 
 pub mod constant;
 pub mod field_info;
@@ -47,7 +54,7 @@ impl SimpleDB {
 
     pub fn configured(dir: &Path, block_size: usize, num_buffers: usize) -> DbResult<Self> {
         let txnum_generator = TxNumGenerator::default();
-        let fm = Arc::new(FileMgr::new(dir, block_size)?);
+        let fm = Arc::new(FileMgr::new(dir, block_size.try_into().unwrap())?);
         let lm = Arc::new(LogMgr::new(&fm, LOG_FILE.to_string())?);
         let bm = Arc::new(BufferMgr::new(&fm, &lm, num_buffers)?);
         let lock_table = Arc::new(LockTable::default());
@@ -92,8 +99,21 @@ impl SimpleDB {
         Arc::clone(&self.md)
     }
 
-    pub fn planner(&self) -> DbResult<Planner> {
-        todo!()
+    pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {
+        let planner = self.planner();
+        let plan = planner.create_query_plan(query, tx)?;
+        plan.open()
+    }
+
+    pub fn execute(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<i32> {
+        let planner = self.planner();
+        planner.execute_update(query, tx)
+    }
+
+    fn planner(&self) -> Planner {
+        let query_planner = BasicQueryPlanner::new(&self.md);
+        let update_planner = BasicUpdatePlanner::new(&self.md);
+        Planner::new(Rc::new(query_planner), Rc::new(update_planner))
     }
 }
 
@@ -108,5 +128,22 @@ mod tests {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE users(id INT, name VARCHAR(16))")
+            .unwrap();
+        db.execute(&tx, "CREATE INDEX user_ids ON users(id)")
+            .unwrap();
+        db.execute(&tx, "INSERT INTO users(id, name) VALUES(1, 'User User')")
+            .unwrap();
+        db.execute(&tx, "INSERT INTO users(id, name) VALUES(2, 'Name')")
+            .unwrap();
+        let result = db
+            .query(&tx, "SELECT id, name FROM users WHERE id = 2")
+            .unwrap();
+        while result.next().unwrap() {
+            let id = result.get_i32("id").unwrap();
+            let name = result.get_string("name").unwrap();
+            assert_eq!(id, 2);
+            assert_eq!(name, "Name");
+        }
     }
 }

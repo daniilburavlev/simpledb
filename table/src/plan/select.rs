@@ -20,21 +20,21 @@ impl SelectPlan {
     }
 }
 
-impl SelectPlan {
-    pub fn open(&self) -> DbResult<Rc<dyn Scan>> {
+impl Plan for SelectPlan {
+    fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let s = self.plan.open()?;
         Ok(Rc::new(SelectScan::new(s, self.predicate.clone())))
     }
 
-    pub fn blocks_accessed(&self) -> DbResult<i32> {
+    fn blocks_accessed(&self) -> DbResult<i32> {
         self.plan.blocks_accessed()
     }
 
-    pub fn records_output(&self) -> DbResult<i32> {
+    fn records_output(&self) -> DbResult<i32> {
         Ok(self.plan.records_output()? / self.predicate.reduction_factor(&self.plan)?)
     }
 
-    pub fn distinct_values(&self, field_name: &str) -> common::DbResult<i32> {
+    fn distinct_values(&self, field_name: &str) -> common::DbResult<i32> {
         if self.predicate.equates_with_constant(field_name)?.is_some() {
             return Ok(1);
         } else {
@@ -48,7 +48,7 @@ impl SelectPlan {
         self.plan.distinct_values(field_name)
     }
 
-    pub fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Arc<Schema>> {
         self.plan.schema()
     }
 }

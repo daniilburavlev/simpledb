@@ -26,7 +26,7 @@ impl SchemaLock {
         self.add_field(fieldname, FieldInfo::Integer);
     }
 
-    fn add_string_field(&mut self, fieldname: String, length: u16) {
+    fn add_string_field(&mut self, fieldname: String, length: i32) {
         self.add_field(fieldname, FieldInfo::Varchar(length));
     }
 
@@ -70,7 +70,7 @@ impl Schema {
         Ok(())
     }
 
-    pub fn add_string_field(&self, fieldname: String, length: u16) -> DbResult<()> {
+    pub fn add_string_field(&self, fieldname: String, length: i32) -> DbResult<()> {
         let mut write = self.lock.write().map_err(DbError::lock)?;
         write.add_string_field(fieldname, length);
         Ok(())

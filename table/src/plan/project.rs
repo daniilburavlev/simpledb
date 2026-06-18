@@ -17,7 +17,8 @@ impl ProjectPlan {
     pub fn new(plan: Rc<dyn Plan>, fields: Vec<String>) -> DbResult<Self> {
         let schema = Arc::new(Schema::default());
         for field in fields {
-            schema.add(field, &schema)?;
+            let other = plan.schema()?;
+            schema.add(field, &other)?;
         }
         Ok(Self { plan, schema })
     }

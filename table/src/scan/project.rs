@@ -1,5 +1,5 @@
 use std::{collections::HashSet, rc::Rc};
-
+use common::DbResult;
 use common::error::DbError;
 
 use crate::scan::Scan;
@@ -16,15 +16,15 @@ impl ProjectScan {
 }
 
 impl Scan for ProjectScan {
-    fn before_first(&self) -> common::DbResult<()> {
+    fn before_first(&self) -> DbResult<()> {
         self.scan.before_first()
     }
 
-    fn next(&self) -> common::DbResult<bool> {
+    fn next(&self) -> DbResult<bool> {
         self.scan.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
+    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
         if self.has_field(field_name)? {
             self.scan.get_i32(field_name)
         } else {
@@ -32,7 +32,7 @@ impl Scan for ProjectScan {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> common::DbResult<String> {
+    fn get_string(&self, field_name: &str) -> DbResult<String> {
         if self.has_field(field_name)? {
             self.scan.get_string(field_name)
         } else {
@@ -40,7 +40,7 @@ impl Scan for ProjectScan {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
         if self.has_field(field_name)? {
             self.scan.get_val(field_name)
         } else {
@@ -48,11 +48,11 @@ impl Scan for ProjectScan {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
+    fn has_field(&self, field_name: &str) -> DbResult<bool> {
         Ok(self.fields.contains(field_name))
     }
 
-    fn close(&self) -> common::DbResult<()> {
+    fn close(&self) -> DbResult<()> {
         self.scan.close()
     }
 }

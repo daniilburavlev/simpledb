@@ -34,6 +34,8 @@ pub enum DbError {
     InvalidValuesAmount,
     #[error("invalid field type")]
     InvalidFieldType,
+    #[error("{0}")]
+    ToInt(#[from] std::num::TryFromIntError),
 }
 
 impl DbError {

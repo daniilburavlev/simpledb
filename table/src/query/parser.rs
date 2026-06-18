@@ -224,7 +224,7 @@ impl Parser {
             let str_len = self.lexer.eat_int_constant()?;
             self.lexer.eat_delimiter(')')?;
             match str_len {
-                Constant::Integer(value) => schema.add_string_field(field_name, value as u16)?,
+                Constant::Integer(value) => schema.add_string_field(field_name, value)?,
                 _ => return Err(DbError::BadSyntax),
             }
         }

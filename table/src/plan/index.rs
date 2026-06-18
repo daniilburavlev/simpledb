@@ -44,7 +44,7 @@ impl Plan for IndexSelectPlan {
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {
-        Ok(self.index.block_accessed()? + self.records_output()?)
+        Ok(self.index.block_accessed()? + self.index.records_output())
     }
 
     fn records_output(&self) -> DbResult<i32> {
@@ -55,7 +55,7 @@ impl Plan for IndexSelectPlan {
         Ok(self.index.distinct_values(field_name))
     }
 
-    fn schema(&self) -> DbResult<Arc<crate::schema::Schema>> {
+    fn schema(&self) -> DbResult<Arc<Schema>> {
         self.plan.schema()
     }
 }
@@ -152,7 +152,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
     fn execute_update(
         &self,
         data: UpdateData,
-        tx: &Arc<transaction::transaction::Transaction>,
+        tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         let table = data.table;
         let field = data.field;
@@ -186,7 +186,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
     fn execute_delete(
         &self,
         data: DeleteData,
-        tx: &Arc<transaction::transaction::Transaction>,
+        tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         let table = data.name;
         let indexes = self.mg.get_index_info(&table, tx)?;
@@ -222,7 +222,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
     fn execute_create_view(
         &self,
         data: ViewData,
-        tx: &Arc<transaction::transaction::Transaction>,
+        tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         self.mg
             .create_view(&data.name, &data.query.to_string(), tx)?;
@@ -232,7 +232,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
     fn execute_create_index(
         &self,
         data: IndexData,
-        tx: &Arc<transaction::transaction::Transaction>,
+        tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         self.mg
             .create_index(&data.index, &data.table, &data.field, tx)?;

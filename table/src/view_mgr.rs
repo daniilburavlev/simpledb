@@ -9,8 +9,8 @@ use crate::{
     table_mgr::TableMgr,
 };
 
-const MAX_NAME: u16 = 16;
-const MAX_VIEW_DEF: u16 = 100;
+const MAX_NAME: i32 = 16;
+const MAX_VIEW_DEF: i32 = 100;
 
 const VIEW_NAME: &str = "view";
 const VIEW_DEF: &str = "view_def";

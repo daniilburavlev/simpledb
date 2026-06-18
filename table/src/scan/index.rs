@@ -12,11 +12,13 @@ pub struct IndexSelectScan {
 
 impl IndexSelectScan {
     pub fn new(scan: &Rc<dyn Scan>, index: &Rc<dyn Index>, value: Constant) -> DbResult<Self> {
-        Ok(Self {
+        let scan = Self {
             scan: Rc::clone(scan),
             index: Rc::clone(index),
             value,
-        })
+        };
+        scan.before_first()?;
+        Ok(scan)
     }
 }
 
@@ -53,34 +55,6 @@ impl Scan for IndexSelectScan {
     fn close(&self) -> DbResult<()> {
         self.index.close()?;
         self.scan.close()
-    }
-
-    fn set_i32(&self, _: &str, _: i32) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot set integer"))
-    }
-
-    fn set_string(&self, _: &str, _: &str) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot set string"))
-    }
-
-    fn set_val(&self, _: &str, _: Constant) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot set value"))
-    }
-
-    fn insert(&self) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot insert"))
-    }
-
-    fn delete(&self) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot delete"))
-    }
-
-    fn get_rid(&self) -> DbResult<crate::rid::RID> {
-        Err(common::error::DbError::other("cannot get rid"))
-    }
-
-    fn move_to_rid(&self, _: crate::rid::RID) -> DbResult<()> {
-        Err(common::error::DbError::other("cannot update"))
     }
 }
 
@@ -166,5 +140,83 @@ impl Scan for IndexJoinScan {
         self.left.close()?;
         self.index.close()?;
         self.right.close()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    use crate::{
+        SimpleDB,
+        plan::{Plan, table::TablePlan},
+    };
+    use crate::schema::Schema;
+
+    #[test]
+    fn update_index() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        let md = db.metadata_mgr();
+
+        let schema = Schema::default();
+        schema.add_int_field("sid".to_string()).unwrap();
+        schema.add_string_field("sname".to_string(), 16).unwrap();
+        schema.add_int_field("gadyear".to_string()).unwrap();
+        schema.add_int_field("majorid".to_string()).unwrap();
+
+        md.create_table("users", &Arc::new(schema), &tx).unwrap();
+        md.create_index("users_ids", "users", "sid", &tx).unwrap();
+
+        let plan = TablePlan::new(&tx, "users".to_string(), &md).unwrap();
+        let s = plan.open().unwrap();
+
+        let mut indexes = HashMap::new();
+        let infos = md.get_index_info("users", &tx).unwrap();
+        for (field, info) in infos {
+            let index = info.open().unwrap();
+            indexes.insert(field, index);
+        }
+
+        s.insert().unwrap();
+        s.set_i32("sid", 11).unwrap();
+        s.set_string("sname", "Sam").unwrap();
+        s.set_i32("gadyear", 2023).unwrap();
+        s.set_i32("majorid", 30).unwrap();
+
+        let rid = s.get_rid().unwrap();
+        for (field, index) in indexes.iter() {
+            let value = s.get_val(field).unwrap();
+            index.insert(value, rid.clone()).unwrap();
+        }
+
+        s.before_first().unwrap();
+        while s.next().unwrap() {
+            if s.get_string("sname").unwrap() == "joe" {
+                let rid = s.get_rid().unwrap();
+                for (field, index) in indexes.iter() {
+                    let value = s.get_val(field).unwrap();
+                    index.delete(value, rid.clone()).unwrap();
+                }
+                s.delete().unwrap();
+                break;
+            }
+        }
+        s.before_first().unwrap();
+        while s.next().unwrap() {
+            println!(
+                "{} {}",
+                s.get_string("sname").unwrap(),
+                s.get_i32("sid").unwrap()
+            );
+        }
+        s.close().unwrap();
+        for idx in indexes.values() {
+            idx.close().unwrap();
+        }
+        tx.commit().unwrap();
     }
 }

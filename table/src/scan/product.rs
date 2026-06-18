@@ -28,7 +28,7 @@ impl Scan for ProductScan {
             Ok(true)
         } else {
             self.s2.before_first()?;
-            Ok(self.s1.next()? && self.s2.next()?)
+            Ok(self.s2.next()? && self.s1.next()?)
         }
     }
 

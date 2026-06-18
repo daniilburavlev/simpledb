@@ -73,28 +73,6 @@ impl Transaction {
         Ok(())
     }
 
-    pub fn set_u8(
-        &self,
-        block: &BlockId,
-        offset: usize,
-        value: u8,
-        ok_to_log: bool,
-    ) -> DbResult<()> {
-        self.concurrency_mgr.x_lock(block)?;
-        let Some(buffer) = self.buffers.get_buffer(block)? else {
-            return Err(DbError::UnexistedBuffer);
-        };
-        let mut guard = buffer.lock()?;
-        let lsn = if ok_to_log {
-            self.rm.set_u8(&guard, offset, value)?
-        } else {
-            -1
-        };
-        guard.set_u8(offset, value);
-        guard.set_modified(self.txnum, lsn);
-        Ok(())
-    }
-
     pub fn set_i32(
         &self,
         block: &BlockId,
@@ -115,14 +93,6 @@ impl Transaction {
         guard.set_i32(offset, value);
         guard.set_modified(self.txnum, lsn);
         Ok(())
-    }
-
-    pub fn get_u8(&self, block: &BlockId, offset: usize) -> DbResult<u8> {
-        self.concurrency_mgr.s_lock(block)?;
-        let Some(buffer) = self.buffers.get_buffer(block)? else {
-            return Err(DbError::BufferAbort);
-        };
-        buffer.get_u8(offset)
     }
 
     pub fn get_i32(&self, block: &BlockId, offset: usize) -> DbResult<i32> {
@@ -170,7 +140,9 @@ impl Transaction {
     pub fn size(&self, filename: &str) -> DbResult<u64> {
         let dummy = BlockId::new(filename, END_OF_FILE);
         self.concurrency_mgr.s_lock(&dummy)?;
-        Ok(self.fm.length(filename)? / self.fm.block_size() as u64)
+        let length = self.fm.length(filename)?;
+        tracing::debug!("file size: {}", length);
+        Ok(length)
     }
 
     pub fn append(&self, filename: &str) -> DbResult<BlockId> {
@@ -179,7 +151,7 @@ impl Transaction {
         self.fm.append(filename)
     }
 
-    pub fn block_size(&self) -> usize {
+    pub fn block_size(&self) -> i32 {
         self.fm.block_size()
     }
 

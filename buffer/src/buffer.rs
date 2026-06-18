@@ -81,21 +81,19 @@ impl<'a> BufferGuard<'a> {
     pub fn block(&self) -> Option<BlockId> {
         self.0.block()
     }
-    pub fn get_u8(&self, offset: usize) -> u8 {
-        self.0.contents.get_u8(offset)
-    }
+
     pub fn get_i32(&self, offset: usize) -> i32 {
         self.0.contents.get_i32(offset)
     }
+
     pub fn get_string(&self, offset: usize) -> String {
         self.0.contents.get_string(offset)
     }
-    pub fn set_u8(&mut self, offset: usize, value: u8) {
-        self.0.contents.set_u8(offset, value);
-    }
+
     pub fn set_i32(&mut self, offset: usize, value: i32) {
         self.0.contents.set_i32(offset, value);
     }
+
     pub fn set_string(&mut self, offset: usize, value: &str) {
         self.0.contents.set_string(offset, value);
     }
@@ -163,28 +161,6 @@ impl Buffer {
         Ok(())
     }
 
-    pub fn set_u8(&self, offset: usize, value: u8) -> DbResult<()> {
-        let mut lock = self.buffer.lock().map_err(DbError::lock)?;
-        lock.contents.set_u8(offset, value);
-        Ok(())
-    }
-
-    pub fn get_u8(&self, offset: usize) -> DbResult<u8> {
-        let lock = self.buffer.lock().map_err(DbError::lock)?;
-        Ok(lock.contents.get_u8(offset))
-    }
-
-    pub fn set_u16(&self, offset: usize, value: u16) -> DbResult<()> {
-        let mut lock = self.buffer.lock().map_err(DbError::lock)?;
-        lock.contents.set_u16(offset, value);
-        Ok(())
-    }
-
-    pub fn get_u16(&self, offset: usize) -> DbResult<u16> {
-        let lock = self.buffer.lock().map_err(DbError::lock)?;
-        Ok(lock.contents.get_u16(offset))
-    }
-
     pub fn set_i32(&self, offset: usize, value: i32) -> DbResult<()> {
         let mut lock = self.buffer.lock().map_err(DbError::lock)?;
         lock.contents.set_i32(offset, value);
@@ -232,10 +208,6 @@ mod tests {
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
 
         let buffer = Buffer::new(&fm, &lm).unwrap();
-
-        buffer.set_u16(0, 12).unwrap();
-        let value = buffer.get_u16(0).unwrap();
-        assert_eq!(value, 12);
 
         buffer.set_string(20, "test").unwrap();
         let value = buffer.get_string(20).unwrap();

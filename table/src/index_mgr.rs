@@ -1,6 +1,7 @@
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use common::DbResult;
+use common::error::DbError;
 use transaction::transaction::Transaction;
 
 use crate::{
@@ -11,12 +12,13 @@ use crate::{
     stat_mgr::{StatInfo, StatMgr},
     table_mgr::TableMgr,
 };
+use crate::index::btree_page::{BLOCK, ID};
 
 const IDX_TABLE: &str = "idx";
 const IDX_NAME: &str = "idx_name";
 const TABLE_NAME: &str = "table_name";
 const FIELD_NAME: &str = "field_name";
-const MAX_LENGTH: u16 = 16;
+const MAX_LENGTH: i32 = 16;
 
 pub struct IndexInfo {
     idx_name: String,
@@ -46,8 +48,8 @@ impl IndexInfo {
 
     fn create_idx_layout(field_name: &str, table_schema: &Arc<Schema>) -> DbResult<Layout> {
         let schema = Arc::new(Schema::default());
-        schema.add_int_field("block".to_string())?;
-        schema.add_int_field("id".to_string())?;
+        schema.add_int_field(BLOCK.to_string())?;
+        schema.add_int_field(ID.to_string())?;
         if let Some(info) = table_schema.info(field_name)? {
             schema.add_field(VALUE.to_string(), info)?;
         }
@@ -102,6 +104,9 @@ impl IndexMgr {
             table_mgr.create_table(IDX_TABLE, &Arc::new(schema), tx)?;
         }
         let layout = Arc::new(table_mgr.get_layout(IDX_TABLE, tx)?);
+        if layout.schema().fields()?.is_empty() {
+            return Err(DbError::other("cannot initialize inner index table"));
+        }
         Ok(Self {
             layout,
             table_mgr: Arc::clone(table_mgr),
@@ -120,7 +125,8 @@ impl IndexMgr {
         ts.insert()?;
         ts.set_string(IDX_NAME, idx_name)?;
         ts.set_string(TABLE_NAME, table_name)?;
-        ts.set_string(FIELD_NAME, field_name)
+        ts.set_string(FIELD_NAME, field_name)?;
+        ts.close()
     }
 
     pub fn get_index_info(
