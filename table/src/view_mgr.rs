@@ -36,6 +36,7 @@ impl ViewMgr {
     pub fn create_view(&self, name: &str, def: &str, tx: &Arc<Transaction>) -> DbResult<()> {
         let layout = Arc::new(self.table_mgr.get_layout(VIEW_TABLE, tx)?);
         let ts = TableScan::new(tx, VIEW_TABLE, &layout)?;
+        ts.insert()?;
         ts.set_string(VIEW_NAME, name)?;
         ts.set_string(VIEW_DEF, def)?;
         Ok(())

@@ -62,4 +62,16 @@ mod tests {
         let error = DbError::lock("hello");
         assert_eq!(error.to_string(), "cannot get lock");
     }
+
+    #[test]
+    fn field_not_exists() {
+        let error = DbError::field_not_exists("name");
+        assert_eq!(error.to_string(), "field 'name' not exists");
+    }
+
+    #[test]
+    fn other() {
+        let error = DbError::other("other");
+        assert_eq!(error.to_string(), "other");
+    }
 }

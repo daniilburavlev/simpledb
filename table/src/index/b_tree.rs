@@ -169,3 +169,90 @@ impl Index for BTreeIndex {
         read.close()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SimpleDB;
+    use tempfile::tempdir;
+    use crate::rid::RID;
+
+    #[test]
+    fn next_int() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let schema = Schema::default();
+        schema.add_int_field("value".to_string()).unwrap();
+        schema.add_int_field("block".to_string()).unwrap();
+        schema.add_int_field("id".to_string()).unwrap();
+        let layout = Arc::new(Layout::new(&Arc::new(schema)).unwrap());
+
+        let tx = db.get_tx().unwrap();
+
+        let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
+        index.insert(Constant::Integer(10), RID::new(0, 10)).unwrap();
+
+        index.before_first(Constant::Integer(10)).unwrap();
+        assert!(index.next().unwrap());
+        assert_eq!(index.get_data_rid().unwrap(), RID::new(0, 10));
+        assert!(!index.next().unwrap());
+    }
+
+    #[test]
+    fn next_str() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let schema = Schema::default();
+        schema.add_string_field("value".to_string(), 16).unwrap();
+        schema.add_int_field("block".to_string()).unwrap();
+        schema.add_int_field("id".to_string()).unwrap();
+        let layout = Arc::new(Layout::new(&Arc::new(schema)).unwrap());
+
+        let tx = db.get_tx().unwrap();
+
+        let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
+        index.insert(Constant::varchar("hello"), RID::new(0, 10)).unwrap();
+
+        index.before_first(Constant::varchar("hello")).unwrap();
+        assert!(index.next().unwrap());
+        assert_eq!(index.get_data_rid().unwrap(), RID::new(0, 10));
+        assert!(!index.next().unwrap());
+    }
+
+    #[test]
+    fn next_empty() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let schema = Schema::default();
+        schema.add_string_field("value".to_string(), 16).unwrap();
+        schema.add_int_field("block".to_string()).unwrap();
+        schema.add_int_field("id".to_string()).unwrap();
+        let layout = Arc::new(Layout::new(&Arc::new(schema)).unwrap());
+
+        let tx = db.get_tx().unwrap();
+
+        let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
+
+        index.before_first(Constant::varchar("hello")).unwrap();
+        assert!(!index.next().unwrap());
+    }
+
+    #[test]
+    fn next_multiply() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let schema = Schema::default();
+
+        schema.add_int_field("value".to_string()).unwrap();
+        schema.add_int_field("block".to_string()).unwrap();
+        schema.add_int_field("id".to_string()).unwrap();
+        let layout = Arc::new(Layout::new(&Arc::new(schema)).unwrap());
+
+        let tx = db.get_tx().unwrap();
+
+        let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
+        for i in 0..1000 {
+            index.insert(Constant::Integer(i), RID::new(0, 10)).unwrap();
+        }
+    }
+}

@@ -33,6 +33,7 @@ pub mod schema;
 pub mod stat_mgr;
 pub mod table_mgr;
 pub mod view_mgr;
+mod temp;
 
 const LOG_FILE: &str = "wal.log";
 const BLOCK_SIZE: usize = 8 * 1024;

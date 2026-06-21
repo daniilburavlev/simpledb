@@ -14,7 +14,11 @@ use log::mgr::LogMgr;
 
 use crate::buffer::Buffer;
 
-const MAX_WAIT: Duration = Duration::from_secs(10);
+const MAX_WAIT: Duration = if cfg!(test) {
+    Duration::from_secs(1)
+} else {
+    Duration::from_secs(10)
+};
 const SLEEP: Duration = Duration::from_millis(1);
 
 struct BufferPool {
@@ -164,6 +168,7 @@ mod tests {
 
         let buff2 = bm.pin(&BlockId::new("testfile", 2)).unwrap();
         bm.pin(&BlockId::new("testfile", 3)).unwrap();
+        assert_eq!(bm.available().unwrap(), 1);
         bm.pin(&BlockId::new("testfile", 4)).unwrap();
 
         let page = fm.read(&BlockId::new("testfile", 1)).unwrap();
@@ -178,5 +183,20 @@ mod tests {
 
         let page = fm.read(&BlockId::new("testfile", 1)).unwrap();
         assert_eq!(1, page.get_i32(offset));
+    }
+
+    #[test]
+    fn timeout_pin() {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "wal".to_string()).unwrap());
+
+        let bm = BufferMgr::new(&fm, &lm, 1).unwrap();
+        let buff1 = bm.pin(&BlockId::new("first", 1)).unwrap();
+        buff1.pin().unwrap();
+        if let Err(DbError::BufferAbort) = bm.pin(&BlockId::new("second", 2)) {
+        } else {
+            panic!("not validated");
+        }
     }
 }

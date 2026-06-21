@@ -218,4 +218,15 @@ mod tests {
         let value = buffer.get_bytes(100).unwrap();
         assert_eq!(&bytes, &value);
     }
+
+    #[test]
+    #[should_panic]
+    fn flush_empty() {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "log".to_string()).unwrap());
+        let mut buffer = BufferLock::new(&fm, &lm).unwrap();
+        buffer.txnum = 1;
+        buffer.flush().unwrap();
+    }
 }

@@ -7,6 +7,10 @@ pub enum Constant {
 }
 
 impl Constant {
+    pub fn varchar(value: &str) -> Self {
+        Constant::Varchar(value.to_string())
+    }
+
     pub fn as_i32(&self) -> DbResult<i32> {
         match self {
             Self::Integer(value) => Ok(*value),
@@ -28,5 +32,31 @@ impl std::fmt::Display for Constant {
             Self::Integer(value) => write!(f, "{}", value),
             Self::Varchar(value) => write!(f, "'{}'", value),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn invalid_i32() {
+        let constant = Constant::Varchar("string".to_string());
+        constant.as_i32().unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_str() {
+        let constant = Constant::Integer(10);
+        constant.as_str().unwrap();
+    }
+
+    #[test]
+    fn as_str() {
+        let value = "test";
+        let constant = Constant::varchar(value);
+        assert_eq!(value, constant.as_str().unwrap());
     }
 }
