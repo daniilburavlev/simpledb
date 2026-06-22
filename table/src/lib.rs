@@ -17,6 +17,7 @@ use crate::{
     scan::Scan,
 };
 
+pub mod buffer_needs;
 pub mod constant;
 pub mod field_info;
 pub mod group;
