@@ -66,8 +66,11 @@ impl GroupByScanLock {
             f.process_first(&self.scan)?;
         }
         self.group_val = GroupValue::new(&self.scan, self.group_fields.clone())?;
-        while self.scan.next()? {
-            self.more_groups = true;
+        loop {
+            self.more_groups = self.scan.next()?;
+            if !self.more_groups {
+                break;
+            }
             let gv = GroupValue::new(&self.scan, self.group_fields.clone())?;
             if gv != self.group_val {
                 break;

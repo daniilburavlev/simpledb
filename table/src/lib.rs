@@ -126,6 +126,7 @@ impl SimpleDB {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use tempfile::tempdir;
 
     use super::*;
@@ -171,6 +172,56 @@ mod tests {
             let existed = result.next().unwrap();
             assert!(existed);
         }
-        db.query(&tx, "SELECT id FROM test GROUP BY id").unwrap();
+        let result = db.query(&tx, "SELECT id FROM test GROUP BY id").unwrap();
+        for _ in 0..10 {
+            let existed = result.next().unwrap();
+            assert!(existed);
+        }
+        assert!(!result.next().unwrap());
+    }
+
+    #[test]
+    fn sort_by() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT, name VARCHAR(10))")
+            .unwrap();
+        let names = ["a", "b", "c", "d", "e"];
+        let mut ids = HashSet::new();
+        for i in 0..1000 {
+            ids.insert(i);
+            db.execute(
+                &tx,
+                &format!(
+                    "INSERT INTO test(id, name) VALUES({}, '{}')",
+                    i,
+                    names[i % names.len()]
+                ),
+            )
+            .unwrap();
+        }
+        let result = db
+            .query(&tx, "SELECT id, name FROM test SORT BY name")
+            .unwrap();
+        for i in 0..1000 {
+            assert!(result.next().unwrap());
+            let id = result.get_i32("id").unwrap();
+            let name = result.get_string("name").unwrap();
+            assert!(ids.remove(&(id as usize)));
+            if i < 200 {
+                assert_eq!(name, "a");
+            } else if i < 400 {
+                assert_eq!(name, "b");
+            } else if i < 600 {
+                assert_eq!(name, "c");
+            } else if i < 800 {
+                assert_eq!(name, "d");
+            } else {
+                assert_eq!(name, "e");
+            }
+        }
+        assert!(!result.next().unwrap());
+        assert!(ids.is_empty());
     }
 }

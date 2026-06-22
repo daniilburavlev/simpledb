@@ -36,7 +36,7 @@ impl SortPlan {
     fn split_into_runs(&self, source: &Rc<dyn Scan>) -> DbResult<Vec<TempTable>> {
         let mut temps = vec![];
         source.before_first()?;
-        if source.next()? {
+        if !source.next()? {
             return Ok(temps);
         }
         let mut current_temp = TempTable::new(&self.tx, &self.schema)?;
