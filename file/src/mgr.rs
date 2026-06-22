@@ -12,19 +12,23 @@ use crate::{block::BlockId, holder::FileHolder, page::Page};
 pub struct FileMgr {
     block_size: i32,
     holder: Mutex<FileHolder>,
+    is_new: bool,
 }
 
 impl FileMgr {
     pub fn new(dir: &Path, block_size: i32) -> DbResult<Self> {
+        let is_new = !dir.exists() || fs::read_dir(dir)?.next().is_none();
         fs::create_dir_all(dir)?;
         let holder = Mutex::new(FileHolder::new(dir));
-        Ok(Self { block_size, holder })
+        Ok(Self {
+            block_size,
+            holder,
+            is_new,
+        })
     }
 
     pub fn is_new(&self) -> DbResult<bool> {
-        let holder = self.holder.lock().map_err(DbError::lock)?;
-        let mut entries = fs::read_dir(&holder.dir)?;
-        Ok(entries.next().is_some())
+        Ok(self.is_new)
     }
 
     pub fn read(&self, block_id: &BlockId) -> DbResult<Page> {

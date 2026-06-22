@@ -23,11 +23,11 @@ impl FileHolder {
     }
 
     pub(crate) fn get(&mut self, filename: &str) -> DbResult<&File> {
-        let path = self.dir.join(filename);
-        let file = self
-            .open_files
-            .entry(filename.to_string())
-            .or_insert(open_file(&path)?);
-        Ok(file)
+        if !self.open_files.contains_key(filename) {
+            let path = self.dir.join(filename);
+            self.open_files
+                .insert(filename.to_string(), open_file(&path)?);
+        }
+        Ok(self.open_files.get(filename).expect("just inserted"))
     }
 }

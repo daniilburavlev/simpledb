@@ -165,14 +165,25 @@ impl LogRecord {
             Self::Checkpoint => CHECKPOINT_TXNUM,
             Self::Start(txnum) => *txnum,
             Self::Commit(txnum) => *txnum,
+            Self::Rollback(txnum) => *txnum,
+            Self::SetU8 { txnum, .. } => *txnum,
             Self::SetI32 { txnum, .. } => *txnum,
             Self::SetString { txnum, .. } => *txnum,
-            _ => -1,
         }
     }
 
     pub fn undo(&self, tx: &Transaction) -> DbResult<()> {
         match self {
+            Self::SetU8 {
+                txnum: _,
+                offset,
+                value,
+                block,
+            } => {
+                tx.pin(block)?;
+                tx.set_u8(block, *offset, *value, false)?;
+                tx.unpin(block)?;
+            }
             Self::SetI32 {
                 txnum: _,
                 offset,
@@ -231,7 +242,7 @@ pub fn write_u8_to_log(
     offset: usize,
     value: u8,
 ) -> DbResult<i32> {
-    let (mut page, value_pos) = write_header_to_log(SETI32, txnum, block, offset, U8_SIZE)?;
+    let (mut page, value_pos) = write_header_to_log(SETU8, txnum, block, offset, U8_SIZE)?;
     page.set_u8(value_pos, value);
     lm.append(page.contents())
 }

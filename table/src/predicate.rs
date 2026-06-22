@@ -113,16 +113,16 @@ impl Term {
     }
 
     pub fn equates_with_field(&self, field_name: &str) -> DbResult<Option<String>> {
-        if let Some(field) = self.left.as_field_name()
-            && field == field_name
-            && let None = self.right.as_field_name()
+        if let Some(left) = self.left.as_field_name()
+            && left == field_name
+            && let Some(right) = self.right.as_field_name()
         {
-            Ok(Some(field.to_string()))
-        } else if let Some(field) = self.right.as_field_name()
-            && field == field_name
-            && let Some(_) = self.left.as_field_name()
+            Ok(Some(right.to_string()))
+        } else if let Some(right) = self.right.as_field_name()
+            && right == field_name
+            && let Some(left) = self.left.as_field_name()
         {
-            Ok(Some(field.to_string()))
+            Ok(Some(left.to_string()))
         } else {
             Ok(None)
         }
