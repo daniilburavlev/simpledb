@@ -20,9 +20,9 @@ pub struct SortPlan {
 
 impl SortPlan {
     pub fn new(
+        tx: &Arc<Transaction>,
         plan: &Rc<dyn Plan>,
         sort_fields: Vec<String>,
-        tx: &Arc<Transaction>,
     ) -> DbResult<Self> {
         let schema = plan.schema()?;
         Ok(Self {

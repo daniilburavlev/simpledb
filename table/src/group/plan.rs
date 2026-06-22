@@ -32,7 +32,7 @@ impl GroupByPlan {
         for f in &aggregation_fn {
             schema.add_int_field(f.field_name())?;
         }
-        let plan = Rc::new(SortPlan::new(plan, group_fields.clone(), tx)?);
+        let plan = Rc::new(SortPlan::new(tx, plan, group_fields.clone())?);
         Ok(Self {
             plan,
             group_fields,

@@ -73,6 +73,28 @@ impl Transaction {
         Ok(())
     }
 
+    pub fn set_u8(
+        &self,
+        block: &BlockId,
+        offset: usize,
+        value: u8,
+        ok_to_log: bool,
+    ) -> DbResult<()> {
+        self.concurrency_mgr.x_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::UnexistedBuffer);
+        };
+        let mut guard = buffer.lock()?;
+        let lsn = if ok_to_log {
+            self.rm.set_u8(&guard, offset, value)?
+        } else {
+            -1
+        };
+        guard.set_u8(offset, value);
+        guard.set_modified(self.txnum, lsn);
+        Ok(())
+    }
+
     pub fn set_i32(
         &self,
         block: &BlockId,

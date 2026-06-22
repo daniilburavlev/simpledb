@@ -21,8 +21,8 @@ impl MergeJoinPlan {
         field_name1: &str,
         field_name2: &str,
     ) -> DbResult<Self> {
-        let p1 = Rc::new(SortPlan::new(p1, vec![field_name1.to_string()], tx)?);
-        let p2 = Rc::new(SortPlan::new(p2, vec![field_name2.to_string()], tx)?);
+        let p1 = Rc::new(SortPlan::new(tx, p1, vec![field_name1.to_string()])?);
+        let p2 = Rc::new(SortPlan::new(tx, p2, vec![field_name2.to_string()])?);
         let schema = Arc::new(Schema::default());
         Ok(Self {
             p1,

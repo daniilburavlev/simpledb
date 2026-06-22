@@ -90,7 +90,6 @@ mod tests {
         let block_size = 256;
         let mgr = FileMgr::new(dir.path(), block_size).unwrap();
         mgr.append("test").unwrap();
-        // length() now reports the file size in blocks, not bytes
         let calculated = mgr.length("test").unwrap();
         assert_eq!(calculated, 1);
     }

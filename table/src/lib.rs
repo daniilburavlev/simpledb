@@ -153,4 +153,24 @@ mod tests {
             assert_eq!(name, "Name");
         }
     }
+
+    #[test]
+    fn group_by() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT)").unwrap();
+        for i in 0..10 {
+            for _ in 0..100 {
+                db.execute(&tx, &format!("INSERT INTO test(id) VALUES({})", i))
+                    .unwrap();
+            }
+        }
+        let result = db.query(&tx, "SELECT id FROM test").unwrap();
+        for _ in 0..1000 {
+            let existed = result.next().unwrap();
+            assert!(existed);
+        }
+        db.query(&tx, "SELECT id FROM test GROUP BY id").unwrap();
+    }
 }

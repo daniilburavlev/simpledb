@@ -1,19 +1,20 @@
 use common::{DbResult, error::DbError};
 use file::{
     block::BlockId,
-    page::{I32_SIZE, Page},
+    page::{I32_SIZE, Page, U8_SIZE, U16_SIZE},
 };
 use log::mgr::LogMgr;
 
 use crate::transaction::Transaction;
 
 const CHECKPOINT_TXNUM: i32 = -1;
-const CHECKPOINT: i32 = 0;
-const START: i32 = 1;
-const COMMIT: i32 = 2;
-const ROLLBACK: i32 = 3;
-const SETSTRING: i32 = 4;
-const SETI32: i32 = 6;
+const CHECKPOINT: u8 = 0;
+const START: u8 = 1;
+const COMMIT: u8 = 2;
+const ROLLBACK: u8 = 3;
+const SETSTRING: u8 = 4;
+const SETU8: u8 = 6;
+const SETI32: u8 = 7;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogRecord {
@@ -21,6 +22,12 @@ pub enum LogRecord {
     Start(i32),
     Commit(i32),
     Rollback(i32),
+    SetU8 {
+        txnum: i32,
+        offset: usize,
+        value: u8,
+        block: BlockId,
+    },
     SetI32 {
         txnum: i32,
         offset: usize,
@@ -38,12 +45,13 @@ pub enum LogRecord {
 impl LogRecord {
     pub fn new(bytes: &[u8]) -> DbResult<Self> {
         let page = Page::from(bytes);
-        let log_type = page.get_i32(0);
+        let log_type = page.get_u8(0);
         match log_type {
             CHECKPOINT => Ok(Self::checkpoint()),
             START => Ok(Self::start(&page)),
             COMMIT => Ok(Self::commit(&page)),
             ROLLBACK => Ok(Self::rollback(&page)),
+            SETU8 => Ok(Self::set_u8(&page)),
             SETI32 => Ok(Self::set_i32(&page)),
             SETSTRING => Ok(Self::set_string(&page)),
             _ => Err(DbError::Decoding),
@@ -55,35 +63,37 @@ impl LogRecord {
     }
 
     fn start(page: &Page) -> Self {
-        let txnum_pos = I32_SIZE;
+        let txnum_pos = U8_SIZE;
         let txnum = page.get_i32(txnum_pos);
         Self::Start(txnum)
     }
 
     fn commit(page: &Page) -> Self {
-        let txnum_pos = I32_SIZE;
+        let txnum_pos = U8_SIZE;
         let txnum = page.get_i32(txnum_pos);
         Self::Commit(txnum)
     }
 
     fn rollback(page: &Page) -> Self {
-        let txnum_pos = I32_SIZE;
+        let txnum_pos = U8_SIZE;
         let txnum = page.get_i32(txnum_pos);
         Self::Rollback(txnum)
     }
 
+    fn set_u8(page: &Page) -> Self {
+        let (txnum, offset, block, value_offset) = Self::get_header(page);
+        let value = page.get_u8(value_offset);
+        Self::SetU8 {
+            txnum,
+            offset,
+            value,
+            block,
+        }
+    }
+
     fn set_i32(page: &Page) -> Self {
-        let tpos = I32_SIZE;
-        let txnum = page.get_i32(tpos);
-        let fpos = tpos + I32_SIZE;
-        let filename = page.get_string(fpos);
-        let bpos = fpos + Page::str_space(&filename);
-        let block_num = page.get_i32(bpos);
-        let block = BlockId::new(&filename, block_num);
-        let opos = bpos + I32_SIZE;
-        let offset = page.get_i32(opos) as usize;
-        let value_pos = opos + I32_SIZE;
-        let value = page.get_i32(value_pos);
+        let (txnum, offset, block, value_offset) = Self::get_header(page);
+        let value = page.get_i32(value_offset);
         Self::SetI32 {
             txnum,
             offset,
@@ -93,17 +103,8 @@ impl LogRecord {
     }
 
     pub fn set_string(page: &Page) -> Self {
-        let tpos = I32_SIZE;
-        let txnum = page.get_i32(tpos);
-        let fpos = tpos + I32_SIZE;
-        let filename = page.get_string(fpos);
-        let bpos = fpos + Page::str_space(&filename);
-        let block_num = page.get_i32(bpos);
-        let block = BlockId::new(&filename, block_num);
-        let opos = bpos + I32_SIZE;
-        let offset = page.get_i32(opos) as usize;
-        let value_pos = opos + I32_SIZE;
-        let value = page.get_string(value_pos);
+        let (txnum, offset, block, value_offset) = Self::get_header(page);
+        let value = page.get_string(value_offset);
         Self::SetString {
             txnum,
             offset,
@@ -112,12 +113,32 @@ impl LogRecord {
         }
     }
 
-    pub fn op(&self) -> i32 {
+    fn get_header(page: &Page) -> (i32, usize, BlockId, usize) {
+        let tpos = U8_SIZE;
+        let txnum = page.get_i32(tpos);
+
+        let file_name_pos = tpos + I32_SIZE;
+        let filename = page.get_string(file_name_pos);
+
+        let bpos = file_name_pos + Page::str_space(&filename);
+        let block_num = page.get_i32(bpos);
+        let block = BlockId::new(&filename, block_num);
+
+        let offset_pos = bpos + I32_SIZE;
+        let offset = page.get_u16(offset_pos) as usize;
+
+        let value_pos = offset_pos + U16_SIZE;
+
+        (txnum, offset, block, value_pos)
+    }
+
+    pub fn op(&self) -> u8 {
         match self {
             Self::Checkpoint => CHECKPOINT,
             Self::Start(_) => START,
             Self::Commit(_) => COMMIT,
             Self::Rollback(_) => ROLLBACK,
+            Self::SetU8 { .. } => SETU8,
             Self::SetI32 { .. } => SETI32,
             Self::SetString { .. } => SETSTRING,
         }
@@ -191,15 +212,15 @@ pub fn write_start_to_log(lm: &LogMgr, txnum: i32) -> DbResult<i32> {
 }
 
 pub fn write_checkpoint(lm: &LogMgr) -> DbResult<i32> {
-    let mut page = Page::new(I32_SIZE.try_into().unwrap());
-    page.set_i32(0, CHECKPOINT);
+    let mut page = Page::new(U8_SIZE.try_into().unwrap());
+    page.set_u8(0, CHECKPOINT);
     lm.append(page.contents())
 }
 
-fn write_op_txnum(lm: &LogMgr, op: i32, txnum: i32) -> DbResult<i32> {
-    let mut page = Page::new((I32_SIZE + I32_SIZE).try_into().unwrap());
-    page.set_i32(0, op);
-    page.set_i32(I32_SIZE, txnum);
+fn write_op_txnum(lm: &LogMgr, op: u8, txnum: i32) -> DbResult<i32> {
+    let mut page = Page::new((U8_SIZE + I32_SIZE).try_into().unwrap());
+    page.set_u8(0, op);
+    page.set_i32(U8_SIZE, txnum);
     lm.append(page.contents())
 }
 
@@ -210,19 +231,8 @@ pub fn write_u8_to_log(
     offset: usize,
     value: u8,
 ) -> DbResult<i32> {
-    let txnum_pos = I32_SIZE;
-    let filename_pos = txnum_pos + I32_SIZE;
-    let block_pos = filename_pos + Page::str_space(&block.filename);
-    let offset_pos = block_pos + I32_SIZE;
-    let value_pos = offset_pos + I32_SIZE;
-    let rec_len = value_pos + I32_SIZE;
-    let mut page = Page::new(rec_len.try_into()?);
-    page.set_i32(0, SETI32);
-    page.set_i32(txnum_pos, txnum);
-    page.set_string(filename_pos, &block.filename);
-    page.set_i32(block_pos, block.num);
-    page.set_i32(offset_pos, offset.try_into()?);
-    page.set_i32(value_pos, value.into());
+    let (mut page, value_pos) = write_header_to_log(SETI32, txnum, block, offset, U8_SIZE)?;
+    page.set_u8(value_pos, value);
     lm.append(page.contents())
 }
 
@@ -233,18 +243,7 @@ pub fn write_i32_to_log(
     offset: usize,
     value: i32,
 ) -> DbResult<i32> {
-    let txnum_pos = I32_SIZE;
-    let filename_pos = txnum_pos + I32_SIZE;
-    let block_pos = filename_pos + Page::str_space(&block.filename);
-    let offset_pos = block_pos + I32_SIZE;
-    let value_pos = offset_pos + I32_SIZE;
-    let rec_len = value_pos + I32_SIZE;
-    let mut page = Page::new(rec_len.try_into()?);
-    page.set_i32(0, SETI32);
-    page.set_i32(txnum_pos, txnum);
-    page.set_string(filename_pos, &block.filename);
-    page.set_i32(block_pos, block.num);
-    page.set_i32(offset_pos, offset.try_into()?);
+    let (mut page, value_pos) = write_header_to_log(SETI32, txnum, block, offset, I32_SIZE)?;
     page.set_i32(value_pos, value);
     lm.append(page.contents())
 }
@@ -256,20 +255,32 @@ pub fn write_string_to_log(
     offset: usize,
     value: String,
 ) -> DbResult<i32> {
-    let txnum_pos = I32_SIZE;
+    let value_size = Page::str_space(&value);
+    let (mut page, value_pos) = write_header_to_log(SETSTRING, txnum, block, offset, value_size)?;
+    page.set_string(value_pos, &value);
+    lm.append(page.contents())
+}
+
+fn write_header_to_log(
+    op: u8,
+    txnum: i32,
+    block: &BlockId,
+    offset: usize,
+    value_size: usize,
+) -> DbResult<(Page, usize)> {
+    let txnum_pos = U8_SIZE;
     let filename_pos = txnum_pos + I32_SIZE;
     let block_pos = filename_pos + Page::str_space(&block.filename);
     let offset_pos = block_pos + I32_SIZE;
-    let value_pos = offset_pos + I32_SIZE;
-    let rec_len = value_pos + Page::str_space(&value);
+    let value_pos = offset_pos + U16_SIZE;
+    let rec_len = value_pos + value_size;
     let mut page = Page::new(rec_len.try_into()?);
-    page.set_i32(0, SETSTRING);
+    page.set_u8(0, op);
     page.set_i32(txnum_pos, txnum);
     page.set_string(filename_pos, &block.filename);
     page.set_i32(block_pos, block.num);
-    page.set_i32(offset_pos, offset.try_into()?);
-    page.set_string(value_pos, &value);
-    lm.append(page.contents())
+    page.set_u16(offset_pos, offset.try_into()?);
+    Ok((page, value_pos))
 }
 
 #[cfg(test)]

@@ -4,6 +4,7 @@ use common::{DbResult, error::DbError};
 use transaction::transaction::Transaction;
 
 use crate::{
+    group::plan::GroupByPlan,
     metadata_mgr::MetadataMgr,
     plan::{
         Plan, product::ProductPlan, project::ProjectPlan, select::SelectPlan, table::TablePlan,
@@ -13,6 +14,7 @@ use crate::{
         parser::Parser,
         planner::{QueryPlanner, UpdatePlanner},
     },
+    sort::plan::SortPlan,
 };
 
 pub struct BasicQueryPlanner {
@@ -48,7 +50,13 @@ impl QueryPlanner for BasicQueryPlanner {
                 Rc::new(p2)
             };
         }
-        let p = Rc::new(SelectPlan::new(p, data.predicate));
+        let mut p: Rc<dyn Plan> = Rc::new(SelectPlan::new(p, data.predicate));
+        if !data.group_by.is_empty() {
+            p = Rc::new(GroupByPlan::new(tx, &p, data.group_by.fields, vec![])?);
+        }
+        if !data.sort_by.is_empty() {
+            p = Rc::new(SortPlan::new(tx, &p, data.sort_by.fields)?);
+        }
         Ok(Rc::new(ProjectPlan::new(p, data.fields)?))
     }
 }

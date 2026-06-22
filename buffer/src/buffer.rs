@@ -82,12 +82,20 @@ impl<'a> BufferGuard<'a> {
         self.0.block()
     }
 
+    pub fn get_u8(&self, offset: usize) -> u8 {
+        self.0.contents.get_u8(offset)
+    }
+
     pub fn get_i32(&self, offset: usize) -> i32 {
         self.0.contents.get_i32(offset)
     }
 
     pub fn get_string(&self, offset: usize) -> String {
         self.0.contents.get_string(offset)
+    }
+
+    pub fn set_u8(&mut self, offset: usize, value: u8) {
+        self.0.contents.set_u8(offset, value);
     }
 
     pub fn set_i32(&mut self, offset: usize, value: i32) {

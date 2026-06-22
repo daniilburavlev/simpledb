@@ -9,6 +9,7 @@ use crate::{field_info::FieldInfo, layout::Layout};
 const EMPTY: i32 = 0;
 const USED: i32 = 1;
 
+#[derive(Clone)]
 pub struct RecordPage {
     tx: Arc<Transaction>,
     block: BlockId,
