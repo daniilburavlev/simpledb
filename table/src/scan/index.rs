@@ -29,7 +29,7 @@ impl Scan for IndexSelectScan {
 
     fn next(&self) -> DbResult<bool> {
         let ok = self.index.next()?;
-        if self.index.next()? {
+        if ok {
             let rid = self.index.get_data_rid()?;
             self.scan.move_to_rid(rid)?;
         }

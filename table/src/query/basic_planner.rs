@@ -7,8 +7,10 @@ use crate::{
     group::plan::GroupByPlan,
     metadata_mgr::MetadataMgr,
     plan::{
-        Plan, product::ProductPlan, project::ProjectPlan, select::SelectPlan, table::TablePlan,
+        Plan, index::IndexSelectPlan, product::ProductPlan, project::ProjectPlan,
+        select::SelectPlan, table::TablePlan,
     },
+    predicate::Predicate,
     query::{
         command::{Command, IndexData, QueryData},
         parser::Parser,
@@ -25,6 +27,26 @@ impl BasicQueryPlanner {
     pub fn new(md: &Arc<MetadataMgr>) -> Self {
         Self { md: Arc::clone(md) }
     }
+
+    /// Build a scan plan for a single table, preferring an index select plan
+    /// when the predicate equates an indexed field with a constant.
+    fn table_plan(
+        &self,
+        table: String,
+        predicate: &Predicate,
+        tx: &Arc<Transaction>,
+    ) -> DbResult<Rc<dyn Plan>> {
+        let base: Rc<dyn Plan> = Rc::new(TablePlan::new(tx, table.clone(), &self.md)?);
+        let indexes = self.md.get_index_info(&table, tx)?;
+
+        for (field, info) in indexes {
+            if let Some(value) = predicate.equates_with_constant(&field)? {
+                tracing::debug!("Using index on {}.{}", table, field);
+                return Ok(Rc::new(IndexSelectPlan::new(&base, info, value)));
+            }
+        }
+        Ok(base)
+    }
 }
 
 impl QueryPlanner for BasicQueryPlanner {
@@ -37,7 +59,7 @@ impl QueryPlanner for BasicQueryPlanner {
                     plans.push(self.create_plan(data, tx)?);
                 }
             } else {
-                plans.push(Rc::new(TablePlan::new(tx, table, &self.md)?));
+                plans.push(self.table_plan(table, &data.predicate, tx)?);
             }
         }
         let mut p = plans.remove(0);

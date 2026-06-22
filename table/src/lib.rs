@@ -43,7 +43,7 @@ pub mod view_mgr;
 
 const LOG_FILE: &str = "wal.log";
 const BLOCK_SIZE: usize = 8 * 1024;
-const NUM_BUFFERS: usize = 8;
+const NUM_BUFFERS: usize = 1024;
 
 pub struct SimpleDB {
     txnum_generator: TxNumGenerator,
