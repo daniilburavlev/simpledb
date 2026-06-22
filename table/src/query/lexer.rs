@@ -16,6 +16,10 @@ impl Lexer {
         })
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.tokenizer.is_empty()
+    }
+
     pub fn match_delim(&self, c: char) -> bool {
         self.tokenizer.current() == Some(Token::Delimiter(c))
     }
@@ -93,6 +97,14 @@ impl Lexer {
         if let Some(Token::Field(id)) = self.tokenizer.current() {
             self.tokenizer.next()?;
             return Ok(id);
+        }
+        Err(DbError::BadSyntax)
+    }
+
+    pub fn eat(&self) -> DbResult<Token> {
+        if let Some(token) = self.tokenizer.current() {
+            self.tokenizer.next()?;
+            return Ok(token);
         }
         Err(DbError::BadSyntax)
     }

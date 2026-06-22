@@ -149,11 +149,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
         Ok(1)
     }
 
-    fn execute_update(
-        &self,
-        data: UpdateData,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<i32> {
+    fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32> {
         let table = data.table;
         let field = data.field;
         let index = if let Some(info) = self.mg.get_index_info(&table, tx)?.get(&field) {
@@ -183,11 +179,7 @@ impl UpdatePlanner for IndexUpdatePlanner {
         Ok(count)
     }
 
-    fn execute_delete(
-        &self,
-        data: DeleteData,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<i32> {
+    fn execute_delete(&self, data: DeleteData, tx: &Arc<Transaction>) -> DbResult<i32> {
         let table = data.name;
         let indexes = self.mg.get_index_info(&table, tx)?;
         let plan = TablePlan::new(tx, table, &self.mg)?;
@@ -219,21 +211,13 @@ impl UpdatePlanner for IndexUpdatePlanner {
         Ok(0)
     }
 
-    fn execute_create_view(
-        &self,
-        data: ViewData,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<i32> {
+    fn execute_create_view(&self, data: ViewData, tx: &Arc<Transaction>) -> DbResult<i32> {
         self.mg
             .create_view(&data.name, &data.query.to_string(), tx)?;
         Ok(0)
     }
 
-    fn execute_create_index(
-        &self,
-        data: IndexData,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<i32> {
+    fn execute_create_index(&self, data: IndexData, tx: &Arc<Transaction>) -> DbResult<i32> {
         self.mg
             .create_index(&data.index, &data.table, &data.field, tx)?;
         Ok(0)

@@ -10,7 +10,7 @@ common = { path = "../common" }
 file = { path = "../file" }
 transaction = { path = "../transaction" }
 tracing = { workspace = true}
+rand = { workspace = true }
 
 [dev-dependencies]
-rand = { workspace = true }
 tempfile = { workspace = true }

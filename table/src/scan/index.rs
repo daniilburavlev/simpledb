@@ -149,11 +149,11 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
+    use crate::schema::Schema;
     use crate::{
         SimpleDB,
         plan::{Plan, table::TablePlan},
     };
-    use crate::schema::Schema;
 
     #[test]
     fn update_index() {

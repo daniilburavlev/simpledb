@@ -26,22 +26,22 @@ impl RecordPage {
     }
 
     pub fn get_i32(&self, slot: i32, fieldname: &str) -> DbResult<i32> {
-        let pos = self.offset(slot) + self.layout.offset(fieldname) as i32;
+        let pos = self.offset(slot) + self.layout.offset(fieldname);
         self.tx.get_i32(&self.block, pos as usize)
     }
 
     pub fn get_string(&self, slot: i32, fieldname: &str) -> DbResult<String> {
-        let pos = self.offset(slot) + self.layout.offset(fieldname) as i32;
+        let pos = self.offset(slot) + self.layout.offset(fieldname);
         self.tx.get_string(&self.block, pos as usize)
     }
 
     pub fn set_i32(&self, slot: i32, field: &str, value: i32) -> DbResult<()> {
-        let pos = self.offset(slot) + self.layout.offset(field) as i32;
+        let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.set_i32(&self.block, pos as usize, value, true)
     }
 
     pub fn set_string(&self, slot: i32, field: &str, value: &str) -> DbResult<()> {
-        let pos = self.offset(slot) + self.layout.offset(field) as i32;
+        let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.set_string(&self.block, pos as usize, value, true)
     }
 
@@ -56,7 +56,7 @@ impl RecordPage {
                 .set_i32(&self.block, self.offset(slot) as usize, EMPTY, false)?;
             let schema = self.layout.schema();
             for (field, info) in schema.fields()? {
-                let pos = self.offset(slot) + self.layout.offset(&field) as i32;
+                let pos = self.offset(slot) + self.layout.offset(&field);
                 match info {
                     FieldInfo::Integer => self.tx.set_i32(&self.block, pos as usize, 0, false)?,
                     FieldInfo::Varchar(_) => {
@@ -109,7 +109,7 @@ impl RecordPage {
     }
 
     fn offset(&self, slot: i32) -> i32 {
-        slot * self.layout.slotsize() as i32
+        slot * self.layout.slotsize()
     }
 }
 

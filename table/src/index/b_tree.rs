@@ -174,8 +174,8 @@ impl Index for BTreeIndex {
 mod tests {
     use super::*;
     use crate::SimpleDB;
-    use tempfile::tempdir;
     use crate::rid::RID;
+    use tempfile::tempdir;
 
     #[test]
     fn next_int() {
@@ -190,7 +190,9 @@ mod tests {
         let tx = db.get_tx().unwrap();
 
         let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
-        index.insert(Constant::Integer(10), RID::new(0, 10)).unwrap();
+        index
+            .insert(Constant::Integer(10), RID::new(0, 10))
+            .unwrap();
 
         index.before_first(Constant::Integer(10)).unwrap();
         assert!(index.next().unwrap());
@@ -211,7 +213,9 @@ mod tests {
         let tx = db.get_tx().unwrap();
 
         let index = BTreeIndex::new(&tx, "test", &layout).unwrap();
-        index.insert(Constant::varchar("hello"), RID::new(0, 10)).unwrap();
+        index
+            .insert(Constant::varchar("hello"), RID::new(0, 10))
+            .unwrap();
 
         index.before_first(Constant::varchar("hello")).unwrap();
         assert!(index.next().unwrap());

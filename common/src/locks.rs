@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn should_lock_with_timeout() {
         let mutex = Mutex::new(0);
-        let _1 = lock_with_timeout(&mutex, Duration::from_secs(1)).unwrap();
+        let _lock1 = lock_with_timeout(&mutex, Duration::from_secs(1)).unwrap();
         let result = lock_with_timeout(&mutex, Duration::from_secs(2));
         assert!(matches!(result, Err(DbError::LockTimeout)));
     }

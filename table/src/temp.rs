@@ -3,29 +3,14 @@ use crate::scan::Scan;
 use crate::scan::table::TableScan;
 use crate::schema::Schema;
 use common::DbResult;
+use rand::RngExt;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::AtomicI32;
-use std::sync::atomic::Ordering::SeqCst;
 use transaction::transaction::Transaction;
 
-mod meterialize_plan;
+pub(crate) mod meterialize_plan;
 
 #[derive(Clone)]
-pub struct NextTableNum(Arc<AtomicI32>);
-
-impl NextTableNum {
-    pub fn next(&self) -> i32 {
-        self.0.fetch_add(1, SeqCst)
-    }
-}
-
-impl Default for NextTableNum {
-    fn default() -> Self {
-        NextTableNum(Arc::new(AtomicI32::new(0)))
-    }
-}
-
 pub struct TempTable {
     tx: Arc<Transaction>,
     table_name: String,
@@ -33,13 +18,11 @@ pub struct TempTable {
 }
 
 impl TempTable {
-    pub fn new(
-        next_table_num: &NextTableNum,
-        tx: &Arc<Transaction>,
-        schema: &Arc<Schema>,
-    ) -> DbResult<Self> {
+    pub fn new(tx: &Arc<Transaction>, schema: &Arc<Schema>) -> DbResult<Self> {
+        let mut rng = rand::rng();
+        let table_num = rng.random::<i32>();
         Ok(Self {
-            table_name: format!("temp_{}", next_table_num.next()),
+            table_name: format!("temp_{}", table_num),
             tx: Arc::clone(tx),
             layout: Arc::new(Layout::new(schema)?),
         })
@@ -51,13 +34,5 @@ impl TempTable {
             &self.table_name,
             &self.layout,
         )?))
-    }
-
-    fn table_name(&self) -> String {
-        self.table_name.clone()
-    }
-
-    fn layout(&self) -> Arc<Layout> {
-        self.layout.clone()
     }
 }

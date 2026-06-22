@@ -1,6 +1,6 @@
-use std::{collections::HashSet, rc::Rc};
 use common::DbResult;
 use common::error::DbError;
+use std::{collections::HashSet, rc::Rc};
 
 use crate::scan::Scan;
 

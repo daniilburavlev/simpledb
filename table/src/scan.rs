@@ -50,4 +50,8 @@ pub trait Scan {
     fn move_to_rid(&self, _: RID) -> DbResult<()> {
         Err(DbError::other("cannot update"))
     }
+
+    fn save_position(&self) -> DbResult<()> {
+        Err(DbError::other("cannot save position"))
+    }
 }

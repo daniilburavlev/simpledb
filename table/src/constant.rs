@@ -24,6 +24,10 @@ impl Constant {
             _ => Err(DbError::InvalidFieldType),
         }
     }
+
+    pub fn as_string(&self) -> DbResult<String> {
+        Ok(self.as_str()?.to_string())
+    }
 }
 
 impl std::fmt::Display for Constant {

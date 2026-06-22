@@ -46,7 +46,7 @@ impl BTreePageLock {
     }
 
     fn is_full(&self) -> DbResult<bool> {
-        Ok(self.slotpos(self.get_num_recs()? + 1) >= self.tx.block_size() as i32)
+        Ok(self.slotpos(self.get_num_recs()? + 1) >= self.tx.block_size())
     }
 
     fn split(&self, splitpos: i32, flag: i32) -> DbResult<BlockId> {
@@ -91,9 +91,9 @@ impl BTreePageLock {
     fn format(&self, block: &BlockId, flag: i32) -> DbResult<()> {
         self.tx.set_i32(block, 0, flag, false)?;
         self.tx.set_i32(block, I32_SIZE, 0, false)?;
-        let recsize = self.layout.slotsize() as i32;
+        let recsize = self.layout.slotsize();
         let mut pos = 2 * I32_SIZE as i32;
-        while pos + recsize <= self.tx.block_size() as i32 {
+        while pos + recsize <= self.tx.block_size() {
             self.make_default_record(block, pos)?;
             pos += recsize;
         }
@@ -250,11 +250,11 @@ impl BTreePageLock {
 
     fn field_pos(&self, slot: i32, field: &str) -> i32 {
         let offset = self.layout.offset(field);
-        self.slotpos(slot) + offset as i32
+        self.slotpos(slot) + offset
     }
 
     fn slotpos(&self, slot: i32) -> i32 {
-        let slotsize = self.layout.slotsize() as i32;
+        let slotsize = self.layout.slotsize();
         4 + 4 + (slot * slotsize)
     }
 }

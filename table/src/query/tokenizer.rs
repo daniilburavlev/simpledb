@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicU16;
+use std::sync::atomic::{AtomicU16, Ordering};
 
 use common::{DbResult, error::DbError};
 
@@ -35,5 +35,9 @@ impl Tokenizer {
         self.current_pos
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(())
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.tokens.len() - 1 <= self.current_pos.load(Ordering::SeqCst) as usize
     }
 }

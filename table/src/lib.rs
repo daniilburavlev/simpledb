@@ -19,9 +19,12 @@ use crate::{
 
 pub mod constant;
 pub mod field_info;
+pub mod group;
+pub mod group_by;
 pub mod index;
 pub mod index_mgr;
 pub mod layout;
+pub mod merge;
 pub mod metadata_mgr;
 pub mod plan;
 pub mod predicate;
@@ -30,10 +33,12 @@ pub mod record_page;
 pub mod rid;
 pub mod scan;
 pub mod schema;
+pub mod sort;
+pub mod sort_by;
 pub mod stat_mgr;
 pub mod table_mgr;
-pub mod view_mgr;
 mod temp;
+pub mod view_mgr;
 
 const LOG_FILE: &str = "wal.log";
 const BLOCK_SIZE: usize = 8 * 1024;

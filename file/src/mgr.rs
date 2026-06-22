@@ -72,11 +72,7 @@ impl FileMgr {
     }
 }
 
-fn length(
-    lock: &mut MutexGuard<'_, FileHolder>,
-    filename: &str,
-    block_size: i32,
-) -> DbResult<u64> {
+fn length(lock: &mut MutexGuard<'_, FileHolder>, filename: &str, block_size: i32) -> DbResult<u64> {
     let mut fd = lock.get(filename)?;
     let size = fd.seek(SeekFrom::End(0))?;
     Ok(size / block_size as u64)

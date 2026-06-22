@@ -2,6 +2,7 @@ use common::{DbResult, error::DbError};
 
 use crate::{
     constant::Constant,
+    group_by::GroupByData,
     predicate::{Expression, Predicate, Term},
     query::{
         command::{
@@ -11,6 +12,7 @@ use crate::{
         token::Token,
     },
     schema::Schema,
+    sort_by::SortByData,
 };
 
 pub(crate) struct Parser {
@@ -70,10 +72,25 @@ impl Parser {
             self.lexer.eat_keyword(Token::Where)?;
             predicate = self.predicate()?;
         }
+        let mut group_by = GroupByData::default();
+        if self.lexer.match_keyword(Token::Group) {
+            self.lexer.eat_keyword(Token::Group)?;
+            self.lexer.eat_keyword(Token::By)?;
+            group_by = self.group_by()?;
+        }
+        let mut sort_by = SortByData::default();
+        if self.lexer.match_keyword(Token::Sort) {
+            self.lexer.eat_keyword(Token::Sort)?;
+            self.lexer.eat_keyword(Token::By)?;
+            sort_by = self.sort_by()?;
+        }
+        self.check_remainder()?;
         Ok(Command::Query(QueryData {
             fields,
             tables,
             predicate,
+            group_by,
+            sort_by,
         }))
     }
 
@@ -256,6 +273,32 @@ impl Parser {
             field,
         }))
     }
+
+    fn group_by(&self) -> DbResult<GroupByData> {
+        let mut fields = vec![self.lexer.eat_id()?];
+        while self.lexer.match_delim(',') {
+            self.lexer.eat_delimiter(',')?;
+            fields.push(self.lexer.eat_id()?);
+        }
+        Ok(GroupByData { fields })
+    }
+
+    fn sort_by(&self) -> DbResult<SortByData> {
+        let mut fields = vec![self.lexer.eat_id()?];
+        while self.lexer.match_delim(',') {
+            self.lexer.eat_delimiter(',')?;
+            fields.push(self.lexer.eat_id()?);
+        }
+        Ok(SortByData { fields })
+    }
+
+    fn check_remainder(&self) -> DbResult<()> {
+        if self.lexer.is_empty() {
+            Ok(())
+        } else {
+            Err(DbError::UnexpectedToken(self.lexer.eat()?.to_string()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -321,6 +364,23 @@ mod tests {
     #[test]
     fn select_where() {
         let query = "SELECT * FROM users WHERE name='User User'";
+        let parser = Parser::new(query).unwrap();
+        let select = parser.query().unwrap();
+        assert_eq!(query, select.to_string());
+    }
+
+    #[test]
+    fn select_with_group() {
+        let query = "SELECT * FROM users WHERE name='User' AND id='50' GROUP BY id";
+        let parser = Parser::new(query).unwrap();
+        let select = parser.query().unwrap();
+        assert_eq!(query, select.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn select_invalid() {
+        let query = "SELECT * FROM users WHERE GROUP BY id";
         let parser = Parser::new(query).unwrap();
         let select = parser.query().unwrap();
         assert_eq!(query, select.to_string());

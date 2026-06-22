@@ -237,7 +237,7 @@ impl std::fmt::Display for Predicate {
             if i == 0 {
                 write!(f, "{}", t)?;
             } else {
-                write!(f, " and {}", t)?;
+                write!(f, " AND {}", t)?;
             }
         }
         Ok(())

@@ -4,6 +4,7 @@ use common::DbResult;
 use common::error::DbError;
 use transaction::transaction::Transaction;
 
+use crate::index::btree_page::{BLOCK, ID};
 use crate::{
     index::{Index, b_tree::BTreeIndex, btree_page::VALUE},
     layout::Layout,
@@ -12,7 +13,6 @@ use crate::{
     stat_mgr::{StatInfo, StatMgr},
     table_mgr::TableMgr,
 };
-use crate::index::btree_page::{BLOCK, ID};
 
 const IDX_TABLE: &str = "idx";
 const IDX_NAME: &str = "idx_name";
@@ -65,7 +65,7 @@ impl IndexInfo {
     }
 
     pub fn block_accessed(&self) -> DbResult<i32> {
-        let rpb = self.tx.block_size() as i32 / self.layout.slotsize() as i32;
+        let rpb = self.tx.block_size() / self.layout.slotsize();
         let num_blocks = self.stat.records_output() / rpb;
         Ok(num_blocks)
     }

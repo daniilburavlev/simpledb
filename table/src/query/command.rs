@@ -1,7 +1,9 @@
 use crate::{
     constant::Constant,
+    group_by::GroupByData,
     predicate::{Expression, Predicate},
     schema::Schema,
+    sort_by::SortByData,
 };
 
 pub enum Command {
@@ -32,6 +34,8 @@ pub struct QueryData {
     pub fields: Vec<String>,
     pub tables: Vec<String>,
     pub predicate: Predicate,
+    pub group_by: GroupByData,
+    pub sort_by: SortByData,
 }
 
 impl std::fmt::Display for QueryData {
@@ -55,6 +59,12 @@ impl std::fmt::Display for QueryData {
         let predicate = self.predicate.to_string();
         if !predicate.is_empty() {
             write!(f, " WHERE {}", predicate)?;
+        }
+        if !self.group_by.is_empty() {
+            write!(f, " {}", self.group_by)?;
+        }
+        if !self.sort_by.is_empty() {
+            write!(f, " {}", self.sort_by)?;
         }
         Ok(())
     }

@@ -19,7 +19,7 @@ impl Log {
         let (current_block, logpage) = if logsize == 0 {
             let mut page = Page::new(fm.block_size());
             let block = fm.append(&logfile)?;
-            page.set_i32(0, fm.block_size().try_into().unwrap());
+            page.set_i32(0, fm.block_size());
             fm.write(&block, &page)?;
             (block, page)
         } else {
@@ -54,8 +54,7 @@ impl Log {
 
     fn append_block(&mut self) -> DbResult<BlockId> {
         let block = self.fm.append(&self.logfile)?;
-        self.logpage
-            .set_i32(0, self.fm.block_size().try_into().unwrap());
+        self.logpage.set_i32(0, self.fm.block_size());
         self.fm.write(&block, &self.logpage)?;
         Ok(block)
     }

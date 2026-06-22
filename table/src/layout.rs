@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use common::DbResult;
-use file::page::{I32_SIZE};
+use file::page::I32_SIZE;
 
 use crate::schema::Schema;
 

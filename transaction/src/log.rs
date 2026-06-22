@@ -222,7 +222,7 @@ pub fn write_u8_to_log(
     page.set_string(filename_pos, &block.filename);
     page.set_i32(block_pos, block.num);
     page.set_i32(offset_pos, offset.try_into()?);
-    page.set_i32(value_pos, value.try_into().unwrap());
+    page.set_i32(value_pos, value.into());
     lm.append(page.contents())
 }
 

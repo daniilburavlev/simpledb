@@ -22,6 +22,9 @@ pub enum Token {
     Index,
     On,
     As,
+    Group,
+    Sort,
+    By,
     Field(String),
     Delimiter(char),
     Element(Constant),
@@ -48,6 +51,9 @@ impl Token {
             "index" => Some(Self::Index),
             "on" => Some(Self::On),
             "as" => Some(Self::As),
+            "group" => Some(Self::Group),
+            "sort" => Some(Self::Sort),
+            "by" => Some(Self::By),
             _ => None,
         }
     }
@@ -118,4 +124,35 @@ fn is_markable_delimeter(c: char) -> bool {
 
 fn is_delimeter(c: char) -> bool {
     c == ' ' || c == '\n' || is_markable_delimeter(c)
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Select => write!(f, "SELECT"),
+            Token::From => write!(f, "FROM"),
+            Token::Where => write!(f, "WHERE"),
+            Token::And => write!(f, "AND"),
+            Token::Insert => write!(f, "INSERT"),
+            Token::Into => write!(f, "INTO"),
+            Token::Values => write!(f, "VALUES"),
+            Token::Delete => write!(f, "DELETE"),
+            Token::Update => write!(f, "UPDATE"),
+            Token::Set => write!(f, "SET"),
+            Token::Create => write!(f, "CREATE"),
+            Token::Table => write!(f, "TABLE"),
+            Token::Varchar => write!(f, "VARCHAR"),
+            Token::Int => write!(f, "INT"),
+            Token::View => write!(f, "VIEW"),
+            Token::Index => write!(f, "INDEX"),
+            Token::On => write!(f, "ON"),
+            Token::As => write!(f, "AS"),
+            Token::Group => write!(f, "GROUP"),
+            Token::Sort => write!(f, "SORT"),
+            Token::By => write!(f, "BY"),
+            Token::Field(field) => write!(f, "'{}'", field),
+            Token::Delimiter(d) => write!(f, "'{}'", d),
+            Token::Element(constant) => write!(f, "'{}'", constant),
+        }
+    }
 }

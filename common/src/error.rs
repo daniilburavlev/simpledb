@@ -36,6 +36,8 @@ pub enum DbError {
     InvalidFieldType,
     #[error("{0}")]
     ToInt(#[from] std::num::TryFromIntError),
+    #[error("Unexpected token: {0}")]
+    UnexpectedToken(String),
 }
 
 impl DbError {
@@ -50,6 +52,10 @@ impl DbError {
 
     pub fn other(msg: &str) -> Self {
         Self::Other(msg.to_string())
+    }
+
+    pub fn unexpected_token(msg: &str) -> Self {
+        Self::UnexpectedToken(msg.to_string())
     }
 }
 

@@ -7,8 +7,6 @@ pub mod btree_dir;
 pub mod btree_leaf;
 pub mod btree_page;
 pub mod dir_entry;
-mod btree;
-mod bt_page;
 
 pub trait Index {
     fn before_first(&self, key: Constant) -> DbResult<()>;

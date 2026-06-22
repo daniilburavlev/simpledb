@@ -2,26 +2,20 @@ use crate::layout::Layout;
 use crate::plan::Plan;
 use crate::scan::Scan;
 use crate::schema::Schema;
-use crate::temp::{NextTableNum, TempTable};
+use crate::temp::TempTable;
 use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
 use transaction::transaction::Transaction;
 
 pub struct MaterializePlan {
-    next_table_num: NextTableNum,
     source: Rc<dyn Plan>,
     tx: Arc<Transaction>,
 }
 
 impl MaterializePlan {
-    pub fn new(
-        next_table_num: &NextTableNum,
-        source: &Rc<dyn Plan>,
-        tx: &Arc<Transaction>,
-    ) -> Self {
+    pub fn new(source: &Rc<dyn Plan>, tx: &Arc<Transaction>) -> Self {
         Self {
-            next_table_num: next_table_num.clone(),
             source: Rc::clone(source),
             tx: Arc::clone(tx),
         }
@@ -31,7 +25,7 @@ impl MaterializePlan {
 impl Plan for MaterializePlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let schema = self.source.schema()?;
-        let temp = TempTable::new(&self.next_table_num, &self.tx, &schema)?;
+        let temp = TempTable::new(&self.tx, &schema)?;
         let source = self.source.open()?;
         let dest = temp.open()?;
         while source.next()? {
