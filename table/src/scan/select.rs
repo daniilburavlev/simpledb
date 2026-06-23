@@ -1,9 +1,9 @@
+use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
-use common::DbResult;
 
-use crate::{predicate::Predicate, scan::Scan};
 use crate::schema::Schema;
+use crate::{predicate::Predicate, scan::Scan};
 
 pub struct SelectScan {
     scan: Rc<dyn Scan>,

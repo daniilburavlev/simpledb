@@ -4,10 +4,10 @@ use common::{DbResult, error::DbError, locks::TimedRwLock};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
+use crate::schema::Schema;
 use crate::{
     constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
 };
-use crate::schema::Schema;
 
 pub struct ChunkScanLock {
     buffers: Vec<RecordPage>,

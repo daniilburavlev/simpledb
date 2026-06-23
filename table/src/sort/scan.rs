@@ -1,12 +1,12 @@
-use std::{cmp::Ordering, rc::Rc};
-use std::sync::Arc;
 use common::{DbResult, error::DbError, locks::TimedRwLock};
+use std::sync::Arc;
+use std::{cmp::Ordering, rc::Rc};
 
+use crate::schema::Schema;
 use crate::{
     constant::Constant, rid::RID, scan::Scan, sort::record_comparator::RecordComparator,
     temp::TempTable,
 };
-use crate::schema::Schema;
 
 enum CurrentScan {
     None,

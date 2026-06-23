@@ -49,10 +49,10 @@ fn print_data(schema: &Schema, result: &Rc<dyn Scan>) -> DbResult<()> {
     let headers: Vec<String> = fields.into_iter().map(|(f, _)| f).collect();
     let mut widths: Vec<usize> = headers.iter().map(|f| f.len()).collect();
     for row in &rows {
-        for i in 0..headers.len() {
+        for (i, w) in widths.iter_mut().enumerate() {
             let cell_len = row.get(i).map(|s| s.len()).unwrap_or(0);
-            if cell_len > widths[i] {
-                widths[i] = cell_len;
+            if cell_len > *w {
+                *w = cell_len;
             }
         }
     }
@@ -64,8 +64,7 @@ fn print_data(schema: &Schema, result: &Rc<dyn Scan>) -> DbResult<()> {
     println!("{}", "-".repeat(total_width));
 
     for row in rows {
-        for i in 0..headers.len() {
-            let cell = row.get(i).map(|s| s.as_str()).unwrap_or("");
+        for (i, cell) in row.iter().enumerate() {
             print!("{:width$} |", cell, width = widths[i]);
         }
         println!();

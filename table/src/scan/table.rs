@@ -4,11 +4,11 @@ use common::{DbResult, error::DbError};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
+use crate::schema::Schema;
 use crate::{
     constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID,
     scan::Scan,
 };
-use crate::schema::Schema;
 
 struct TableScanLock {
     tx: Arc<Transaction>,

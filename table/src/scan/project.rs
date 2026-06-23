@@ -1,9 +1,9 @@
-use common::DbResult;
-use common::error::DbError;
-use std::{collections::HashSet, rc::Rc};
-use std::sync::Arc;
 use crate::scan::Scan;
 use crate::schema::Schema;
+use common::DbResult;
+use common::error::DbError;
+use std::sync::Arc;
+use std::{collections::HashSet, rc::Rc};
 
 pub struct ProjectScan {
     scan: Rc<dyn Scan>,

@@ -1,9 +1,9 @@
+use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
-use common::DbResult;
 
-use crate::{constant::Constant, index::Index, scan::Scan};
 use crate::schema::Schema;
+use crate::{constant::Constant, index::Index, scan::Scan};
 
 pub struct IndexSelectScan {
     scan: Rc<dyn Scan>,

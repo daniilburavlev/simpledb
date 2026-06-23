@@ -1,6 +1,6 @@
+use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
-use common::DbResult;
 
 use crate::scan::Scan;
 use crate::schema::Schema;

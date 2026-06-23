@@ -1,9 +1,9 @@
-use std::{collections::HashMap, rc::Rc};
-use std::sync::Arc;
 use common::{DbResult, error::DbError, locks::TimedRwLock};
+use std::sync::Arc;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::{constant::Constant, group::aggregation_fn::AggregationFn, scan::Scan};
 use crate::schema::Schema;
+use crate::{constant::Constant, group::aggregation_fn::AggregationFn, scan::Scan};
 
 #[derive(PartialEq, Eq)]
 struct GroupValue {

@@ -1,9 +1,9 @@
-use std::{cmp::Ordering, rc::Rc};
-use std::sync::Arc;
 use common::{DbResult, locks::TimedRwLock};
+use std::sync::Arc;
+use std::{cmp::Ordering, rc::Rc};
 
-use crate::{constant::Constant, scan::Scan};
 use crate::schema::Schema;
+use crate::{constant::Constant, scan::Scan};
 
 struct MergeJoinScanLock {
     s1: Rc<dyn Scan>,

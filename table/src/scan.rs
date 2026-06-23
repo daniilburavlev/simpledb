@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use common::{DbResult, error::DbError};
+use std::sync::Arc;
 
-use crate::{constant::Constant, rid::RID};
 use crate::schema::Schema;
+use crate::{constant::Constant, rid::RID};
 
 pub mod chunk;
 pub mod index;
