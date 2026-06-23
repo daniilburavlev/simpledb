@@ -67,7 +67,7 @@ impl GroupValue {
     }
 }
 
-pub(crate) struct GroupByScan {
+pub struct GroupByScanLock {
     scan: Rc<dyn Scan>,
     group_fields: Vec<String>,
     agg_fns: Vec<AggregationFn>,
@@ -76,7 +76,7 @@ pub(crate) struct GroupByScan {
 }
 
 impl GroupByScanLock {
-    pub(crate) fn new(
+    pub fn new(
         scan: &Rc<dyn Scan>,
         group_fields: Vec<String>,
         agg_fns: Vec<AggregationFn>,

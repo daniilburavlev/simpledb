@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common::{DbResult, error::DbError};
+use common::{DbResult, error::DbError, locks::TimedRwLock};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
@@ -9,7 +9,7 @@ use crate::{
     constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
 };
 
-pub(crate) struct ChunkScan {
+pub struct ChunkScanLock {
     buffers: Vec<RecordPage>,
     tx: Arc<Transaction>,
     filename: String,
@@ -21,8 +21,8 @@ pub(crate) struct ChunkScan {
     current_slot: i32,
 }
 
-impl ChunkScan {
-    pub(crate) fn new(
+impl ChunkScanLock {
+    fn new(
         tx: &Arc<Transaction>,
         filename: &str,
         layout: &Arc<Layout>,
@@ -53,9 +53,7 @@ impl ChunkScan {
         self.rp = self.current_b_num - self.start_b_num;
         self.current_slot = -1;
     }
-}
 
-impl Scan for ChunkScan {
     fn close(&self) -> DbResult<()> {
         for _ in 0..self.buffers.len() {
             let block = BlockId::new(&self.filename, self.start_b_num + 1);
@@ -64,9 +62,8 @@ impl Scan for ChunkScan {
         Ok(())
     }
 
-    fn before_first(&mut self) -> DbResult<()> {
+    fn before_first(&mut self) {
         self.move_to_block(self.start_b_num);
-        Ok(())
     }
 
     fn next(&mut self) -> DbResult<bool> {
@@ -114,5 +111,68 @@ impl Scan for ChunkScan {
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
         Ok(self.layout.schema())
+    }
+}
+
+pub struct ChunkScan(TimedRwLock<ChunkScanLock>);
+
+impl ChunkScan {
+    pub fn new(
+        tx: &Arc<Transaction>,
+        filename: &str,
+        layout: &Arc<Layout>,
+        start_b_num: i32,
+        end_b_num: i32,
+    ) -> DbResult<Self> {
+        Ok(Self(TimedRwLock::new(ChunkScanLock::new(
+            tx,
+            filename,
+            layout,
+            start_b_num,
+            end_b_num,
+        )?)))
+    }
+}
+
+impl Scan for ChunkScan {
+    fn before_first(&self) -> DbResult<()> {
+        let mut write = self.0.write()?;
+        write.before_first();
+        Ok(())
+    }
+
+    fn next(&self) -> DbResult<bool> {
+        let mut write = self.0.write()?;
+        write.next()
+    }
+
+    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+        let read = self.0.read()?;
+        read.get_i32(field_name)
+    }
+
+    fn get_string(&self, field_name: &str) -> DbResult<String> {
+        let read = self.0.read()?;
+        read.get_string(field_name)
+    }
+
+    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+        let read = self.0.read()?;
+        read.get_val(field_name)
+    }
+
+    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+        let read = self.0.read()?;
+        read.has_field(field_name)
+    }
+
+    fn close(&self) -> DbResult<()> {
+        let read = self.0.read()?;
+        read.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.0.read()?;
+        read.schema()
     }
 }
