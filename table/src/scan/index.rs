@@ -1,8 +1,9 @@
 use std::rc::Rc;
-
+use std::sync::Arc;
 use common::DbResult;
 
 use crate::{constant::Constant, index::Index, scan::Scan};
+use crate::schema::Schema;
 
 pub struct IndexSelectScan {
     scan: Rc<dyn Scan>,
@@ -55,6 +56,10 @@ impl Scan for IndexSelectScan {
     fn close(&self) -> DbResult<()> {
         self.index.close()?;
         self.scan.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        self.scan.schema()
     }
 }
 
@@ -140,6 +145,13 @@ impl Scan for IndexJoinScan {
         self.left.close()?;
         self.index.close()?;
         self.right.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let s1 = self.left.schema()?;
+        let s2 = self.right.schema()?;
+        s1.add_all(&s2)?;
+        Ok(s1)
     }
 }
 

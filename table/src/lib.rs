@@ -46,7 +46,7 @@ const BLOCK_SIZE: usize = 8 * 1024;
 const NUM_BUFFERS: usize = 1024;
 
 pub struct SimpleDB {
-    txnum_generator: TxNumGenerator,
+    tx_num_generator: TxNumGenerator,
     fm: Arc<FileMgr>,
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
@@ -60,13 +60,13 @@ impl SimpleDB {
     }
 
     pub fn configured(dir: &Path, block_size: usize, num_buffers: usize) -> DbResult<Self> {
-        let txnum_generator = TxNumGenerator::default();
+        let tx_num_generator = TxNumGenerator::default();
         let fm = Arc::new(FileMgr::new(dir, block_size.try_into().unwrap())?);
         let lm = Arc::new(LogMgr::new(&fm, LOG_FILE.to_string())?);
         let bm = Arc::new(BufferMgr::new(&fm, &lm, num_buffers)?);
         let lock_table = Arc::new(LockTable::default());
         let tx = Arc::new(Transaction::new(
-            &txnum_generator,
+            &tx_num_generator,
             &fm,
             &lm,
             &bm,
@@ -82,7 +82,7 @@ impl SimpleDB {
         let md = Arc::new(MetadataMgr::new(is_new, &tx)?);
         tx.commit()?;
         Ok(Self {
-            txnum_generator,
+            tx_num_generator,
             fm,
             lm,
             bm,
@@ -93,7 +93,7 @@ impl SimpleDB {
 
     pub fn get_tx(&self) -> DbResult<Arc<Transaction>> {
         let tx = Transaction::new(
-            &self.txnum_generator,
+            &self.tx_num_generator,
             &self.fm,
             &self.lm,
             &self.bm,

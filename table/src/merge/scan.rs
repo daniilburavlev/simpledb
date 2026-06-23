@@ -1,8 +1,9 @@
 use std::{cmp::Ordering, rc::Rc};
-
+use std::sync::Arc;
 use common::{DbResult, locks::TimedRwLock};
 
 use crate::{constant::Constant, scan::Scan};
+use crate::schema::Schema;
 
 struct MergeJoinScanLock {
     s1: Rc<dyn Scan>,
@@ -96,6 +97,13 @@ impl MergeJoinScanLock {
         self.s1.close()?;
         self.s2.close()
     }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let s1 = self.s1.schema()?;
+        let s2 = self.s2.schema()?;
+        s1.add_all(&s2)?;
+        Ok(s1)
+    }
 }
 
 pub struct MergeJoinScan {
@@ -149,5 +157,10 @@ impl Scan for MergeJoinScan {
     fn close(&self) -> DbResult<()> {
         let read = self.lock.read()?;
         read.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.lock.read()?;
+        read.schema()
     }
 }

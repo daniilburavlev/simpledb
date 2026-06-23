@@ -7,6 +7,7 @@ use transaction::transaction::Transaction;
 use crate::{
     constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
 };
+use crate::schema::Schema;
 
 pub struct ChunkScanLock {
     buffers: Vec<RecordPage>,
@@ -107,6 +108,10 @@ impl ChunkScanLock {
     fn has_field(&self, field_name: &str) -> DbResult<bool> {
         self.layout.schema().has_field(field_name)
     }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        Ok(self.layout.schema())
+    }
 }
 
 pub struct ChunkScan(TimedRwLock<ChunkScanLock>);
@@ -164,5 +169,10 @@ impl Scan for ChunkScan {
     fn close(&self) -> DbResult<()> {
         let read = self.0.read()?;
         read.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.0.read()?;
+        read.schema()
     }
 }

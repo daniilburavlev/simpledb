@@ -1,8 +1,9 @@
 use std::{collections::HashMap, rc::Rc};
-
+use std::sync::Arc;
 use common::{DbResult, error::DbError, locks::TimedRwLock};
 
 use crate::{constant::Constant, group::aggregation_fn::AggregationFn, scan::Scan};
+use crate::schema::Schema;
 
 #[derive(PartialEq, Eq)]
 struct GroupValue {
@@ -117,6 +118,10 @@ impl GroupByScanLock {
         }
         false
     }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        self.scan.schema()
+    }
 }
 
 pub struct GroupByScan {
@@ -169,5 +174,10 @@ impl Scan for GroupByScan {
     fn close(&self) -> DbResult<()> {
         let read = self.lock.read()?;
         read.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.lock.read()?;
+        read.schema()
     }
 }

@@ -1,8 +1,9 @@
 use std::rc::Rc;
-
+use std::sync::Arc;
 use common::DbResult;
 
 use crate::scan::Scan;
+use crate::schema::Schema;
 
 pub struct ProductScan {
     s1: Rc<dyn Scan>,
@@ -17,13 +18,13 @@ impl ProductScan {
 }
 
 impl Scan for ProductScan {
-    fn before_first(&self) -> common::DbResult<()> {
+    fn before_first(&self) -> DbResult<()> {
         self.s1.before_first()?;
         self.s1.next()?;
         self.s2.before_first()
     }
 
-    fn next(&self) -> common::DbResult<bool> {
+    fn next(&self) -> DbResult<bool> {
         if self.s2.next()? {
             Ok(true)
         } else {
@@ -32,7 +33,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
+    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
         if self.s1.has_field(field_name)? {
             self.s1.get_i32(field_name)
         } else {
@@ -40,7 +41,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> common::DbResult<String> {
+    fn get_string(&self, field_name: &str) -> DbResult<String> {
         if self.s1.has_field(field_name)? {
             self.s1.get_string(field_name)
         } else {
@@ -48,7 +49,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
         if self.s1.has_field(field_name)? {
             self.s1.get_val(field_name)
         } else {
@@ -56,12 +57,19 @@ impl Scan for ProductScan {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
+    fn has_field(&self, field_name: &str) -> DbResult<bool> {
         Ok(self.s1.has_field(field_name)? || self.s2.has_field(field_name)?)
     }
 
-    fn close(&self) -> common::DbResult<()> {
+    fn close(&self) -> DbResult<()> {
         self.s1.close()?;
         self.s2.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let s1 = self.s1.schema()?;
+        let s2 = self.s2.schema()?;
+        s1.add_all(&s2)?;
+        Ok(s1)
     }
 }

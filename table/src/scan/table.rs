@@ -8,6 +8,7 @@ use crate::{
     constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID,
     scan::Scan,
 };
+use crate::schema::Schema;
 
 struct TableScanLock {
     tx: Arc<Transaction>,
@@ -150,6 +151,10 @@ impl TableScanLock {
     fn at_last_block(&self) -> DbResult<bool> {
         Ok(self.rp.block().num == self.tx.size(&self.filename)? as i32 - 1)
     }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        Ok(self.layout.schema())
+    }
 }
 
 pub struct TableScan {
@@ -233,6 +238,11 @@ impl Scan for TableScan {
     fn get_rid(&self) -> DbResult<RID> {
         let read = self.lock.read().map_err(DbError::lock)?;
         Ok(read.get_rid())
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.lock.read().map_err(DbError::lock)?;
+        read.schema()
     }
 }
 

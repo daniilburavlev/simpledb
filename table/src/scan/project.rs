@@ -1,8 +1,9 @@
 use common::DbResult;
 use common::error::DbError;
 use std::{collections::HashSet, rc::Rc};
-
+use std::sync::Arc;
 use crate::scan::Scan;
+use crate::schema::Schema;
 
 pub struct ProjectScan {
     scan: Rc<dyn Scan>,
@@ -54,5 +55,16 @@ impl Scan for ProjectScan {
 
     fn close(&self) -> DbResult<()> {
         self.scan.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let project = Arc::new(Schema::default());
+        let schema = self.scan.schema()?;
+        for (field, info) in schema.fields()? {
+            if self.fields.contains(&field) {
+                project.add_field(field, info)?;
+            }
+        }
+        Ok(project)
     }
 }

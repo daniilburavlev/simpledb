@@ -1,6 +1,8 @@
+use std::sync::Arc;
 use common::{DbResult, error::DbError};
 
 use crate::{constant::Constant, rid::RID};
+use crate::schema::Schema;
 
 pub mod chunk;
 pub mod index;
@@ -23,6 +25,8 @@ pub trait Scan {
     fn has_field(&self, field_name: &str) -> DbResult<bool>;
 
     fn close(&self) -> DbResult<()>;
+
+    fn schema(&self) -> DbResult<Arc<Schema>>;
 
     fn set_i32(&self, _: &str, _: i32) -> DbResult<()> {
         Err(DbError::other("cannot set integer"))

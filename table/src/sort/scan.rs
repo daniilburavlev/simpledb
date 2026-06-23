@@ -1,11 +1,12 @@
 use std::{cmp::Ordering, rc::Rc};
-
+use std::sync::Arc;
 use common::{DbResult, error::DbError, locks::TimedRwLock};
 
 use crate::{
     constant::Constant, rid::RID, scan::Scan, sort::record_comparator::RecordComparator,
     temp::TempTable,
 };
+use crate::schema::Schema;
 
 enum CurrentScan {
     None,
@@ -143,6 +144,15 @@ impl SortScanLock {
         }
         Ok(())
     }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let s1 = self.s1.schema()?;
+        if let Some(s2) = &self.s2 {
+            let s2 = s2.schema()?;
+            s1.add_all(&s2)?;
+        }
+        Ok(s1)
+    }
 }
 
 pub struct SortScan {
@@ -201,5 +211,10 @@ impl Scan for SortScan {
     fn close(&self) -> common::DbResult<()> {
         let read = self.lock.read()?;
         read.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        let read = self.lock.read()?;
+        read.schema()
     }
 }

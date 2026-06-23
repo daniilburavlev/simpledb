@@ -1,0 +1,9 @@
+[package]
+name = "server"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+common = { path = "../common" }
+table = { path = "../table" }

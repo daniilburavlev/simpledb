@@ -66,7 +66,11 @@ impl Token {
 pub(crate) fn tokenize(query: &str) -> Result<Vec<Token>, DbError> {
     let mut str_char = None::<char>;
     let mut tokens = Vec::new();
-    let last_idx = query.len() - 1;
+    let last_idx = if query.is_empty() {
+        0
+    } else {
+        query.len() - 1
+    };
     let mut token_chars = Vec::new();
     let mut prev_char = '0';
 

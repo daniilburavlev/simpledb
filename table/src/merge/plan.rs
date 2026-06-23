@@ -35,7 +35,7 @@ impl MergeJoinPlan {
 }
 
 impl Plan for MergeJoinPlan {
-    fn open(&self) -> DbResult<std::rc::Rc<dyn crate::scan::Scan>> {
+    fn open(&self) -> DbResult<Rc<dyn crate::scan::Scan>> {
         let s1 = self.p1.open()?;
         let s2 = self.p2.open()?;
         Ok(Rc::new(MergeJoinScan::new(
@@ -50,7 +50,7 @@ impl Plan for MergeJoinPlan {
         Ok(self.p1.blocks_accessed()? + self.p2.blocks_accessed()?)
     }
 
-    fn records_output(&self) -> common::DbResult<i32> {
+    fn records_output(&self) -> DbResult<i32> {
         let max_val = self
             .p1
             .distinct_values(&self.field_name1)?
@@ -58,7 +58,7 @@ impl Plan for MergeJoinPlan {
         Ok(self.p1.records_output()? * self.p2.records_output()? / max_val)
     }
 
-    fn distinct_values(&self, field_name: &str) -> common::DbResult<i32> {
+    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
         if self.p1.schema()?.has_field(field_name)? {
             self.p1.distinct_values(field_name)
         } else {
@@ -66,7 +66,7 @@ impl Plan for MergeJoinPlan {
         }
     }
 
-    fn schema(&self) -> common::DbResult<std::sync::Arc<crate::schema::Schema>> {
+    fn schema(&self) -> DbResult<Arc<Schema>> {
         Ok(Arc::clone(&self.schema))
     }
 }

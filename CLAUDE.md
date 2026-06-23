@@ -23,6 +23,9 @@ cargo test -p table schema_test_name
 
 # Check without building
 cargo check
+
+# Run the interactive SQL REPL (data dir defaults to ./data)
+cargo run -p server --bin cli -- --path ./data
 ```
 
 ## Crate Architecture
@@ -30,8 +33,8 @@ cargo check
 The workspace is layered bottom-up; higher crates depend on lower ones:
 
 ```
-engine (entry point, WIP)
-  └── table (core DB logic + SQL layer)
+server (CLI / REPL)          engine, network (stubs)
+  └── table (core DB logic + SQL layer, incl. B-tree index)
         └── transaction
               ├── buffer
               │     └── log
@@ -46,13 +49,13 @@ engine (entry point, WIP)
 - **`log`** — Write-ahead log (`LogMgr`) on top of `FileMgr`.
 - **`buffer`** — Buffer pool (`BufferMgr`) that pins/unpins `Buffer` objects backed by `Page`s, with flush-to-log on eviction.
 - **`transaction`** — ACID transactions: `Transaction` wraps `ConcurrencyMgr` (S/X locks via `LockTable`), `RecoveryMgr` (undo logging), and `BufferList` (per-tx pinned buffers). `TxNumGenerator` produces monotone transaction IDs atomically.
-- **`table`** — Everything above the transaction layer (see below).
-- **`index`** — `Index` trait stub (WIP).
-- **`engine`** — Top-level entry point (WIP, currently empty).
+- **`table`** — Everything above the transaction layer, including the B-tree index (`table/src/index/`) and the SQL layer (see below).
+- **`server`** — The actual entry point: `server/src/bin/cli.rs` is an interactive `sql>` REPL. It opens a `SimpleDB`, then routes each line to `db.query()` (for `SELECT`, prints a formatted table) or `db.execute()` (for DML/DDL, prints affected-row count). Run with `cargo run -p server --bin cli -- --path <dir>` (defaults to `./data`).
+- **`engine`** / **`network`** — Empty stubs (placeholder `fn main` / `add`), reserved for future work. The CLI does **not** live in `engine` despite its `engine/src/bin/cli.rs` (also a stub).
 
 ### Inside `table`
 
-`SimpleDB` (in `table/src/lib.rs`) is the database handle. It owns `Arc` references to `FileMgr`, `LogMgr`, `BufferMgr`, `LockTable`, and `MetadataMgr`, and produces new `Transaction`s via `get_tx()`.
+`SimpleDB` (in `table/src/lib.rs`) is the database handle. `new(dir)` uses defaults; `configured(dir, block_size, num_buffers)` overrides them. It owns `Arc` references to `FileMgr`, `LogMgr`, `BufferMgr`, `LockTable`, and `MetadataMgr`, and produces new `Transaction`s via `get_tx()`. The two SQL entry points take a `&Arc<Transaction>`: `query()` returns `Rc<dyn Scan>` for `SELECT`, `execute()` returns the affected-row count for everything else.
 
 **Storage layer**
 
@@ -67,6 +70,15 @@ engine (entry point, WIP)
 - `Plan` — cost-estimation node + `open() -> Rc<dyn Scan>`. Implementations: `TablePlan`, `SelectPlan`, `ProjectPlan`, `ProductPlan`, `IndexPlan`.
 - Scan implementations mirror plans: `TableScan`, `SelectScan`, `ProjectScan`, `ProductScan`, `IndexScan`.
 - Plans use `Rc<dyn Plan>` / `Rc<dyn Scan>` (single-threaded query execution); managers use `Arc`.
+
+**Query operators** (beyond the core scans above)
+
+- `index/` — B-tree index: `BTreeIndex` over `BTreePage` (leaf/dir pages), with `BTreeLeaf`, `BTreeDir`, and `DirEntry`. `IndexMgr` (`index_mgr.rs`) tracks index metadata.
+- `sort/` + `sort_by.rs` — external merge sort (`SortPlan`/`SortScan`), backing `ORDER BY`. Spills runs to temp tables.
+- `group/` + `group_by.rs` — `GROUP BY` with aggregation functions (`AggregationFn`).
+- `merge/` — merge join (`MergeJoinPlan`/`MergeJoinScan`).
+- `temp/` (private `temp` mod) — temporary materialized tables used by sort/merge.
+- `constant.rs` (`Constant`), `field_info.rs` (`FieldInfo`: `Integer` / `Varchar(n)`), `buffer_needs.rs` (per-operator buffer reservation).
 
 **SQL layer** (`table/src/query/`)
 

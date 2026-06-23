@@ -4,6 +4,7 @@ use common::{DbResult, error::DbError};
 
 use crate::field_info::FieldInfo;
 
+#[derive(Debug)]
 struct SchemaLock {
     fields: Vec<String>,
     infos: HashMap<String, FieldInfo>,
@@ -53,7 +54,8 @@ pub struct Schema {
 
 impl Debug for Schema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Schema").finish()
+        let read = self.lock.read().unwrap();
+        write!(f, "Schema {{ {:?} }}", &*read)
     }
 }
 

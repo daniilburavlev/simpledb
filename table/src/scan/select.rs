@@ -1,8 +1,9 @@
 use std::rc::Rc;
-
+use std::sync::Arc;
 use common::DbResult;
 
 use crate::{predicate::Predicate, scan::Scan};
+use crate::schema::Schema;
 
 pub struct SelectScan {
     scan: Rc<dyn Scan>,
@@ -47,6 +48,10 @@ impl Scan for SelectScan {
 
     fn close(&self) -> DbResult<()> {
         self.scan.close()
+    }
+
+    fn schema(&self) -> DbResult<Arc<Schema>> {
+        self.scan.schema()
     }
 
     fn set_i32(&self, field_name: &str, value: i32) -> DbResult<()> {
