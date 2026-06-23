@@ -5,9 +5,11 @@ use transaction::transaction::Transaction;
 
 use crate::{
     plan::Plan,
-    scan::Scan,
+    scan::{
+        Scan,
+        sort::{RecordComparator, SortScan},
+    },
     schema::Schema,
-    sort::{record_comparator::RecordComparator, scan::SortScan},
     temp::{TempTable, meterialize_plan::MaterializePlan},
 };
 

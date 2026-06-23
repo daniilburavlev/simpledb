@@ -1,9 +1,48 @@
-use common::{DbResult, error::DbError, locks::TimedRwLock};
-use std::sync::Arc;
-use std::{collections::HashMap, rc::Rc};
+use std::{cmp::Ordering, collections::HashMap, rc::Rc, sync::Arc};
 
-use crate::schema::Schema;
-use crate::{constant::Constant, group::aggregation_fn::AggregationFn, scan::Scan};
+use common::{DbResult, error::DbError, locks::TimedRwLock};
+
+use crate::{constant::Constant, scan::Scan, schema::Schema};
+
+#[derive(Clone)]
+pub enum AggregationFn {
+    MaxFn { field: String, value: Constant },
+}
+
+impl AggregationFn {
+    pub fn process_first(&mut self, scan: &Rc<dyn Scan>) -> DbResult<()> {
+        match self {
+            Self::MaxFn { field, value } => {
+                *value = scan.get_val(field)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn process_next(&mut self, scan: &Rc<dyn Scan>) -> DbResult<()> {
+        match self {
+            Self::MaxFn { field, value } => {
+                let new_value = scan.get_val(field)?;
+                if new_value.cmp(value) == Ordering::Greater {
+                    *value = new_value;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn field_name(&self) -> String {
+        match self {
+            Self::MaxFn { field, .. } => format!("max_of_{}", field),
+        }
+    }
+
+    pub fn value(&self) -> Constant {
+        match self {
+            Self::MaxFn { value, .. } => value.clone(),
+        }
+    }
+}
 
 #[derive(PartialEq, Eq)]
 struct GroupValue {
@@ -28,7 +67,7 @@ impl GroupValue {
     }
 }
 
-struct GroupByScanLock {
+pub(crate) struct GroupByScan {
     scan: Rc<dyn Scan>,
     group_fields: Vec<String>,
     agg_fns: Vec<AggregationFn>,
@@ -37,7 +76,7 @@ struct GroupByScanLock {
 }
 
 impl GroupByScanLock {
-    fn new(
+    pub(crate) fn new(
         scan: &Rc<dyn Scan>,
         group_fields: Vec<String>,
         agg_fns: Vec<AggregationFn>,

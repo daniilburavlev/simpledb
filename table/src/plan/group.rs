@@ -4,10 +4,9 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    group::{aggregation_fn::AggregationFn, scan::GroupByScan},
-    plan::Plan,
+    plan::{Plan, sort::SortPlan},
+    scan::group::{AggregationFn, GroupByScan},
     schema::Schema,
-    sort::plan::SortPlan,
 };
 
 pub struct GroupByPlan {
