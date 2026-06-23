@@ -1,6 +1,6 @@
-use common::{DbResult, locks::TimedRwLock};
+use common::DbResult;
 use std::sync::Arc;
-use std::{cmp::Ordering, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use crate::schema::Schema;
 use crate::{constant::Constant, scan::Scan};
@@ -107,7 +107,7 @@ impl MergeJoinScanLock {
 }
 
 pub struct MergeJoinScan {
-    lock: TimedRwLock<MergeJoinScanLock>,
+    lock: RefCell<MergeJoinScanLock>,
 }
 
 impl MergeJoinScan {
@@ -118,49 +118,49 @@ impl MergeJoinScan {
         field_name2: &str,
     ) -> DbResult<Self> {
         Ok(Self {
-            lock: TimedRwLock::new(MergeJoinScanLock::new(s1, s2, field_name1, field_name2)?),
+            lock: RefCell::new(MergeJoinScanLock::new(s1, s2, field_name1, field_name2)?),
         })
     }
 }
 
 impl Scan for MergeJoinScan {
     fn before_first(&self) -> DbResult<()> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.before_first()
     }
 
     fn next(&self) -> DbResult<bool> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.next()
     }
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
     fn get_string(&self, field_name: &str) -> DbResult<String> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
     fn get_val(&self, field_name: &str) -> DbResult<Constant> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
     fn has_field(&self, field_name: &str) -> DbResult<bool> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.has_field(field_name)
     }
 
     fn close(&self) -> DbResult<()> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.close()
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.schema()
     }
 }

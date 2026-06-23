@@ -1,6 +1,6 @@
-use std::{cmp::Ordering, collections::HashMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc, sync::Arc};
 
-use common::{DbResult, error::DbError, locks::TimedRwLock};
+use common::{DbResult, error::DbError};
 
 use crate::{constant::Constant, scan::Scan, schema::Schema};
 
@@ -67,7 +67,7 @@ impl GroupValue {
     }
 }
 
-pub(crate) struct GroupByScan {
+struct GroupByScanLock {
     scan: Rc<dyn Scan>,
     group_fields: Vec<String>,
     agg_fns: Vec<AggregationFn>,
@@ -76,7 +76,7 @@ pub(crate) struct GroupByScan {
 }
 
 impl GroupByScanLock {
-    pub(crate) fn new(
+    fn new(
         scan: &Rc<dyn Scan>,
         group_fields: Vec<String>,
         agg_fns: Vec<AggregationFn>,
@@ -164,7 +164,7 @@ impl GroupByScanLock {
 }
 
 pub struct GroupByScan {
-    lock: TimedRwLock<GroupByScanLock>,
+    lock: RefCell<GroupByScanLock>,
 }
 
 impl GroupByScan {
@@ -174,49 +174,49 @@ impl GroupByScan {
         agg_fns: Vec<AggregationFn>,
     ) -> DbResult<Self> {
         Ok(Self {
-            lock: TimedRwLock::new(GroupByScanLock::new(scan, group_fields, agg_fns)?),
+            lock: RefCell::new(GroupByScanLock::new(scan, group_fields, agg_fns)?),
         })
     }
 }
 
 impl Scan for GroupByScan {
     fn before_first(&self) -> DbResult<()> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.before_first()
     }
 
     fn next(&self) -> DbResult<bool> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.next()
     }
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
     fn get_string(&self, field_name: &str) -> DbResult<String> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
     fn get_val(&self, field_name: &str) -> DbResult<Constant> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
     fn has_field(&self, field_name: &str) -> DbResult<bool> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         Ok(read.has_field(field_name))
     }
 
     fn close(&self) -> DbResult<()> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.close()
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.schema()
     }
 }

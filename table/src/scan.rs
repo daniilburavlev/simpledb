@@ -16,9 +16,9 @@ pub(crate) mod sort;
 pub mod table;
 
 pub trait Scan {
-    fn before_first(&mut self) -> DbResult<()>;
+    fn before_first(&self) -> DbResult<()>;
 
-    fn next(&mut self) -> DbResult<bool>;
+    fn next(&self) -> DbResult<bool>;
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32>;
 
