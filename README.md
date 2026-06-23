@@ -11,7 +11,7 @@ Rust implementation of basic SQL database, originally implemented in Java by the
 ## About the project
 ___
 
-![Usage preview](assets/preview.gif)
+![Usage preview](/assets/preview.gif)
 
 ## Getting started
 ___
