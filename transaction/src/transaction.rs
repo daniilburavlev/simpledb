@@ -117,6 +117,14 @@ impl Transaction {
         Ok(())
     }
 
+    pub fn get_u8(&self, block: &BlockId, offset: usize) -> DbResult<u8> {
+        self.concurrency_mgr.s_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::BufferAbort);
+        };
+        buffer.get_u8(offset)
+    }
+
     pub fn get_i32(&self, block: &BlockId, offset: usize) -> DbResult<i32> {
         self.concurrency_mgr.s_lock(block)?;
         let Some(buffer) = self.buffers.get_buffer(block)? else {

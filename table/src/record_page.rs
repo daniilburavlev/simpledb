@@ -6,8 +6,8 @@ use transaction::transaction::Transaction;
 
 use crate::{field_info::FieldInfo, layout::Layout};
 
-const EMPTY: i32 = 0;
-const USED: i32 = 1;
+const EMPTY: u8 = 0;
+const USED: u8 = 1;
 
 #[derive(Clone)]
 pub struct RecordPage {
@@ -54,7 +54,7 @@ impl RecordPage {
         let mut slot = 0;
         while self.is_valid_slot(slot) {
             self.tx
-                .set_i32(&self.block, self.offset(slot) as usize, EMPTY, false)?;
+                .set_u8(&self.block, self.offset(slot) as usize, EMPTY, false)?;
             let schema = self.layout.schema();
             for (field, info) in schema.fields()? {
                 let pos = self.offset(slot) + self.layout.offset(&field);
@@ -86,16 +86,16 @@ impl RecordPage {
         self.block.clone()
     }
 
-    fn set_flag(&self, slot: i32, flag: i32) -> DbResult<()> {
+    fn set_flag(&self, slot: i32, flag: u8) -> DbResult<()> {
         let offset = self.offset(slot) as usize;
-        self.tx.set_i32(&self.block, offset, flag, true)?;
+        self.tx.set_u8(&self.block, offset, flag, true)?;
         Ok(())
     }
 
-    fn search_after(&self, mut slot: i32, flag: i32) -> DbResult<i32> {
+    fn search_after(&self, mut slot: i32, flag: u8) -> DbResult<i32> {
         slot += 1;
         while self.is_valid_slot(slot) {
-            if self.tx.get_i32(&self.block, self.offset(slot) as usize)? == flag {
+            if self.tx.get_u8(&self.block, self.offset(slot) as usize)? == flag {
                 return Ok(slot);
             }
             slot += 1;

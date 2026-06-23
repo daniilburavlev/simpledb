@@ -221,4 +221,28 @@ mod tests {
         assert!(!result.next().unwrap());
         assert!(ids.is_empty());
     }
+
+    #[test]
+    fn insert_5000_rows() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT)").unwrap();
+        tx.commit().unwrap();
+
+        let mut existed = HashSet::new();
+        for i in 0..5000 {
+            db.execute(&tx, &format!("INSERT INTO test(id) VALUES({})", i))
+                .unwrap();
+            existed.insert(i);
+        }
+        tx.commit().unwrap();
+
+        let result = db.query(&tx, "SELECT id FROM test").unwrap();
+        while result.next().unwrap() {
+            let id = result.get_i32("id").unwrap();
+            assert!(existed.remove(&id));
+        }
+        assert!(existed.is_empty());
+    }
 }

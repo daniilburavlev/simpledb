@@ -169,10 +169,21 @@ impl Buffer {
         Ok(())
     }
 
+    pub fn set_u8(&self, offset: usize, value: u8) -> DbResult<()> {
+        let mut lock = self.buffer.lock().map_err(DbError::lock)?;
+        lock.contents.set_u8(offset, value);
+        Ok(())
+    }
+
     pub fn set_i32(&self, offset: usize, value: i32) -> DbResult<()> {
         let mut lock = self.buffer.lock().map_err(DbError::lock)?;
         lock.contents.set_i32(offset, value);
         Ok(())
+    }
+
+    pub fn get_u8(&self, offset: usize) -> DbResult<u8> {
+        let lock = self.buffer.lock().map_err(DbError::lock)?;
+        Ok(lock.contents.get_u8(offset))
     }
 
     pub fn get_i32(&self, offset: usize) -> DbResult<i32> {
