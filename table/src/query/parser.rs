@@ -2,11 +2,11 @@ use common::{DbResult, error::DbError};
 
 use crate::{
     constant::Constant,
-    group_by::GroupByData,
     predicate::{Expression, Predicate, Term},
     query::{
         command::{
-            Command, DeleteData, IndexData, InsertData, QueryData, TableData, UpdateData, ViewData,
+            Command, DeleteData, GroupByData, IndexData, InsertData, QueryData, TableData,
+            UpdateData, ViewData,
         },
         lexer::Lexer,
         token::Token,

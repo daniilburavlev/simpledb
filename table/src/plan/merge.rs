@@ -3,7 +3,11 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
-use crate::{merge::scan::MergeJoinScan, plan::Plan, schema::Schema, sort::plan::SortPlan};
+use crate::{
+    plan::{Plan, sort::SortPlan},
+    scan::merge::MergeJoinScan,
+    schema::Schema,
+};
 
 pub struct MergeJoinPlan {
     p1: Rc<dyn Plan>,

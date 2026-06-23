@@ -3,11 +3,22 @@ version = "0.0.1"
 
 [workspace]
 resolver = "2"
-members = ["buffer", "common", "engine", "file", "log", "network", "server", "table", "transaction"]
+members = [
+  "buffer",
+  "common",
+  "engine",
+  "file",
+  "log",
+  "network",
+  "server",
+  "table",
+  "transaction",
+]
 
 [workspace.dependencies]
 bytes = "1"
 clap = { version = "4", features = ["derive", "string"] }
+criterion = { version = "0", features = ["html_reports"] }
 thiserror = "2"
 rand = "0.10"
 tempfile = "3"

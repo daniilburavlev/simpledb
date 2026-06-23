@@ -4,11 +4,10 @@ use common::{DbResult, error::DbError};
 use transaction::transaction::Transaction;
 
 use crate::{
-    group::plan::GroupByPlan,
     metadata_mgr::MetadataMgr,
     plan::{
-        Plan, index::IndexSelectPlan, product::ProductPlan, project::ProjectPlan,
-        select::SelectPlan, table::TablePlan,
+        Plan, group::GroupByPlan, index::IndexSelectPlan, product::ProductPlan,
+        project::ProjectPlan, select::SelectPlan, sort::SortPlan, table::TablePlan,
     },
     predicate::Predicate,
     query::{
@@ -16,7 +15,6 @@ use crate::{
         parser::Parser,
         planner::{QueryPlanner, UpdatePlanner},
     },
-    sort::plan::SortPlan,
 };
 
 pub struct BasicQueryPlanner {

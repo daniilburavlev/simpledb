@@ -4,10 +4,14 @@ use common::DbResult;
 
 use crate::{scan::Scan, schema::Schema};
 
+pub(crate) mod group;
 pub mod index;
+pub(crate) mod merge;
+pub(crate) mod multibuffer;
 pub mod product;
 pub mod project;
 pub mod select;
+pub(crate) mod sort;
 pub mod table;
 
 pub trait Plan {

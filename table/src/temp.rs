@@ -35,4 +35,12 @@ impl TempTable {
             &self.layout,
         )?))
     }
+
+    pub(crate) fn table_name(&self) -> String {
+        self.table_name.clone()
+    }
+
+    pub(crate) fn layout(&self) -> Arc<Layout> {
+        self.layout.clone()
+    }
 }

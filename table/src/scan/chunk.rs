@@ -1,6 +1,7 @@
+use std::cell::RefCell;
 use std::sync::Arc;
 
-use common::{DbResult, error::DbError, locks::TimedRwLock};
+use common::{DbResult, error::DbError};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
@@ -114,7 +115,7 @@ impl ChunkScanLock {
     }
 }
 
-pub struct ChunkScan(TimedRwLock<ChunkScanLock>);
+pub struct ChunkScan(RefCell<ChunkScanLock>);
 
 impl ChunkScan {
     pub fn new(
@@ -124,7 +125,7 @@ impl ChunkScan {
         start_b_num: i32,
         end_b_num: i32,
     ) -> DbResult<Self> {
-        Ok(Self(TimedRwLock::new(ChunkScanLock::new(
+        Ok(Self(RefCell::new(ChunkScanLock::new(
             tx,
             filename,
             layout,
@@ -136,43 +137,43 @@ impl ChunkScan {
 
 impl Scan for ChunkScan {
     fn before_first(&self) -> DbResult<()> {
-        let mut write = self.0.write()?;
+        let mut write = self.0.borrow_mut();
         write.before_first();
         Ok(())
     }
 
     fn next(&self) -> DbResult<bool> {
-        let mut write = self.0.write()?;
+        let mut write = self.0.borrow_mut();
         write.next()
     }
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.get_i32(field_name)
     }
 
     fn get_string(&self, field_name: &str) -> DbResult<String> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.get_string(field_name)
     }
 
     fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.get_val(field_name)
     }
 
     fn has_field(&self, field_name: &str) -> DbResult<bool> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.has_field(field_name)
     }
 
     fn close(&self) -> DbResult<()> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.close()
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
-        let read = self.0.read()?;
+        let read = self.0.borrow();
         read.schema()
     }
 }

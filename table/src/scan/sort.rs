@@ -1,13 +1,35 @@
-use common::{DbResult, error::DbError, locks::TimedRwLock};
+use common::{DbResult, error::DbError};
 use std::sync::Arc;
-use std::{cmp::Ordering, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
+use crate::constant::Constant;
+use crate::rid::RID;
+use crate::scan::Scan;
 use crate::schema::Schema;
-use crate::{
-    constant::Constant, rid::RID, scan::Scan, sort::record_comparator::RecordComparator,
-    temp::TempTable,
-};
+use crate::temp::TempTable;
 
+#[derive(Clone)]
+pub struct RecordComparator {
+    fields: Vec<String>,
+}
+
+impl RecordComparator {
+    pub fn new(fields: Vec<String>) -> Self {
+        Self { fields }
+    }
+
+    pub fn compare(&self, s1: &Rc<dyn Scan>, s2: &Rc<dyn Scan>) -> DbResult<Ordering> {
+        for field in &self.fields {
+            let val1 = s1.get_val(field)?;
+            let val2 = s2.get_val(field)?;
+            let result = val1.cmp(&val2);
+            if result != Ordering::Equal {
+                return Ok(result);
+            }
+        }
+        Ok(Ordering::Equal)
+    }
+}
 enum CurrentScan {
     None,
     S1,
@@ -156,65 +178,65 @@ impl SortScanLock {
 }
 
 pub struct SortScan {
-    lock: TimedRwLock<SortScanLock>,
+    lock: RefCell<SortScanLock>,
 }
 
 impl SortScan {
     pub fn new(runs: Vec<TempTable>, comp: RecordComparator) -> DbResult<Self> {
         Ok(Self {
-            lock: TimedRwLock::new(SortScanLock::new(runs, comp)?),
+            lock: RefCell::new(SortScanLock::new(runs, comp)?),
         })
     }
 
     pub fn save_position(&self) -> DbResult<()> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.save_position()
     }
 
     pub fn restore_position(&self) -> DbResult<()> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.restore_position()
     }
 }
 
 impl Scan for SortScan {
     fn before_first(&self) -> common::DbResult<()> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.before_first()
     }
 
     fn next(&self) -> common::DbResult<bool> {
-        let mut write = self.lock.write()?;
+        let mut write = self.lock.borrow_mut();
         write.next()
     }
 
     fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
     fn get_string(&self, field_name: &str) -> common::DbResult<String> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
     fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
     fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.has_field(field_name)
     }
 
     fn close(&self) -> common::DbResult<()> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.close()
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
-        let read = self.lock.read()?;
+        let read = self.lock.borrow();
         read.schema()
     }
 }

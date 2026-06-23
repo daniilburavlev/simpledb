@@ -5,10 +5,14 @@ use crate::schema::Schema;
 use crate::{constant::Constant, rid::RID};
 
 pub mod chunk;
+pub(crate) mod group;
 pub mod index;
+pub(crate) mod merge;
+pub(crate) mod multibuffer;
 pub mod product;
 pub mod project;
 pub mod select;
+pub(crate) mod sort;
 pub mod table;
 
 pub trait Scan {
