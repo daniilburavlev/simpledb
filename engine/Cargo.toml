@@ -3,4 +3,19 @@ name = "engine"
 edition = "2024"
 version.workspace = true
 
+[[bench]]
+name = "insert_benchmark"
+harness = false
+
 [dependencies]
+buffer = { path = "../buffer" }
+log = { path = "../log" }
+common = { path = "../common" }
+file = { path = "../file" }
+transaction = { path = "../transaction" }
+tracing = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+tempfile = { workspace = true }

@@ -20,6 +20,7 @@ const TABLE_NAME: &str = "table_name";
 const FIELD_NAME: &str = "field_name";
 const MAX_LENGTH: i32 = 16;
 
+#[derive(Clone)]
 pub struct IndexInfo {
     idx_name: String,
     field_name: String,

@@ -6,6 +6,7 @@ use crate::{scan::Scan, schema::Schema};
 
 pub(crate) mod group;
 pub mod index;
+pub(crate) mod materialize;
 pub(crate) mod merge;
 pub(crate) mod multibuffer;
 pub mod product;

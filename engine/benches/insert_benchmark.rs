@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
+use engine::SimpleDB;
 use rand::RngExt;
-use table::SimpleDB;
 use tempfile::tempdir;
 
 fn bench_insert(c: &mut Criterion) {

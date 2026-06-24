@@ -1,12 +1,12 @@
 use clap::Parser;
 use common::DbResult;
+use engine::SimpleDB;
+use engine::field_info::FieldInfo;
+use engine::scan::Scan;
+use engine::schema::Schema;
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
-use table::SimpleDB;
-use table::field_info::FieldInfo;
-use table::scan::Scan;
-use table::schema::Schema;
 
 fn default_path() -> String {
     "data".to_string()

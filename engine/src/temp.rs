@@ -8,8 +8,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use transaction::transaction::Transaction;
 
-pub(crate) mod meterialize_plan;
-
 #[derive(Clone)]
 pub struct TempTable {
     tx: Arc<Transaction>,

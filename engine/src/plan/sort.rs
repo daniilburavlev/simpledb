@@ -4,13 +4,13 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    plan::Plan,
+    plan::{Plan, materialize::MaterializePlan},
     scan::{
         Scan,
         sort::{RecordComparator, SortScan},
     },
     schema::Schema,
-    temp::{TempTable, meterialize_plan::MaterializePlan},
+    temp::TempTable,
 };
 
 pub struct SortPlan {
