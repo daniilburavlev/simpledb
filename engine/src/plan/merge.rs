@@ -17,6 +17,7 @@ pub struct MergeJoinPlan {
     schema: Arc<Schema>,
 }
 
+#[allow(dead_code)]
 impl MergeJoinPlan {
     pub fn new(
         tx: &Arc<Transaction>,

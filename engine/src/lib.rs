@@ -20,7 +20,6 @@ use crate::{
 pub mod buffer_needs;
 pub mod constant;
 pub mod field_info;
-pub mod group_by;
 pub mod index;
 pub mod index_mgr;
 pub mod layout;

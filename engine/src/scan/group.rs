@@ -4,6 +4,7 @@ use common::{DbResult, error::DbError};
 
 use crate::{constant::Constant, scan::Scan, schema::Schema};
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub enum AggregationFn {
     MaxFn { field: String, value: Constant },

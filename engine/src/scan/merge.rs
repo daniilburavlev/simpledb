@@ -5,6 +5,7 @@ use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 use crate::schema::Schema;
 use crate::{constant::Constant, scan::Scan};
 
+#[allow(dead_code)]
 struct MergeJoinScanLock {
     s1: Rc<dyn Scan>,
     s2: Rc<dyn Scan>,
@@ -13,6 +14,7 @@ struct MergeJoinScanLock {
     join_val: Option<Constant>,
 }
 
+#[allow(dead_code)]
 impl MergeJoinScanLock {
     pub fn new(
         s1: &Rc<dyn Scan>,
@@ -106,10 +108,12 @@ impl MergeJoinScanLock {
     }
 }
 
+#[allow(dead_code)]
 pub struct MergeJoinScan {
     lock: RefCell<MergeJoinScanLock>,
 }
 
+#[allow(dead_code)]
 impl MergeJoinScan {
     pub fn new(
         s1: &Rc<dyn Scan>,

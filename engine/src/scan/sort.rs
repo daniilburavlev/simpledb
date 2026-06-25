@@ -189,11 +189,13 @@ impl SortScan {
         })
     }
 
+    #[allow(dead_code)]
     pub fn save_position(&self) -> DbResult<()> {
         let mut write = self.lock.borrow_mut();
         write.save_position()
     }
 
+    #[allow(dead_code)]
     pub fn restore_position(&self) -> DbResult<()> {
         let read = self.lock.borrow();
         read.restore_position()

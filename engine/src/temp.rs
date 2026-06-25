@@ -4,8 +4,8 @@ use crate::scan::table::TableScan;
 use crate::schema::Schema;
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::{atomic, Arc};
 use std::sync::atomic::AtomicI32;
+use std::sync::{Arc, atomic};
 use transaction::transaction::Transaction;
 
 static TABLE_NUM_COUNTER: AtomicI32 = AtomicI32::new(0);

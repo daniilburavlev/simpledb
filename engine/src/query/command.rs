@@ -29,6 +29,7 @@ impl std::fmt::Display for Command {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) enum Element {
     Raw(String),
     Id { source: String, name: String },
