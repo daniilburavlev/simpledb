@@ -11,7 +11,7 @@ use transaction::{
 use crate::{
     metadata_mgr::MetadataMgr,
     query::{
-        basic_planner::{BasicQueryPlanner, BasicUpdatePlanner},
+        basic_planner::BasicUpdatePlanner, heuristic_planner::HeuristicQueryPlanner,
         planner::Planner,
     },
     scan::Scan,
@@ -115,7 +115,7 @@ impl SimpleDB {
     }
 
     fn planner(&self) -> Planner {
-        let query_planner = BasicQueryPlanner::new(&self.md);
+        let query_planner = HeuristicQueryPlanner::new(&self.md);
         let update_planner = BasicUpdatePlanner::new(&self.md);
         Planner::new(Rc::new(query_planner), Rc::new(update_planner))
     }

@@ -44,16 +44,17 @@ impl TablePlanner {
 
     pub(crate) fn make_join_plan(&self, current: &Rc<dyn Plan>) -> DbResult<Option<Rc<dyn Plan>>> {
         let current_schema = current.schema()?;
-        if let None = self
+        if self
             .predicate
             .join_sub_pred(&self.schema, &current_schema)?
+            .is_none()
         {
             return Ok(None);
         }
-        if let Some(p) = self.make_index_join(&current, &current_schema)? {
+        if let Some(p) = self.make_index_join(current, &current_schema)? {
             Ok(Some(p))
         } else {
-            Ok(Some(self.make_product_join(&current, &current_schema)?))
+            Ok(Some(self.make_product_join(current, &current_schema)?))
         }
     }
 
@@ -93,7 +94,7 @@ impl TablePlanner {
     ) -> DbResult<Option<Rc<dyn Plan>>> {
         for (field, info) in &self.indexes {
             if let Some(outer_field) = self.predicate.equates_with_field(field)?
-                && self.schema.has_field(&field)?
+                && self.schema.has_field(field)?
             {
                 let plan: Rc<dyn Plan> = self.plan.clone();
                 let p: Rc<dyn Plan> = Rc::new(IndexJoinPlan::new(

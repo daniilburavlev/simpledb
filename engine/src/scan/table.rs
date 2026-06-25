@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock};
+use std::cell::RefCell;
+use std::sync::Arc;
 
 use common::{DbResult, error::DbError};
 use file::block::BlockId;
@@ -10,7 +11,7 @@ use crate::{
     scan::Scan,
 };
 
-struct TableScanLock {
+struct TableScanInner {
     tx: Arc<Transaction>,
     layout: Arc<Layout>,
     rp: RecordPage,
@@ -18,7 +19,7 @@ struct TableScanLock {
     current_slot: i32,
 }
 
-impl TableScanLock {
+impl TableScanInner {
     fn new(tx: &Arc<Transaction>, table_name: &str, layout: &Arc<Layout>) -> DbResult<Self> {
         let filename = format!("{}.tbl", table_name);
         let rp = if tx.size(&filename)? == 0 {
@@ -162,90 +163,90 @@ impl TableScanLock {
 }
 
 pub struct TableScan {
-    lock: RwLock<TableScanLock>,
+    lock: RefCell<TableScanInner>,
 }
 
 impl TableScan {
     pub fn new(tx: &Arc<Transaction>, tablename: &str, layout: &Arc<Layout>) -> DbResult<Self> {
         Ok(Self {
-            lock: RwLock::new(TableScanLock::new(tx, tablename, layout)?),
+            lock: RefCell::new(TableScanInner::new(tx, tablename, layout)?),
         })
     }
 }
 
 impl Scan for TableScan {
     fn before_first(&self) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
+        let mut write = self.lock.borrow_mut();
         write.before_first()
     }
 
     fn next(&self) -> DbResult<bool> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
+        let mut write = self.lock.borrow_mut();
         write.next()
     }
 
     fn get_i32(&self, field: &str) -> DbResult<i32> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.get_i32(field)
     }
 
     fn get_string(&self, field: &str) -> DbResult<String> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.get_string(field)
     }
 
     fn get_val(&self, field: &str) -> DbResult<Constant> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.get_val(field)
     }
 
     fn has_field(&self, field: &str) -> DbResult<bool> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.has_field(field)
     }
 
     fn close(&self) -> DbResult<()> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.close()
     }
 
     fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
-        let write = self.lock.read().map_err(DbError::lock)?;
+        let mut write = self.lock.borrow_mut();
         write.set_i32(field, value)
     }
 
     fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.set_string(field, value)
     }
 
     fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.set_val(field, value)
     }
 
     fn insert(&self) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
+        let mut write = self.lock.borrow_mut();
         write.insert()
     }
 
     fn delete(&self) -> DbResult<()> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.delete()
     }
 
     fn move_to_rid(&self, rid: RID) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
+        let mut write = self.lock.borrow_mut();
         write.move_to_rid(rid)
     }
 
     fn get_rid(&self) -> DbResult<RID> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         Ok(read.get_rid())
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+        let read = self.lock.borrow();
         read.schema()
     }
 }

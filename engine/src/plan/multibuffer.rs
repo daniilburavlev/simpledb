@@ -30,7 +30,7 @@ impl MultiBufferProductPlan {
         schema.add_all(&s2)?;
         let plan = Self {
             tx: Arc::clone(tx),
-            left: Rc::clone(left),
+            left: Rc::new(MaterializePlan::new(left, tx)),
             right: Rc::clone(right),
             schema,
         };

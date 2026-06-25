@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use common::DbResult;
 use transaction::transaction::Transaction;
@@ -6,27 +6,23 @@ use transaction::transaction::Transaction;
 use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, project::ProjectPlan},
-    query::{command::QueryData, table_planner::TablePlanner},
+    query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner},
 };
 
-pub(crate) struct HeuristicQueryPlanner {
+struct HeuristicQueryPlannerInner {
     table_planners: Vec<TablePlanner>,
     md: Arc<MetadataMgr>,
 }
 
-impl HeuristicQueryPlanner {
-    pub(crate) fn new(md: &Arc<MetadataMgr>) -> Self {
+impl HeuristicQueryPlannerInner {
+    fn new(md: &Arc<MetadataMgr>) -> Self {
         Self {
             table_planners: vec![],
             md: Arc::clone(md),
         }
     }
 
-    pub(crate) fn create_plan(
-        &mut self,
-        data: QueryData,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<Rc<dyn Plan>> {
+    fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         for table in &data.tables {
             let tp = TablePlanner::new(table, data.predicate.clone(), tx, &self.md)?;
             self.table_planners.push(tp);
@@ -86,7 +82,7 @@ impl HeuristicQueryPlanner {
             .first()
             .unwrap()
             .make_product_plan(current)?;
-        for (i, tp) in self.table_planners.iter().skip(1).enumerate() {
+        for tp in self.table_planners.iter().skip(1) {
             let plan = tp.make_product_plan(current)?;
             if plan.records_output()? < best_plan.records_output()? {
                 index = 1;
@@ -95,5 +91,20 @@ impl HeuristicQueryPlanner {
         }
         self.table_planners.remove(index);
         Ok(best_plan)
+    }
+}
+
+pub(crate) struct HeuristicQueryPlanner(RefCell<HeuristicQueryPlannerInner>);
+
+impl HeuristicQueryPlanner {
+    pub(crate) fn new(md: &Arc<MetadataMgr>) -> Self {
+        Self(RefCell::new(HeuristicQueryPlannerInner::new(md)))
+    }
+}
+
+impl QueryPlanner for HeuristicQueryPlanner {
+    fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+        let mut write = self.0.borrow_mut();
+        write.create_plan(data, tx)
     }
 }

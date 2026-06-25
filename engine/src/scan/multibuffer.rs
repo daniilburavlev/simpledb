@@ -10,7 +10,7 @@ use crate::{
     schema::Schema,
 };
 
-pub(crate) struct MultiBufferProductScanLock {
+struct MultiBufferProductScanInner {
     tx: Arc<Transaction>,
     left: Rc<dyn Scan>,
     right: Option<Rc<dyn Scan>>,
@@ -22,7 +22,7 @@ pub(crate) struct MultiBufferProductScanLock {
     file_size: i32,
 }
 
-impl MultiBufferProductScanLock {
+impl MultiBufferProductScanInner {
     pub(crate) fn new(
         tx: &Arc<Transaction>,
         left: &Rc<dyn Scan>,
@@ -70,6 +70,7 @@ impl MultiBufferProductScanLock {
         } else {
             panic!("right scan is empty");
         }
+        self.next_block = end + 1;
         Ok(true)
     }
 
@@ -80,14 +81,18 @@ impl MultiBufferProductScanLock {
     }
 
     fn next(&mut self) -> DbResult<bool> {
-        while let Some(prod) = &self.prod
-            && prod.next()?
-        {
+        loop {
+            let has_next = match &self.prod {
+                Some(prod) => prod.next()?,
+                None => false,
+            };
+            if has_next {
+                return Ok(true);
+            }
             if !self.use_next_chunk()? {
                 return Ok(false);
             }
         }
-        Ok(true)
     }
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32> {
@@ -140,7 +145,7 @@ impl MultiBufferProductScanLock {
 }
 
 pub(crate) struct MultiBufferProductScan {
-    lock: RefCell<MultiBufferProductScanLock>,
+    lock: RefCell<MultiBufferProductScanInner>,
 }
 
 impl MultiBufferProductScan {
@@ -151,7 +156,9 @@ impl MultiBufferProductScan {
         layout: &Arc<Layout>,
     ) -> DbResult<Self> {
         Ok(Self {
-            lock: RefCell::new(MultiBufferProductScanLock::new(tx, left, filename, layout)?),
+            lock: RefCell::new(MultiBufferProductScanInner::new(
+                tx, left, filename, layout,
+            )?),
         })
     }
 }

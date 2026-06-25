@@ -5,81 +5,9 @@ use transaction::transaction::Transaction;
 
 use crate::{
     metadata_mgr::MetadataMgr,
-    plan::{
-        Plan, group::GroupByPlan, index::IndexSelectPlan, product::ProductPlan,
-        project::ProjectPlan, select::SelectPlan, sort::SortPlan, table::TablePlan,
-    },
-    predicate::Predicate,
-    query::{
-        command::{Command, IndexData, QueryData},
-        parser::Parser,
-        planner::{QueryPlanner, UpdatePlanner},
-    },
+    plan::{Plan, select::SelectPlan, table::TablePlan},
+    query::{command::IndexData, planner::UpdatePlanner},
 };
-
-pub struct BasicQueryPlanner {
-    md: Arc<MetadataMgr>,
-}
-
-impl BasicQueryPlanner {
-    pub fn new(md: &Arc<MetadataMgr>) -> Self {
-        Self { md: Arc::clone(md) }
-    }
-
-    /// Build a scan plan for a single table, preferring an index select plan
-    /// when the predicate equates an indexed field with a constant.
-    fn table_plan(
-        &self,
-        table: String,
-        predicate: &Predicate,
-        tx: &Arc<Transaction>,
-    ) -> DbResult<Rc<dyn Plan>> {
-        let base: Rc<dyn Plan> = Rc::new(TablePlan::new(tx, table.clone(), &self.md)?);
-        let indexes = self.md.get_index_info(&table, tx)?;
-
-        for (field, info) in indexes {
-            if let Some(value) = predicate.equates_with_constant(&field)? {
-                tracing::debug!("Using index on {}.{}", table, field);
-                return Ok(Rc::new(IndexSelectPlan::new(&base, info, value)));
-            }
-        }
-        Ok(base)
-    }
-}
-
-impl QueryPlanner for BasicQueryPlanner {
-    fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
-        let mut plans = vec![];
-        for table in data.tables {
-            if let Some(view) = self.md.get_view_def(&table, tx)? {
-                let parser = Parser::new(&view)?;
-                if let Command::Query(data) = parser.query()? {
-                    plans.push(self.create_plan(data, tx)?);
-                }
-            } else {
-                plans.push(self.table_plan(table, &data.predicate, tx)?);
-            }
-        }
-        let mut p = plans.remove(0);
-        for next in plans.into_iter() {
-            let p1 = ProductPlan::new(next.clone(), p.clone())?;
-            let p2 = ProductPlan::new(p.clone(), next.clone())?;
-            p = if p1.blocks_accessed()? < p2.blocks_accessed()? {
-                Rc::new(p1)
-            } else {
-                Rc::new(p2)
-            };
-        }
-        let mut p: Rc<dyn Plan> = Rc::new(SelectPlan::new(p, data.predicate));
-        if !data.group_by.is_empty() {
-            p = Rc::new(GroupByPlan::new(tx, &p, data.group_by.fields, vec![])?);
-        }
-        if !data.sort_by.is_empty() {
-            p = Rc::new(SortPlan::new(tx, &p, data.sort_by.fields)?);
-        }
-        Ok(Rc::new(ProjectPlan::new(p, data.fields)?))
-    }
-}
 
 pub struct BasicUpdatePlanner {
     md: Arc<MetadataMgr>,

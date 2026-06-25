@@ -56,8 +56,8 @@ impl ChunkScanLock {
     }
 
     fn close(&self) -> DbResult<()> {
-        for _ in 0..self.buffers.len() {
-            let block = BlockId::new(&self.filename, self.start_b_num + 1);
+        for i in 0..self.buffers.len() {
+            let block = BlockId::new(&self.filename, self.start_b_num + i as i32);
             self.tx.unpin(&block)?;
         }
         Ok(())
@@ -68,22 +68,23 @@ impl ChunkScanLock {
     }
 
     fn next(&mut self) -> DbResult<bool> {
-        let Some(rp) = self.buffers.get(self.current_slot as usize).cloned() else {
-            return Err(DbError::other("cannot get record page for chunk"));
-        };
-        self.current_slot = rp.next_after(self.current_slot)?;
-        while self.current_slot < 0 {
+        loop {
+            let Some(rp) = self.buffers.get(self.rp as usize).cloned() else {
+                return Err(DbError::other("cannot get record page for chunk"));
+            };
+            self.current_slot = rp.next_after(self.current_slot)?;
+            if self.current_slot >= 0 {
+                return Ok(true);
+            }
             if self.current_b_num == self.end_b_num {
                 return Ok(false);
             }
             self.move_to_block(rp.block().num + 1);
-            self.current_slot = rp.next_after(self.current_slot)?;
         }
-        Ok(true)
     }
 
     fn get_i32(&self, field_name: &str) -> DbResult<i32> {
-        if let Some(rp) = self.buffers.get(self.current_b_num as usize) {
+        if let Some(rp) = self.buffers.get(self.rp as usize) {
             rp.get_i32(self.current_slot, field_name)
         } else {
             Err(DbError::other("cannot get buffer chunk"))
@@ -91,7 +92,7 @@ impl ChunkScanLock {
     }
 
     fn get_string(&self, field_name: &str) -> DbResult<String> {
-        if let Some(rp) = self.buffers.get(self.current_b_num as usize) {
+        if let Some(rp) = self.buffers.get(self.rp as usize) {
             rp.get_string(self.current_slot, field_name)
         } else {
             Err(DbError::other("cannot get buffer chunk"))

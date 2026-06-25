@@ -5,8 +5,15 @@ use crate::schema::Schema;
 use common::DbResult;
 use rand::RngExt;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{atomic, Arc};
+use std::sync::atomic::AtomicI32;
 use transaction::transaction::Transaction;
+
+static TABLE_NUM_COUNTER: AtomicI32 = AtomicI32::new(0);
+
+fn next_table_num() -> i32 {
+    TABLE_NUM_COUNTER.fetch_add(1, atomic::Ordering::SeqCst)
+}
 
 #[derive(Clone)]
 pub struct TempTable {
@@ -17,10 +24,8 @@ pub struct TempTable {
 
 impl TempTable {
     pub fn new(tx: &Arc<Transaction>, schema: &Arc<Schema>) -> DbResult<Self> {
-        let mut rng = rand::rng();
-        let table_num = rng.random::<i32>();
         Ok(Self {
-            table_name: format!("temp_{}", table_num),
+            table_name: format!("temp_{}", next_table_num()),
             tx: Arc::clone(tx),
             layout: Arc::new(Layout::new(schema)?),
         })
