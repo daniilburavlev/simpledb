@@ -3,6 +3,8 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::plan::group::GroupByPlan;
+use crate::plan::sort::SortPlan;
 use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, project::ProjectPlan},
@@ -34,6 +36,17 @@ impl HeuristicQueryPlannerInner {
             } else {
                 current = self.get_lowest_product_plan(&current)?;
             }
+        }
+        if !data.group_by.is_empty() {
+            current = Rc::new(GroupByPlan::new(
+                tx,
+                &current,
+                data.group_by.fields,
+                vec![],
+            )?);
+        }
+        if !data.sort_by.is_empty() {
+            current = Rc::new(SortPlan::new(tx, &current, data.sort_by.fields)?);
         }
         Ok(Rc::new(ProjectPlan::new(current, data.fields)?))
     }

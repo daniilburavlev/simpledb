@@ -3,7 +3,6 @@ use crate::scan::Scan;
 use crate::scan::table::TableScan;
 use crate::schema::Schema;
 use common::DbResult;
-use rand::RngExt;
 use std::rc::Rc;
 use std::sync::{atomic, Arc};
 use std::sync::atomic::AtomicI32;

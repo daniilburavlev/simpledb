@@ -37,11 +37,13 @@ fn bench_join(c: &mut Criterion) {
     c.bench_function("join", |b| {
         b.iter(|| {
             for i in 0..10 {
-                db.query(
-                    &tx,
-                    &format!("SELECT i1, i2 FROM t1, t2 WHERE i1 = i2 AND i1 = {}", i),
-                )
-                .unwrap();
+                let result = db
+                    .query(
+                        &tx,
+                        &format!("SELECT i1, i2 FROM t1, t2 WHERE i1 = i2 AND i1 = {}", i),
+                    )
+                    .unwrap();
+                result.close().unwrap();
             }
         });
     });

@@ -30,6 +30,7 @@ impl RecordComparator {
         Ok(Ordering::Equal)
     }
 }
+
 enum CurrentScan {
     None,
     S1,
@@ -200,37 +201,37 @@ impl SortScan {
 }
 
 impl Scan for SortScan {
-    fn before_first(&self) -> common::DbResult<()> {
+    fn before_first(&self) -> DbResult<()> {
         let mut write = self.lock.borrow_mut();
         write.before_first()
     }
 
-    fn next(&self) -> common::DbResult<bool> {
+    fn next(&self) -> DbResult<bool> {
         let mut write = self.lock.borrow_mut();
         write.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> common::DbResult<i32> {
+    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
         let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> common::DbResult<String> {
+    fn get_string(&self, field_name: &str) -> DbResult<String> {
         let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
         let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
+    fn has_field(&self, field_name: &str) -> DbResult<bool> {
         let read = self.lock.borrow();
         read.has_field(field_name)
     }
 
-    fn close(&self) -> common::DbResult<()> {
+    fn close(&self) -> DbResult<()> {
         let read = self.lock.borrow();
         read.close()
     }

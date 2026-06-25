@@ -211,8 +211,8 @@ impl Scan for TableScan {
     }
 
     fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
-        let mut write = self.lock.borrow_mut();
-        write.set_i32(field, value)
+        let read = self.lock.borrow();
+        read.set_i32(field, value)
     }
 
     fn set_string(&self, field: &str, value: &str) -> DbResult<()> {

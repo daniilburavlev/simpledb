@@ -47,9 +47,10 @@ impl MultiBufferProductScanInner {
     }
 
     fn use_next_chunk(&mut self) -> DbResult<bool> {
-        if let Some(right) = &self.right {
+        if let Some(right) = self.right.take() {
             right.close()?;
         }
+        self.prod = None;
         if self.next_block >= self.file_size {
             return Ok(false);
         }
@@ -57,19 +58,16 @@ impl MultiBufferProductScanInner {
         if end >= self.file_size {
             end = self.file_size - 1;
         }
-        self.right = Some(Rc::new(ChunkScan::new(
+        let right: Rc<dyn Scan> = Rc::new(ChunkScan::new(
             &self.tx,
             &self.filename,
             &self.layout,
             self.next_block,
             end,
-        )?));
+        )?);
         self.left.before_first()?;
-        if let Some(right) = &self.right {
-            self.prod = Some(Rc::new(ProductScan::new(self.left.clone(), right.clone())?));
-        } else {
-            panic!("right scan is empty");
-        }
+        self.prod = Some(Rc::new(ProductScan::new(self.left.clone(), right.clone())?));
+        self.right = Some(right);
         self.next_block = end + 1;
         Ok(true)
     }
@@ -128,11 +126,11 @@ impl MultiBufferProductScanInner {
     }
 
     fn close(&self) -> DbResult<()> {
-        if let Some(prod) = &self.prod {
-            prod.close()
-        } else {
-            Err(DbError::other("cannot get prod"))
+        self.left.close()?;
+        if let Some(right) = &self.right {
+            right.close()?;
         }
+        Ok(())
     }
 
     fn schema(&self) -> DbResult<Arc<Schema>> {

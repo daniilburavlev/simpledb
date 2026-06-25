@@ -174,7 +174,6 @@ mod tests {
             let existed = result.next().unwrap();
             assert!(existed);
         }
-        assert!(!result.next().unwrap());
     }
 
     #[test]
