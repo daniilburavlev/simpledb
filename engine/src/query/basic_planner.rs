@@ -61,7 +61,7 @@ impl QueryPlanner for BasicQueryPlanner {
             }
         }
         let mut p = plans.remove(0);
-        for next in plans.into_iter().skip(1) {
+        for next in plans.into_iter() {
             let p1 = ProductPlan::new(next.clone(), p.clone())?;
             let p2 = ProductPlan::new(p.clone(), next.clone())?;
             p = if p1.blocks_accessed()? < p2.blocks_accessed()? {

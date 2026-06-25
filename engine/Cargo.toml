@@ -4,7 +4,7 @@ edition = "2024"
 version.workspace = true
 
 [[bench]]
-name = "insert_benchmark"
+name = "db_benchmark"
 harness = false
 
 [dependencies]

@@ -29,9 +29,10 @@ impl std::fmt::Display for Command {
     }
 }
 
-pub(crate) enum FieldSpecifier {
+pub(crate) enum Element {
     Raw(String),
     Id { source: String, name: String },
+    Object { obj: String, field: String },
 }
 
 pub struct QueryData {

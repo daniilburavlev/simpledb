@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_5000_rows() {
+    fn insert_10000_rows() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
@@ -231,7 +231,7 @@ mod tests {
         tx.commit().unwrap();
 
         let mut existed = HashSet::new();
-        for i in 0..5000 {
+        for i in 0..10000 {
             db.execute(&tx, &format!("INSERT INTO test(id) VALUES({})", i))
                 .unwrap();
             existed.insert(i);
@@ -244,5 +244,37 @@ mod tests {
             assert!(existed.remove(&id));
         }
         assert!(existed.is_empty());
+    }
+
+    #[test]
+    fn join() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE t1(i1 INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE t2(i2 INT)").unwrap();
+        tx.commit().unwrap();
+        for i in 0..100 {
+            db.execute(&tx, &format!("INSERT INTO t1(i1) VALUES({})", i))
+                .unwrap();
+            db.execute(&tx, &format!("INSERT INTO t2(i2) VALUES({})", i))
+                .unwrap();
+        }
+        tx.commit().unwrap();
+        let mut existed = HashSet::new();
+        for i in 0..10 {
+            existed.insert(i);
+            let result = db
+                .query(
+                    &tx,
+                    &format!("SELECT i1, i2 FROM t1, t2 WHERE i1 = i2 AND i1 = {}", i),
+                )
+                .unwrap();
+            while result.next().unwrap() {
+                assert_eq!(i, result.get_i32("i1").unwrap());
+                assert_eq!(i, result.get_i32("i2").unwrap());
+            }
+        }
+        tx.commit().unwrap();
     }
 }

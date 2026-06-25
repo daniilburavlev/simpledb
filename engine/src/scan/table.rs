@@ -101,6 +101,10 @@ impl TableScanLock {
     }
 
     pub fn insert(&mut self) -> DbResult<()> {
+        let last_block = self.tx.size(&self.filename)? as i32 - 1;
+        if self.rp.block().num != last_block {
+            self.move_to_block(last_block)?;
+        }
         self.current_slot = self.rp.insert_after(self.current_slot)?;
         while self.current_slot < 0 {
             if self.at_last_block()? {
