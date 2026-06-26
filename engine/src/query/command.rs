@@ -1,5 +1,6 @@
 use crate::{
     constant::Constant,
+    element::Element,
     predicate::{Expression, Predicate},
     schema::Schema,
     sort_by::SortByData,
@@ -29,16 +30,9 @@ impl std::fmt::Display for Command {
     }
 }
 
-#[allow(dead_code)]
-pub(crate) enum Element {
-    Raw(String),
-    Id { source: String, name: String },
-    Object { obj: String, field: String },
-}
-
 pub struct QueryData {
-    pub fields: Vec<String>,
-    pub tables: Vec<String>,
+    pub fields: Vec<Element>,
+    pub tables: Vec<Element>,
     pub predicate: Predicate,
     pub group_by: GroupByData,
     pub sort_by: SortByData,

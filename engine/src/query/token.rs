@@ -121,7 +121,7 @@ fn is_str_token(c: char) -> bool {
 }
 
 fn is_markable_delimeter(c: char) -> bool {
-    c == '(' || c == ')' || c == ',' || c == '='
+    c == '(' || c == ')' || c == ',' || c == '=' || c == '.'
 }
 
 fn is_delimeter(c: char) -> bool {

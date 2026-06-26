@@ -26,7 +26,7 @@ impl HeuristicQueryPlannerInner {
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         for table in &data.tables {
-            let tp = TablePlanner::new(table, data.predicate.clone(), tx, &self.md)?;
+            let tp = TablePlanner::new(table.source()?, data.predicate.clone(), tx, &self.md)?;
             self.table_planners.push(tp);
         }
         let mut current = self.get_lowest_select_plan()?;
@@ -48,7 +48,11 @@ impl HeuristicQueryPlannerInner {
         if !data.sort_by.is_empty() {
             current = Rc::new(SortPlan::new(tx, &current, data.sort_by.fields)?);
         }
-        Ok(Rc::new(ProjectPlan::new(current, data.fields)?))
+        Ok(Rc::new(ProjectPlan::new(
+            current,
+            data.fields,
+            data.tables,
+        )?))
     }
 
     fn get_lowest_select_plan(&mut self) -> DbResult<Rc<dyn Plan>> {

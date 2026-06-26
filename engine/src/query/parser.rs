@@ -2,6 +2,7 @@ use common::{DbResult, error::DbError};
 
 use crate::{
     constant::Constant,
+    element::Element,
     predicate::{Expression, Predicate, Term},
     query::{
         command::{
@@ -24,6 +25,20 @@ impl Parser {
         Ok(Self {
             lexer: Lexer::new(s)?,
         })
+    }
+
+    pub(crate) fn element(&self) -> DbResult<Element> {
+        let id = self.lexer.eat_id()?;
+        if self.lexer.match_delim('.') {
+            self.lexer.eat_delimiter(',')?;
+            let spec = self.lexer.eat_id()?;
+            Ok(Element::Specifier { source: id, spec })
+        } else if self.lexer.match_id() {
+            let name = self.lexer.eat_id()?;
+            Ok(Element::Id { source: id, name })
+        } else {
+            Ok(Element::Raw(id))
+        }
     }
 
     pub(crate) fn field(&self) -> DbResult<String> {
@@ -94,22 +109,20 @@ impl Parser {
         }))
     }
 
-    fn select_list(&self) -> DbResult<Vec<String>> {
-        let mut fields = vec![];
-        fields.push(self.field()?);
+    fn select_list(&self) -> DbResult<Vec<Element>> {
+        let mut fields = vec![self.element()?];
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            fields.push(self.field()?);
+            fields.push(self.element()?);
         }
         Ok(fields)
     }
 
-    fn table_list(&self) -> DbResult<Vec<String>> {
-        let mut tables = vec![];
-        tables.push(self.lexer.eat_id()?);
+    fn table_list(&self) -> DbResult<Vec<Element>> {
+        let mut tables = vec![self.element()?];
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            tables.push(self.lexer.eat_id()?);
+            tables.push(self.element()?);
         }
         Ok(tables)
     }

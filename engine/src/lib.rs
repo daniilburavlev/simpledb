@@ -19,6 +19,7 @@ use crate::{
 
 pub mod buffer_needs;
 pub mod constant;
+pub(crate) mod element;
 pub mod field_info;
 pub mod index;
 pub mod index_mgr;
