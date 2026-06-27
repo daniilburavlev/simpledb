@@ -1,0 +1,15 @@
+[package]
+name = "scan"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+buffer = { path = "../buffer" }
+common = { path = "../common" }
+file = { path = "../file" }
+log = { path = "../log" }
+transaction = { path = "../transaction/" }
+
+[dev-dependencies]
+rand = { workspace = true }
+tempfile = { workspace = true }
