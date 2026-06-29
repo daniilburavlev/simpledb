@@ -144,12 +144,13 @@ impl BTreeIndex {
                             parent.write(&parent_block, &self.tx)?;
                             left.write(&block, &self.tx)?;
                             right.write(&right_block, &self.tx)?;
+                            block = BlockId::new(&self.index_name, 0);
                             page = BTreePage::Metadata {
                                 root: parent_block.num,
                             };
                         } else {
-                            let parent_block = BlockId::new(&self.index_name, parent);
-                            page = BTreePage::read(&self.tx, &parent_block)?;
+                            block = BlockId::new(&self.index_name, parent);
+                            page = BTreePage::read(&self.tx, &block)?;
                             let right = BTreePage::Node {
                                 parent,
                                 children: right_children.clone(),
@@ -163,7 +164,7 @@ impl BTreeIndex {
                         let Some(child_offset) = children.get(idx) else {
                             return Err(DbError::other("empty node's leafs"));
                         };
-                        let block = BlockId::new(&self.index_name, child_offset.block_num);
+                        block = BlockId::new(&self.index_name, child_offset.block_num);
                         page = BTreePage::read(&self.tx, &block)?;
                     }
                 }
@@ -173,7 +174,7 @@ impl BTreeIndex {
                 } => {
                     let block_size = self.tx.block_size() as usize;
                     let size = TYPE_SIZE + key.size();
-                    let max_size = block_size - TYPE_SIZE + 3 * POINTER_SIZE;
+                    let max_size = block_size - (TYPE_SIZE + 3 * POINTER_SIZE);
                     if size > max_size {
                         return Err(DbError::MaxSize(max_size, size));
                     }
@@ -217,6 +218,7 @@ impl BTreeIndex {
                         left.write(&block, &self.tx)?;
                         right.write(&right_block, &self.tx)?;
                         new_root = Some(parent_block.num);
+                        block = BlockId::new(&self.index_name, 0);
                         page = BTreePage::Metadata {
                             root: parent_block.num,
                         };
@@ -233,8 +235,8 @@ impl BTreeIndex {
                         left.write(&block, &self.tx)?;
                         right.write(&right_block, &self.tx)?;
                         new_offset = Some((right_key, right_block.num));
-                        let parent_block = BlockId::new(&self.index_name, parent);
-                        page = BTreePage::read(&self.tx, &parent_block)?;
+                        block = BlockId::new(&self.index_name, parent);
+                        page = BTreePage::read(&self.tx, &block)?;
                     }
                 }
             }
@@ -242,8 +244,33 @@ impl BTreeIndex {
         Ok(())
     }
 
-    pub(crate) fn delete(&self, value: Value, rid: RID) -> DbResult<()> {
-        todo!();
+    pub(crate) fn delete(&self, key: Value, rid: RID) -> DbResult<()> {
+        let mut block = BlockId::new(&self.index_name, 0);
+        let mut page = BTreePage::read(&self.tx, &block)?;
+        loop {
+            match page {
+                BTreePage::Metadata { root } => {
+                    block = BlockId::new(&self.index_name, root);
+                    page = BTreePage::read(&self.tx, &block)?;
+                }
+                BTreePage::Node { children, .. } => {
+                    let idx = pointer_index(&children, &key);
+                    block = BlockId::new(&self.index_name, children[idx].block_num);
+                    page = BTreePage::read(&self.tx, &block)?;
+                }
+                BTreePage::Leaf { parent, mut values } => {
+                    if let Ok(idx) = values.binary_search_by(|v| v.value.cmp(&key))
+                        && let Some(position) = values[idx].rid.iter().position(|x| *x == rid)
+                    {
+                        values[idx].rid.remove(position);
+                        let page = BTreePage::Leaf { parent, values };
+                        page.write(&block, &self.tx)?;
+                    }
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn close(&self) -> DbResult<()> {
@@ -253,11 +280,17 @@ impl BTreeIndex {
     fn rewrite_parent(&self, values: &[BTreePointer], parent: i32) -> DbResult<()> {
         for value in values {
             let block = BlockId::new(&self.index_name, value.block_num);
-            let BTreePage::Node { children, .. } = BTreePage::read(&self.tx, &block)? else {
-                return Err(DbError::other("unexptected B-Tree index page type"));
-            };
-            let page = BTreePage::Node { parent, children };
-            page.write(&block, &self.tx)?;
+            match BTreePage::read(&self.tx, &block)? {
+                BTreePage::Node { children, .. } => {
+                    let page = BTreePage::Node { parent, children };
+                    page.write(&block, &self.tx)?;
+                }
+                BTreePage::Leaf { values, .. } => {
+                    let page = BTreePage::Leaf { parent, values };
+                    page.write(&block, &self.tx)?;
+                }
+                _ => return Err(DbError::other("unexpected B-Tree index page type")),
+            }
         }
         Ok(())
     }
@@ -281,9 +314,8 @@ fn create_index(tx: &Transaction, index_name: &str) -> DbResult<()> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use crate::tests::init;
+    use crate::tests::{init, init_with_size};
 
     #[test]
     fn insert_1000() {
@@ -291,6 +323,61 @@ mod tests {
         let mut index = BTreeIndex::new("test_index", &tx).unwrap();
         for i in 0..1000 {
             index.insert(Value::Integer(i), RID::new(i, i)).unwrap();
+        }
+        for i in 0..1000 {
+            index.before_first(Value::Integer(i)).unwrap();
+            assert!(index.next().unwrap());
+        }
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn two_leafs_one_node() {
+        let (_dir, tx) = init();
+        let index_name = "test";
+        let index = BTreeIndex::new("test", &tx).unwrap();
+        for i in 0..30 {
+            index.insert(Value::Integer(i), RID::new(i, i)).unwrap();
+        }
+        let metadata_block = BlockId::new(index_name, 0);
+        let left_block = BlockId::new(index_name, 1);
+        let root_block = BlockId::new(index_name, 2);
+        let right_block = BlockId::new(index_name, 3);
+
+        if let BTreePage::Metadata { root } = BTreePage::read(&tx, &metadata_block).unwrap() {
+            assert_eq!(root, 2);
+        } else {
+            panic!("expected metadata page");
+        }
+        if let BTreePage::Leaf { parent, values } = BTreePage::read(&tx, &left_block).unwrap() {
+            assert_eq!(parent, 2);
+            assert_eq!(values.len(), 15);
+        } else {
+            panic!("expected left leaf page");
+        }
+        if let BTreePage::Node { parent, children } = BTreePage::read(&tx, &root_block).unwrap() {
+            assert_eq!(parent, 0);
+            assert_eq!(children.len(), 2);
+        } else {
+            panic!("expected root node page");
+        }
+        if let BTreePage::Leaf { parent, values } = BTreePage::read(&tx, &right_block).unwrap() {
+            assert_eq!(parent, 2);
+            assert_eq!(values.len(), 15);
+        } else {
+            panic!("expected right leaf page");
+        }
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn small_page_test() {
+        let (_dir, tx) = init_with_size(32);
+        let mut index = BTreeIndex::new("test_index", &tx).unwrap();
+        for i in 0..10 {
+            index.insert(Value::Integer(i), RID::new(i, i)).unwrap();
+        }
+        for i in 0..10 {
             index.before_first(Value::Integer(i)).unwrap();
             assert!(index.next().unwrap());
         }

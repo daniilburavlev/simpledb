@@ -26,6 +26,7 @@ impl FieldInfo {
             Self::Varchar(_) => VARCHAR_TYPE,
         }
     }
+
     pub fn length(&self) -> i32 {
         match self {
             Self::Integer => I32_SIZE as i32,
@@ -71,4 +72,3 @@ mod tests {
         assert_eq!("VARCHAR(2)", info.to_string());
     }
 }
-

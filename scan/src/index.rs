@@ -1,6 +1,13 @@
-use common::DbResult;
+use std::sync::Arc;
 
-use crate::{index::indexer::Indexer, rid::RID, value::Value};
+use common::DbResult;
+use transaction::transaction::Transaction;
+
+use crate::{
+    index::{b_tree::BTreeIndex, indexer::Indexer},
+    rid::RID,
+    value::Value,
+};
 
 pub(crate) mod b_tree;
 mod indexer;
@@ -8,13 +15,18 @@ mod indexer;
 pub struct Index(Indexer);
 
 impl Index {
+    pub fn new(index_name: &str, tx: &Arc<Transaction>) -> DbResult<Self> {
+        let index = BTreeIndex::new(index_name, tx)?;
+        Ok(Self(Indexer::BTree(index)))
+    }
+
     pub fn before_first(&mut self, key: Value) -> DbResult<()> {
         match &mut self.0 {
             Indexer::BTree(index) => index.before_first(key),
         }
     }
 
-    pub fn next(&mut self) -> DbResult<bool> {
+    pub fn next_row(&mut self) -> DbResult<bool> {
         match &mut self.0 {
             Indexer::BTree(index) => index.next(),
         }

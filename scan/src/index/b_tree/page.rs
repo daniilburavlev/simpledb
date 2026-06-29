@@ -1,5 +1,4 @@
 use common::{DbResult, error::DbError};
-use file::page::U32_SIZE;
 use file::{
     block::BlockId,
     page::{I32_SIZE, Page, U8_SIZE},
@@ -16,9 +15,9 @@ pub(crate) const TYPE_SIZE: usize = U8_SIZE;
 pub(crate) const POINTER_SIZE: usize = I32_SIZE;
 pub(crate) const LEN_SIZE: usize = I32_SIZE;
 
-const METADATA: u8 = 0;
-const NODE: u8 = 1;
-const LEAF: u8 = 2;
+const METADATA: u8 = 1;
+const NODE: u8 = 2;
+const LEAF: u8 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BTreePage {
@@ -227,12 +226,6 @@ fn write_value(
 pub(crate) fn pointer_index(values: &[BTreePointer], value: &Value) -> usize {
     values
         .binary_search_by(|k| k.value.cmp(value))
-        .unwrap_or_else(|x| if x == 0 { 0 } else { x - 1 })
-}
-
-pub(crate) fn rid_index(values: &[BTreeEntry], value: &Value) -> usize {
-    values
-        .binary_search_by(|e| e.value.cmp(value))
         .unwrap_or_else(|x| if x == 0 { 0 } else { x - 1 })
 }
 
