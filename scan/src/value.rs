@@ -1,4 +1,8 @@
 use common::{DbResult, error::DbError};
+use file::page::{I32_SIZE, Page};
+
+pub const VARCHAR_TYPE: u8 = 1;
+pub const INTEGER_TYPE: u8 = 2;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
 pub enum Value {
@@ -27,6 +31,13 @@ impl Value {
 
     pub fn as_string(&self) -> DbResult<String> {
         Ok(self.as_str()?.to_string())
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Self::Integer(_) => I32_SIZE,
+            Self::Varchar(value) => Page::str_space(value),
+        }
     }
 }
 

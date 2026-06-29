@@ -10,6 +10,7 @@ use crate::{
 
 pub mod element;
 pub mod field_info;
+pub(crate) mod index;
 pub mod layout;
 pub mod record_page;
 pub mod rid;
