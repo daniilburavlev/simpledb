@@ -18,7 +18,7 @@ mod tests {
     use log::mgr::LogMgr;
     use tempfile::tempdir;
 
-    use crate::{lock_table::LockTable, transaction::Transaction, txnum_generator::TxNumGenerator};
+    use crate::{lock_table::LockTable, transaction::Transaction};
 
     #[derive(Hash, PartialEq, Eq)]
     enum TxResult {
@@ -36,23 +36,22 @@ mod tests {
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 8).unwrap());
-        let txnum_generator = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
 
         let (tx_tx, tx_rx) = mpsc::channel();
 
-        let tx_a = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx_a = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         let tx_tx_a = tx_tx.clone();
         thread::spawn(move || a(tx_a, tx_tx_a));
         thread::sleep(Duration::from_millis(100));
 
         let tx_tx_b = tx_tx.clone();
-        let tx_b = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx_b = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         thread::spawn(move || b(tx_b, tx_tx_b));
         thread::sleep(Duration::from_millis(100));
 
         let tx_tx_c = tx_tx.clone();
-        let tx_c = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx_c = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         thread::spawn(move || c(tx_c, tx_tx_c));
         thread::sleep(Duration::from_millis(100));
 

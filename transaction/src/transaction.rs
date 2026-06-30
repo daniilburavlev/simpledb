@@ -2,14 +2,22 @@ use buffer::mgr::BufferMgr;
 use common::{DbResult, error::DbError};
 use file::{block::BlockId, mgr::FileMgr};
 use log::mgr::LogMgr;
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicI32, Ordering},
+};
 
 use crate::{
     buffer_list::BufferList, concurrency::mgr::ConcurrencyMgr, lock_table::LockTable,
-    recovery::mgr::RecoveryMgr, txnum_generator::TxNumGenerator,
+    recovery::mgr::RecoveryMgr,
 };
 
+static TX_NUM: AtomicI32 = AtomicI32::new(0);
 const END_OF_FILE: i32 = -1;
+
+fn next_tx_num() -> i32 {
+    TX_NUM.fetch_add(1, Ordering::SeqCst)
+}
 
 pub struct Transaction {
     concurrency_mgr: ConcurrencyMgr,
@@ -22,14 +30,13 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new(
-        txnum_generator: &TxNumGenerator,
         fm: &Arc<FileMgr>,
         lm: &Arc<LogMgr>,
         bm: &Arc<BufferMgr>,
         lock_table: &Arc<LockTable>,
     ) -> DbResult<Self> {
+        let txnum = next_tx_num();
         let concurrency_mgr = ConcurrencyMgr::new(lock_table);
-        let txnum = txnum_generator.next();
         let rm = RecoveryMgr::new(txnum, lm, bm)?;
         Ok(Self {
             txnum,
@@ -196,23 +203,14 @@ mod tests {
     use file::mgr::FileMgr;
     use tempfile::tempdir;
 
-    use crate::{lock_table::LockTable, txnum_generator::TxNumGenerator};
+    use crate::lock_table::LockTable;
 
-    fn setup(
-        dir: &std::path::Path,
-    ) -> (
-        Arc<FileMgr>,
-        Arc<LogMgr>,
-        Arc<BufferMgr>,
-        TxNumGenerator,
-        Arc<LockTable>,
-    ) {
+    fn setup(dir: &std::path::Path) -> (Arc<FileMgr>, Arc<LogMgr>, Arc<BufferMgr>, Arc<LockTable>) {
         let fm = Arc::new(FileMgr::new(dir, 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 8).unwrap());
-        let txgen = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
-        (fm, lm, bm, txgen, lock_table)
+        (fm, lm, bm, lock_table)
     }
 
     use super::*;
@@ -220,19 +218,19 @@ mod tests {
     #[test]
     fn recover_undoes_uncommitted() {
         let dir = tempdir().unwrap();
-        let (fm, lm, bm, txgen, lock_table) = setup(dir.path());
+        let (fm, lm, bm, lock_table) = setup(dir.path());
 
         // allocate a real block on disk
         let block = fm.append("testfile").unwrap();
 
         // tx1: write initial value 100, commit (clean baseline)
-        let tx1 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx1 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx1.pin(&block).unwrap();
         tx1.set_i32(&block, 0, 100, false).unwrap();
         tx1.commit().unwrap();
 
         // tx2: overwrite with 999 (logged), then flush to disk — simulates a crash
-        let tx2 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx2 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx2.pin(&block).unwrap();
         tx2.set_i32(&block, 0, 999, true).unwrap();
         bm.flush_all(tx2.txnum()).unwrap();
@@ -243,12 +241,12 @@ mod tests {
         let lock_table = Arc::new(LockTable::default());
 
         // tx3: recovery should undo tx2's write and restore 100
-        let tx3 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx3 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx3.recover().unwrap();
         tx3.commit().unwrap();
 
         // tx4: verify the value was restored
-        let tx4 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx4 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx4.pin(&block).unwrap();
         let val = tx4.get_i32(&block, 0).unwrap();
         tx4.commit().unwrap();
@@ -259,22 +257,22 @@ mod tests {
     #[test]
     fn recover_preserves_committed() {
         let dir = tempdir().unwrap();
-        let (fm, lm, bm, txgen, lock_table) = setup(dir.path());
+        let (fm, lm, bm, lock_table) = setup(dir.path());
 
         let block = fm.append("testfile").unwrap();
 
         // tx1: write 42, commit
-        let tx1 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx1 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx1.pin(&block).unwrap();
         tx1.set_i32(&block, 0, 42, true).unwrap();
         tx1.commit().unwrap();
 
         // tx2: recovery — tx1 was committed, so nothing should be undone
-        let tx2 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx2 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx2.pin(&block).unwrap();
         tx2.recover().unwrap();
 
-        let tx3 = Transaction::new(&txgen, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx3 = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         tx3.pin(&block).unwrap();
         let val = tx3.get_i32(&block, 0).unwrap();
         tx3.commit().unwrap();

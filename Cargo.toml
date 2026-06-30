@@ -4,12 +4,14 @@ version = "0.0.1"
 [workspace]
 resolver = "2"
 members = [
-  "buffer", "client",
+  "buffer",
+  "client",
   "common",
   "engine",
   "file",
   "log",
   "network",
+  "planner",
   "server",
   "transaction",
 ]

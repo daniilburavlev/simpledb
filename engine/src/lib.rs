@@ -4,9 +4,7 @@ use buffer::mgr::BufferMgr;
 use common::DbResult;
 use file::mgr::FileMgr;
 use log::mgr::LogMgr;
-use transaction::{
-    lock_table::LockTable, transaction::Transaction, txnum_generator::TxNumGenerator,
-};
+use transaction::{lock_table::LockTable, transaction::Transaction};
 
 use crate::{
     metadata_mgr::MetadataMgr,
@@ -43,7 +41,6 @@ const BLOCK_SIZE: usize = 8 * 1024;
 const NUM_BUFFERS: usize = 1024;
 
 pub struct SimpleDB {
-    tx_num_generator: TxNumGenerator,
     fm: Arc<FileMgr>,
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
@@ -57,18 +54,11 @@ impl SimpleDB {
     }
 
     pub fn configured(dir: &Path, block_size: usize, num_buffers: usize) -> DbResult<Self> {
-        let tx_num_generator = TxNumGenerator::default();
         let fm = Arc::new(FileMgr::new(dir, block_size.try_into().unwrap())?);
         let lm = Arc::new(LogMgr::new(&fm, LOG_FILE.to_string())?);
         let bm = Arc::new(BufferMgr::new(&fm, &lm, num_buffers)?);
         let lock_table = Arc::new(LockTable::default());
-        let tx = Arc::new(Transaction::new(
-            &tx_num_generator,
-            &fm,
-            &lm,
-            &bm,
-            &lock_table,
-        )?);
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table)?);
         let is_new = fm.is_new()?;
         if is_new {
             tracing::debug!("creating new database");
@@ -79,7 +69,6 @@ impl SimpleDB {
         let md = Arc::new(MetadataMgr::new(is_new, &tx)?);
         tx.commit()?;
         Ok(Self {
-            tx_num_generator,
             fm,
             lm,
             bm,
@@ -89,13 +78,7 @@ impl SimpleDB {
     }
 
     pub fn get_tx(&self) -> DbResult<Arc<Transaction>> {
-        let tx = Transaction::new(
-            &self.tx_num_generator,
-            &self.fm,
-            &self.lm,
-            &self.bm,
-            &self.lock_table,
-        )?;
+        let tx = Transaction::new(&self.fm, &self.lm, &self.bm, &self.lock_table)?;
         Ok(Arc::new(tx))
     }
 

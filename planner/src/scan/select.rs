@@ -1,6 +1,8 @@
 use common::DbResult;
 
-use crate::{Scan, element::Element, predicate::Predicate, rid::RID, schema::Schema, value::Value};
+use crate::{
+    element::Element, predicate::Predicate, rid::RID, scan::Scan, schema::Schema, value::Value,
+};
 
 pub(crate) struct SelectScan {
     scan: Box<Scan>,

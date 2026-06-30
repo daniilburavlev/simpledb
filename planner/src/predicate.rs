@@ -6,8 +6,9 @@ use std::{
 use common::{DbResult, error::DbError};
 
 use crate::{
-    Scan,
     element::Element,
+    plan::Plan,
+    scan::Scan,
     schema::{Schema, SchemaBuilder},
     value::Value,
 };
@@ -33,7 +34,7 @@ impl Expression {
         }
     }
 
-    pub fn as_field(&self) -> Option<&Element> {
+    pub fn as_field_name(&self) -> Option<&Element> {
         match self {
             Self::Field(field) => Some(field),
             _ => None,
@@ -78,33 +79,35 @@ impl Term {
         self.left.applies_to(schema) && self.right.applies_to(schema)
     }
 
-    pub fn reduction_factor(&self, left_distinct: i32, right_distinct: i32) -> i32 {
-        if self.left.as_field().is_some() && self.right.as_field().is_some() {
-            return left_distinct.max(right_distinct);
+    pub fn reduction_factor(&self, p: &Plan) -> DbResult<i32> {
+        if let Some(left) = self.left.as_field_name()
+            && let Some(right) = self.right.as_field_name()
+        {
+            return Ok(p.distinct_values(left)?.max(p.distinct_values(right)?));
         }
-        if self.left.as_field().is_some() {
-            return left_distinct;
+        if let Some(left) = self.left.as_field_name() {
+            return p.distinct_values(left);
         }
-        if self.right.as_field().is_some() {
-            return right_distinct;
+        if let Some(right) = self.right.as_field_name() {
+            return p.distinct_values(right);
         }
         if let Some(left) = self.left.as_constant()
             && let Some(right) = self.right.as_constant()
             && left == right
         {
-            1
+            Ok(1)
         } else {
-            i32::MAX
+            Ok(i32::MAX)
         }
     }
 
     pub fn equates_with_constant(&self, field_name: &Element) -> DbResult<Option<Value>> {
-        if let Some(field) = self.left.as_field()
+        if let Some(field) = self.left.as_field_name()
             && field == field_name
             && let Some(value) = self.right.as_constant()
         {
             Ok(Some(value.clone()))
-        } else if let Some(right) = self.right.as_field()
+        } else if let Some(right) = self.right.as_field_name()
             && right == field_name
             && let Some(value) = self.left.as_constant()
         {
@@ -114,17 +117,17 @@ impl Term {
         }
     }
 
-    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<String>> {
-        if let Some(left) = self.left.as_field()
+    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<Element>> {
+        if let Some(left) = self.left.as_field_name()
             && left == field_name
-            && let Some(right) = self.right.as_field()
+            && let Some(right) = self.right.as_field_name()
         {
-            Ok(Some(right.to_string()))
-        } else if let Some(right) = self.right.as_field()
+            Ok(Some(right.clone()))
+        } else if let Some(right) = self.right.as_field_name()
             && right == field_name
-            && let Some(left) = self.left.as_field()
+            && let Some(left) = self.left.as_field_name()
         {
-            Ok(Some(left.to_string()))
+            Ok(Some(left.clone()))
         } else {
             Ok(None)
         }
@@ -168,11 +171,11 @@ impl Predicate {
         Ok(true)
     }
 
-    pub fn reduction_factor(&self, left_distinct: i32, right_distinct: i32) -> DbResult<i32> {
+    pub fn reduction_factor(&self, p: &Plan) -> DbResult<i32> {
         let mut factor = 1;
         let read = self.terms.read().map_err(DbError::lock)?;
         for t in read.iter() {
-            factor *= t.reduction_factor(left_distinct, right_distinct);
+            factor *= t.reduction_factor(p)?;
         }
         Ok(factor)
     }
@@ -219,7 +222,7 @@ impl Predicate {
         Ok(None)
     }
 
-    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<String>> {
+    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<Element>> {
         let terms = self.terms.read().map_err(DbError::lock)?;
         for t in terms.iter() {
             if let Some(field) = t.equates_with_field(field_name)? {

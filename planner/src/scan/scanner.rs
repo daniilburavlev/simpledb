@@ -1,7 +1,11 @@
 use common::{DbResult, error::DbError};
 
 use crate::{
-    element::Element, rid::RID, schema::Schema, select::SelectScan, table::TableScan, value::Value,
+    element::Element,
+    rid::RID,
+    scan::{select::SelectScan, table::TableScan},
+    schema::Schema,
+    value::Value,
 };
 
 pub(crate) enum Scanner {

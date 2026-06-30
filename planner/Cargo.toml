@@ -1,5 +1,5 @@
 [package]
-name = "scan"
+name = "planner"
 edition = "2024"
 version.workspace = true
 

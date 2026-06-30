@@ -256,9 +256,8 @@ mod tests {
     use buffer::mgr::BufferMgr;
     use file::mgr::FileMgr;
     use log::mgr::LogMgr;
-    use rand::RngExt;
     use tempfile::tempdir;
-    use transaction::{lock_table::LockTable, txnum_generator::TxNumGenerator};
+    use transaction::lock_table::LockTable;
 
     use crate::schema::Schema;
 
@@ -270,54 +269,49 @@ mod tests {
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
 
-        let tx = Arc::new(Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap());
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
         let schema = Arc::new(Schema::default());
         schema.add_int_field("A".to_string()).unwrap();
         schema.add_string_field("B".to_string(), 9).unwrap();
 
         let layout = Arc::new(Layout::new(&schema).unwrap());
-        for (field, _) in layout.schema().fields().unwrap() {
-            let offset = layout.offset(&field);
-            println!("{} has offset {}", field, offset);
-        }
+        let offset_a = layout.offset("A");
+        let offset_b = layout.offset("B");
+        assert_ne!(offset_a, offset_b, "fields must occupy distinct offsets");
 
+        // Fill the table with 50 records carrying known A-values 0..50.
         let ts = TableScan::new(&tx, "T", &layout).unwrap();
-        println!("Fillins the table with 50 random records");
         ts.before_first().unwrap();
-        let mut rng = rand::rng();
-        for _ in 0..50 {
+        for n in 0..50 {
             ts.insert().unwrap();
-            let n = rng.random::<i32>();
             ts.set_i32("A", n).unwrap();
             ts.set_string("B", &format!("record{}", n)).unwrap();
-            println!(
-                "inserting into slot {} {{'{}' 'record{}'}}",
-                ts.get_rid().unwrap(),
-                n,
-                n
-            );
         }
-        println!("Deleting records with A-values < 10.");
-        let mut count = 0;
+
+        // Delete every record whose A-value is below 10 (exactly 0..10).
+        let mut deleted = 0;
         ts.before_first().unwrap();
         while ts.next().unwrap() {
             let a = ts.get_i32("A").unwrap();
-            let b = ts.get_string("B").unwrap();
             if a < 10 {
-                count += 1;
-                println!("slot {} {{'{}' '{}'}}", ts.get_rid().unwrap(), a, b);
+                ts.delete().unwrap();
+                deleted += 1;
             }
         }
-        println!("{} values under 25 were deleted", count);
-        println!("Here are the remaining records.");
+        assert_eq!(deleted, 10, "records with A < 10 should be deleted");
+
+        // The remaining records are exactly the 40 with A-values 10..50.
+        let mut remaining = 0;
         ts.before_first().unwrap();
         while ts.next().unwrap() {
             let a = ts.get_i32("A").unwrap();
             let b = ts.get_string("B").unwrap();
-            println!("{} slot {{'{}' '{}'}}", ts.get_rid().unwrap(), a, b);
+            assert!(a >= 10, "deleted records should not survive");
+            assert_eq!(b, format!("record{}", a), "A and B must stay paired");
+            remaining += 1;
         }
+        assert_eq!(remaining, 40, "40 records should remain after deletion");
     }
 }

@@ -4,4 +4,3 @@ pub mod lock_table;
 pub mod log;
 pub mod recovery;
 pub mod transaction;
-pub mod txnum_generator;

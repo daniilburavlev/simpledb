@@ -123,7 +123,7 @@ mod tests {
     use log::mgr::LogMgr;
     use rand::RngExt;
     use tempfile::tempdir;
-    use transaction::{lock_table::LockTable, txnum_generator::TxNumGenerator};
+    use transaction::lock_table::LockTable;
 
     use crate::schema::Schema;
 
@@ -135,10 +135,9 @@ mod tests {
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
 
-        let tx = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         let tx = Arc::new(tx);
         let schema = Arc::new(Schema::default());
         schema.add_int_field("A".to_string()).unwrap();

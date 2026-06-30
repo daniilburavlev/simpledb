@@ -4,22 +4,18 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    element::Element, layout::Layout, predicate::Predicate, rid::RID, scanner::Scanner,
-    schema::Schema, select::SelectScan, table::TableScan, value::Value,
+    element::Element,
+    layout::Layout,
+    predicate::Predicate,
+    rid::RID,
+    scan::{scanner::Scanner, select::SelectScan, table::TableScan},
+    schema::Schema,
+    value::Value,
 };
 
-pub mod element;
-pub mod field_info;
-pub mod index;
-pub mod layout;
-pub mod predicate;
-pub mod record_page;
-pub mod rid;
 pub(crate) mod scanner;
-pub mod schema;
 pub(crate) mod select;
 pub(crate) mod table;
-pub mod value;
 
 pub struct Scan {
     scan: Scanner,
@@ -107,13 +103,7 @@ impl Scan {
 
 #[cfg(test)]
 mod tests {
-    use buffer::mgr::BufferMgr;
-    use file::mgr::FileMgr;
-    use log::mgr::LogMgr;
-    use tempfile::{TempDir, tempdir};
-    use transaction::lock_table::LockTable;
-
-    use crate::schema::SchemaBuilder;
+    use crate::{schema::SchemaBuilder, tests::init};
 
     use super::*;
 
@@ -165,20 +155,5 @@ mod tests {
         }
 
         scan.close().unwrap();
-    }
-
-    pub(crate) fn init() -> (TempDir, Arc<Transaction>) {
-        init_with_size(512)
-    }
-
-    pub(crate) fn init_with_size(block_size: i32) -> (TempDir, Arc<Transaction>) {
-        let dir = tempdir().unwrap();
-        let fm = Arc::new(FileMgr::new(dir.path(), block_size).unwrap());
-        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
-        let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let lock_table = Arc::new(LockTable::default());
-
-        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
-        (dir, tx)
     }
 }
