@@ -9,6 +9,7 @@ use crate::{
     scan::{Scan, chunk::ChunkScan, product::ProductScan},
     schema::Schema,
 };
+use crate::element::Element;
 
 struct MultiBufferProductScanInner {
     tx: Arc<Transaction>,
@@ -16,7 +17,7 @@ struct MultiBufferProductScanInner {
     right: Option<Rc<dyn Scan>>,
     prod: Option<Rc<dyn Scan>>,
     filename: String,
-    layout: Arc<Layout>,
+    layout: Layout,
     chunk_size: i32,
     next_block: i32,
     file_size: i32,
@@ -27,7 +28,7 @@ impl MultiBufferProductScanInner {
         tx: &Arc<Transaction>,
         left: &Rc<dyn Scan>,
         filename: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
     ) -> DbResult<Self> {
         let available = tx.available_buffs()? as i32;
         let file_size = tx.size(filename)? as i32;
@@ -36,7 +37,7 @@ impl MultiBufferProductScanInner {
             left: Rc::clone(left),
             file_size: tx.size(filename)? as i32,
             filename: filename.to_string(),
-            layout: Arc::clone(layout),
+            layout,
             chunk_size: BufferNeeds::best_factor(available, file_size),
             next_block: 0,
             prod: None,
@@ -61,7 +62,7 @@ impl MultiBufferProductScanInner {
         let right: Rc<dyn Scan> = Rc::new(ChunkScan::new(
             &self.tx,
             &self.filename,
-            &self.layout,
+            self.layout.clone(),
             self.next_block,
             end,
         )?);
@@ -93,7 +94,7 @@ impl MultiBufferProductScanInner {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         if let Some(prod) = &self.prod {
             prod.get_i32(field_name)
         } else {
@@ -101,7 +102,7 @@ impl MultiBufferProductScanInner {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         if let Some(prod) = &self.prod {
             prod.get_string(field_name)
         } else {
@@ -109,7 +110,7 @@ impl MultiBufferProductScanInner {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<crate::value::Value> {
         if let Some(prod) = &self.prod {
             prod.get_val(field_name)
         } else {
@@ -117,7 +118,7 @@ impl MultiBufferProductScanInner {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         if let Some(prod) = &self.prod {
             prod.has_field(field_name)
         } else {
@@ -133,7 +134,7 @@ impl MultiBufferProductScanInner {
         Ok(())
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         if let Some(prod) = &self.prod {
             prod.schema()
         } else {
@@ -151,7 +152,7 @@ impl MultiBufferProductScan {
         tx: &Arc<Transaction>,
         left: &Rc<dyn Scan>,
         filename: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
     ) -> DbResult<Self> {
         Ok(Self {
             lock: RefCell::new(MultiBufferProductScanInner::new(
@@ -172,22 +173,22 @@ impl Scan for MultiBufferProductScan {
         write.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<crate::value::Value> {
         let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         let read = self.lock.borrow();
         read.has_field(field_name)
     }
@@ -197,7 +198,7 @@ impl Scan for MultiBufferProductScan {
         read.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let read = self.lock.borrow();
         read.schema()
     }

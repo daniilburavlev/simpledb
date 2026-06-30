@@ -1,37 +1,30 @@
-use std::{collections::HashMap, fmt::Debug, sync::RwLock};
+use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
-use common::{DbResult, error::DbError};
+use crate::{element::Element, field_info::FieldInfo};
 
-use crate::field_info::FieldInfo;
-
-#[derive(Debug)]
-struct SchemaLock {
-    fields: Vec<String>,
-    infos: HashMap<String, FieldInfo>,
+#[derive(Debug, PartialEq, Eq)]
+pub struct SchemaInner {
+    fields: Vec<Element>,
+    infos: HashMap<Element, FieldInfo>,
 }
 
-impl SchemaLock {
-    fn new() -> Self {
-        Self {
-            fields: Vec::new(),
-            infos: HashMap::new(),
+impl SchemaInner {
+    fn add_field(&mut self, fieldname: Element, field_info: FieldInfo) {
+        if !self.infos.contains_key(&fieldname) {
+            self.fields.push(fieldname.clone());
+            self.infos.insert(fieldname, field_info);
         }
     }
 
-    fn add_field(&mut self, fieldname: String, field_info: FieldInfo) {
-        self.fields.push(fieldname.clone());
-        self.infos.insert(fieldname, field_info);
-    }
-
-    fn add_int_field(&mut self, fieldname: String) {
+    fn add_int_field(&mut self, fieldname: Element) {
         self.add_field(fieldname, FieldInfo::Integer);
     }
 
-    fn add_string_field(&mut self, fieldname: String, length: i32) {
+    fn add_string_field(&mut self, fieldname: Element, length: i32) {
         self.add_field(fieldname, FieldInfo::Varchar(length));
     }
 
-    fn add(&mut self, fieldname: String, schema: &Self) {
+    fn add(&mut self, fieldname: Element, schema: &Self) {
         if let Some(info) = schema.info(&fieldname) {
             self.add_field(fieldname, info);
         }
@@ -43,81 +36,107 @@ impl SchemaLock {
         }
     }
 
-    fn info(&self, fieldname: &str) -> Option<FieldInfo> {
+    fn info(&self, fieldname: &Element) -> Option<FieldInfo> {
         self.infos.get(fieldname).cloned()
     }
-}
 
-pub struct Schema {
-    lock: RwLock<SchemaLock>,
-}
-
-impl Debug for Schema {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let read = self.lock.read().unwrap();
-        write!(f, "Schema {{ {:?} }}", &*read)
-    }
-}
-
-impl Schema {
-    pub fn add_field(&self, fieldname: String, info: FieldInfo) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
-        write.add_field(fieldname, info);
-        Ok(())
-    }
-
-    pub fn add_int_field(&self, fieldname: String) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
-        write.add_int_field(fieldname);
-        Ok(())
-    }
-
-    pub fn add_string_field(&self, fieldname: String, length: i32) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
-        write.add_string_field(fieldname, length);
-        Ok(())
-    }
-
-    pub fn add(&self, fieldname: String, schema: &Self) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
-        let read = schema.lock.read().map_err(DbError::lock)?;
-        write.add(fieldname, &read);
-        Ok(())
-    }
-
-    pub fn add_all(&self, schema: &Self) -> DbResult<()> {
-        let mut write = self.lock.write().map_err(DbError::lock)?;
-        let read = schema.lock.read().map_err(DbError::lock)?;
-        write.add_all(&read);
-        Ok(())
-    }
-
-    pub fn has_field(&self, fieldname: &str) -> DbResult<bool> {
-        let read = self.lock.read().map_err(DbError::lock)?;
-        Ok(read.infos.contains_key(fieldname))
-    }
-
-    pub fn info(&self, fieldname: &str) -> DbResult<Option<FieldInfo>> {
-        let read = self.lock.read().map_err(DbError::lock)?;
-        Ok(read.info(fieldname))
-    }
-
-    pub fn fields(&self) -> DbResult<Vec<(String, FieldInfo)>> {
-        let read = self.lock.read().map_err(DbError::lock)?;
+    fn fields(&self) -> Vec<(Element, FieldInfo)> {
         let mut result = vec![];
-        for field in &read.fields {
-            if let Some(info) = read.infos.get(field) {
+        for field in &self.fields {
+            if let Some(info) = self.infos.get(field) {
                 result.push((field.clone(), info.clone()));
             }
         }
-        Ok(result)
+        result
+    }
+
+    fn has_field(&self, field: &Element) -> bool {
+        self.infos.contains_key(field)
     }
 }
 
-impl Default for Schema {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Schema(Rc<SchemaInner>);
+
+impl Schema {
+    pub fn info(&self, fieldname: &Element) -> Option<FieldInfo> {
+        self.0.info(fieldname)
+    }
+
+    pub fn fields(&self) -> Vec<(Element, FieldInfo)> {
+        self.0.fields()
+    }
+
+    pub fn has_field(&self, field: &Element) -> bool {
+        self.0.has_field(field)
+    }
+}
+
+pub struct SchemaBuilder {
+    schema: SchemaInner,
+}
+
+impl SchemaBuilder {
+    pub fn add_field(mut self, field: Element, info: FieldInfo) -> Self {
+        self.schema.add_field(field, info);
+        self
+    }
+
+    pub fn add_int_field(mut self, field: Element) -> Self {
+        self.schema.add_int_field(field);
+        self
+    }
+
+    pub fn add_string_field(mut self, field: Element, len: i32) -> Self {
+        self.schema.add_string_field(field, len);
+        self
+    }
+
+    pub fn add(mut self, field: Element, schema: &Schema) -> Self {
+        self.schema.add(field, &schema.0);
+        self
+    }
+
+    pub fn add_all(mut self, schema: &Schema) -> Self {
+        self.schema.add_all(&schema.0);
+        self
+    }
+
+    pub fn build(self) -> Schema {
+        Schema(Rc::new(self.schema))
+    }
+}
+
+impl Default for SchemaBuilder {
     fn default() -> Self {
         Self {
-            lock: RwLock::new(SchemaLock::new()),
+            schema: SchemaInner {
+                fields: vec![],
+                infos: HashMap::new(),
+            },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn add() {
+        let schema = SchemaBuilder::default()
+            .add_int_field(Element::raw("test"))
+            .build();
+        let schema = SchemaBuilder::default()
+            .add(Element::raw("test"), &schema)
+            .build();
+        assert!(schema.has_field(&Element::raw("test")));
+        let schema = SchemaBuilder::default().add_all(&schema).build();
+        assert!(schema.has_field(&Element::raw("test")));
+        let schema = SchemaBuilder::default()
+            .add_field(Element::raw("id"), FieldInfo::Integer)
+            .build();
+        assert!(schema.has_field(&Element::raw("id")));
     }
 }

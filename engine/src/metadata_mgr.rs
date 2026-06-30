@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     index_mgr::{IndexInfo, IndexMgr},
     layout::Layout,
@@ -13,18 +14,18 @@ use crate::{
 };
 
 pub struct MetadataMgr {
-    table_mgr: Arc<TableMgr>,
-    view_mgr: Arc<ViewMgr>,
-    stat_mgr: Arc<StatMgr>,
-    index_mgr: Arc<IndexMgr>,
+    table_mgr: TableMgr,
+    view_mgr: ViewMgr,
+    stat_mgr: StatMgr,
+    index_mgr: IndexMgr,
 }
 
 impl MetadataMgr {
     pub fn new(is_new: bool, tx: &Arc<Transaction>) -> DbResult<Self> {
-        let table_mgr = Arc::new(TableMgr::new(is_new, tx)?);
-        let view_mgr = Arc::new(ViewMgr::new(is_new, &table_mgr, tx)?);
-        let stat_mgr = Arc::new(StatMgr::new(&table_mgr, tx)?);
-        let index_mgr = Arc::new(IndexMgr::new(is_new, &table_mgr, &stat_mgr, tx)?);
+        let table_mgr = TableMgr::new(is_new, tx)?;
+        let view_mgr = ViewMgr::new(is_new, table_mgr.clone(), tx)?;
+        let stat_mgr = StatMgr::new(table_mgr.clone(), tx)?;
+        let index_mgr = IndexMgr::new(is_new, table_mgr.clone(), stat_mgr.clone(), tx)?;
         Ok(Self {
             table_mgr,
             view_mgr,
@@ -36,7 +37,7 @@ impl MetadataMgr {
     pub fn create_table(
         &self,
         table_name: &str,
-        schema: &Arc<Schema>,
+        schema: Schema,
         tx: &Arc<Transaction>,
     ) -> DbResult<()> {
         self.table_mgr.create_table(table_name, schema, tx)
@@ -73,7 +74,7 @@ impl MetadataMgr {
     pub fn get_stat_info(
         &self,
         table: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         tx: &Arc<Transaction>,
     ) -> DbResult<StatInfo> {
         self.stat_mgr.get_stat_info(table, layout, tx)
@@ -83,7 +84,7 @@ impl MetadataMgr {
         &self,
         table_name: &str,
         tx: &Arc<Transaction>,
-    ) -> DbResult<HashMap<String, IndexInfo>> {
+    ) -> DbResult<HashMap<Element, IndexInfo>> {
         self.index_mgr.get_index_info(table_name, tx)
     }
 }

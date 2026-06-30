@@ -3,6 +3,8 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 use crate::{
     plan::{Plan, materialize::MaterializePlan},
     scan::{Scan, multibuffer::MultiBufferProductScan},
@@ -14,7 +16,7 @@ pub(crate) struct MultiBufferProductPlan {
     tx: Arc<Transaction>,
     left: Rc<dyn Plan>,
     right: Rc<dyn Plan>,
-    schema: Arc<Schema>,
+    schema: Schema,
 }
 
 impl MultiBufferProductPlan {
@@ -23,11 +25,9 @@ impl MultiBufferProductPlan {
         left: &Rc<dyn Plan>,
         right: &Rc<dyn Plan>,
     ) -> DbResult<Self> {
-        let schema = Arc::new(Schema::default());
         let s1 = left.schema()?;
         let s2 = right.schema()?;
-        schema.add_all(&s1)?;
-        schema.add_all(&s2)?;
+        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
         let plan = Self {
             tx: Arc::clone(tx),
             left: Rc::new(MaterializePlan::new(left, tx)),
@@ -40,11 +40,11 @@ impl MultiBufferProductPlan {
     fn copy_records_from(&self, p: &Rc<dyn Plan>) -> DbResult<TempTable> {
         let source = p.open()?;
         let schema = p.schema()?;
-        let tt = TempTable::new(&self.tx, &schema)?;
+        let tt = TempTable::new(&self.tx, schema.clone())?;
         let dest = tt.open()?;
         while source.next()? {
             dest.insert()?;
-            for (field, _) in schema.fields()? {
+            for (field, _) in schema.fields() {
                 let value = source.get_val(&field)?;
                 dest.set_val(&field, value)?;
             }
@@ -63,7 +63,7 @@ impl Plan for MultiBufferProductPlan {
             &self.tx,
             &left,
             &t.table_name(),
-            &t.layout(),
+            t.layout(),
         )?))
     }
 
@@ -78,15 +78,15 @@ impl Plan for MultiBufferProductPlan {
         Ok(self.left.records_output()? * self.right.records_output()?)
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
-        if self.left.schema()?.has_field(field_name)? {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
+        if self.left.schema()?.has_field(field_name) {
             self.left.distinct_values(field_name)
         } else {
             self.right.distinct_values(field_name)
         }
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }

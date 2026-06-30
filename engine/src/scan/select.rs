@@ -1,9 +1,9 @@
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::schema::Schema;
 use crate::{predicate::Predicate, scan::Scan};
+use crate::element::Element;
 
 pub struct SelectScan {
     scan: Rc<dyn Scan>,
@@ -30,19 +30,19 @@ impl Scan for SelectScan {
         Ok(false)
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         self.scan.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         self.scan.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> common::DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> common::DbResult<crate::value::Value> {
         self.scan.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> common::DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> common::DbResult<bool> {
         self.scan.has_field(field_name)
     }
 
@@ -50,19 +50,19 @@ impl Scan for SelectScan {
         self.scan.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.scan.schema()
     }
 
-    fn set_i32(&self, field_name: &str, value: i32) -> DbResult<()> {
+    fn set_i32(&self, field_name: &Element, value: i32) -> DbResult<()> {
         self.scan.set_i32(field_name, value)
     }
 
-    fn set_string(&self, field_name: &str, value: &str) -> DbResult<()> {
+    fn set_string(&self, field_name: &Element, value: &str) -> DbResult<()> {
         self.scan.set_string(field_name, value)
     }
 
-    fn set_val(&self, field_name: &str, value: crate::constant::Constant) -> DbResult<()> {
+    fn set_val(&self, field_name: &Element, value: crate::value::Value) -> DbResult<()> {
         self.scan.set_val(field_name, value)
     }
 

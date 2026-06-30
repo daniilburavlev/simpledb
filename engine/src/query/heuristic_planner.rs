@@ -4,7 +4,7 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::plan::group::GroupByPlan;
-use crate::plan::sort::SortPlan;
+use crate::plan::order::SortPlan;
 use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, project::ProjectPlan},
@@ -26,7 +26,7 @@ impl HeuristicQueryPlannerInner {
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         for table in &data.tables {
-            let tp = TablePlanner::new(table.source()?, data.predicate.clone(), tx, &self.md)?;
+            let tp = TablePlanner::new(table.as_raw()?, data.predicate.clone(), tx, &self.md)?;
             self.table_planners.push(tp);
         }
         let mut current = self.get_lowest_select_plan()?;

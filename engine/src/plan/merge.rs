@@ -3,8 +3,10 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 use crate::{
-    plan::{Plan, sort::SortPlan},
+    plan::{Plan, order::SortPlan},
     scan::merge::MergeJoinScan,
     schema::Schema,
 };
@@ -12,9 +14,9 @@ use crate::{
 pub struct MergeJoinPlan {
     p1: Rc<dyn Plan>,
     p2: Rc<dyn Plan>,
-    field_name1: String,
-    field_name2: String,
-    schema: Arc<Schema>,
+    field_name1: Element,
+    field_name2: Element,
+    schema: Schema,
 }
 
 #[allow(dead_code)]
@@ -23,17 +25,17 @@ impl MergeJoinPlan {
         tx: &Arc<Transaction>,
         p1: &Rc<dyn Plan>,
         p2: &Rc<dyn Plan>,
-        field_name1: &str,
-        field_name2: &str,
+        field_name1: Element,
+        field_name2: Element,
     ) -> DbResult<Self> {
-        let p1 = Rc::new(SortPlan::new(tx, p1, vec![field_name1.to_string()])?);
-        let p2 = Rc::new(SortPlan::new(tx, p2, vec![field_name2.to_string()])?);
-        let schema = Arc::new(Schema::default());
+        let p1 = Rc::new(SortPlan::new(tx, p1, vec![field_name1.clone()])?);
+        let p2 = Rc::new(SortPlan::new(tx, p2, vec![field_name2.clone()])?);
+        let schema = SchemaBuilder::default().build();
         Ok(Self {
             p1,
             p2,
-            field_name1: field_name1.to_string(),
-            field_name2: field_name2.to_string(),
+            field_name1,
+            field_name2,
             schema,
         })
     }
@@ -46,8 +48,8 @@ impl Plan for MergeJoinPlan {
         Ok(Rc::new(MergeJoinScan::new(
             &s1,
             &s2,
-            &self.field_name1,
-            &self.field_name2,
+            self.field_name1.clone(),
+            self.field_name2.clone(),
         )?))
     }
 
@@ -63,15 +65,15 @@ impl Plan for MergeJoinPlan {
         Ok(self.p1.records_output()? * self.p2.records_output()? / max_val)
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
-        if self.p1.schema()?.has_field(field_name)? {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
+        if self.p1.schema()?.has_field(field_name) {
             self.p1.distinct_values(field_name)
         } else {
             self.p2.distinct_values(field_name)
         }
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }

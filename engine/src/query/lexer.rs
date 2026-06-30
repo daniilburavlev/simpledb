@@ -1,7 +1,7 @@
 use common::{DbResult, error::DbError};
 
 use crate::{
-    constant::Constant,
+    value::Value,
     query::{token::Token, tokenizer::Tokenizer},
 };
 
@@ -27,14 +27,14 @@ impl Lexer {
     pub fn match_int_constant(&self) -> bool {
         matches!(
             self.tokenizer.current(),
-            Some(Token::Element(Constant::Integer(_)))
+            Some(Token::Element(Value::Integer(_)))
         )
     }
 
     pub fn match_string_constant(&self) -> bool {
         matches!(
             self.tokenizer.current(),
-            Some(Token::Element(Constant::Varchar(_)))
+            Some(Token::Element(Value::Varchar(_)))
         )
     }
 
@@ -65,19 +65,19 @@ impl Lexer {
         Ok(())
     }
 
-    pub fn eat_int_constant(&self) -> DbResult<Constant> {
-        if let Some(Token::Element(Constant::Integer(value))) = self.tokenizer.current() {
+    pub fn eat_int_constant(&self) -> DbResult<Value> {
+        if let Some(Token::Element(Value::Integer(value))) = self.tokenizer.current() {
             self.tokenizer.next()?;
-            Ok(Constant::Integer(value))
+            Ok(Value::Integer(value))
         } else {
             Err(DbError::BadSyntax)
         }
     }
 
-    pub fn eat_string_constant(&self) -> DbResult<Constant> {
-        if let Some(Token::Element(Constant::Varchar(value))) = self.tokenizer.current() {
+    pub fn eat_string_constant(&self) -> DbResult<Value> {
+        if let Some(Token::Element(Value::Varchar(value))) = self.tokenizer.current() {
             self.tokenizer.next()?;
-            Ok(Constant::Varchar(value))
+            Ok(Value::Varchar(value))
         } else {
             Err(DbError::BadSyntax)
         }

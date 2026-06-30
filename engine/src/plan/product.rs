@@ -2,6 +2,8 @@ use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 use crate::{
     plan::Plan,
     scan::{Scan, product::ProductScan},
@@ -11,16 +13,14 @@ use crate::{
 pub struct ProductPlan {
     p1: Rc<dyn Plan>,
     p2: Rc<dyn Plan>,
-    schema: Arc<Schema>,
+    schema: Schema,
 }
 
 impl ProductPlan {
     pub fn new(p1: Rc<dyn Plan>, p2: Rc<dyn Plan>) -> DbResult<Self> {
-        let schema = Arc::new(Schema::default());
         let s1 = p1.schema()?;
         let s2 = p2.schema()?;
-        schema.add_all(&s1)?;
-        schema.add_all(&s2)?;
+        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
         Ok(Self { p1, p2, schema })
     }
 }
@@ -40,15 +40,15 @@ impl Plan for ProductPlan {
         Ok(self.p1.records_output()? * self.p2.records_output()?)
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
-        if self.p1.schema()?.has_field(field_name)? {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
+        if self.p1.schema()?.has_field(field_name) {
             self.p1.distinct_values(field_name)
         } else {
             self.p2.distinct_values(field_name)
         }
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }

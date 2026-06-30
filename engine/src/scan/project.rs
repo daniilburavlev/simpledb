@@ -1,5 +1,6 @@
+use crate::element::Element;
 use crate::scan::Scan;
-use crate::schema::Schema;
+use crate::schema::{Schema, SchemaBuilder};
 use common::DbResult;
 use common::error::DbError;
 use std::sync::Arc;
@@ -7,11 +8,11 @@ use std::{collections::HashSet, rc::Rc};
 
 pub struct ProjectScan {
     scan: Rc<dyn Scan>,
-    fields: HashSet<String>,
+    fields: HashSet<Element>,
 }
 
 impl ProjectScan {
-    pub fn new(scan: Rc<dyn Scan>, fields: HashSet<String>) -> Self {
+    pub fn new(scan: Rc<dyn Scan>, fields: HashSet<Element>) -> Self {
         Self { scan, fields }
     }
 }
@@ -25,31 +26,31 @@ impl Scan for ProjectScan {
         self.scan.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         if self.has_field(field_name)? {
             self.scan.get_i32(field_name)
         } else {
-            Err(DbError::field_not_exists(field_name))
+            Err(DbError::FieldNotExists(field_name.to_string()))
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         if self.has_field(field_name)? {
             self.scan.get_string(field_name)
         } else {
-            Err(DbError::field_not_exists(field_name))
+            Err(DbError::FieldNotExists(field_name.to_string()))
         }
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<crate::value::Value> {
         if self.has_field(field_name)? {
             self.scan.get_val(field_name)
         } else {
-            Err(DbError::field_not_exists(field_name))
+            Err(DbError::FieldNotExists(field_name.to_string()))
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         Ok(self.fields.contains(field_name))
     }
 
@@ -57,14 +58,14 @@ impl Scan for ProjectScan {
         self.scan.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        let project = Arc::new(Schema::default());
+    fn schema(&self) -> DbResult<Schema> {
+        let mut project = SchemaBuilder::default();
         let schema = self.scan.schema()?;
-        for (field, info) in schema.fields()? {
+        for (field, info) in schema.fields() {
             if self.fields.contains(&field) {
-                project.add_field(field, info)?;
+                project = project.add_field(field, info);
             }
         }
-        Ok(project)
+        Ok(project.build())
     }
 }

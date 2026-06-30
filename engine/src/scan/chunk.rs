@@ -7,14 +7,15 @@ use transaction::transaction::Transaction;
 
 use crate::schema::Schema;
 use crate::{
-    constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
+    value::Value, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
 };
+use crate::element::Element;
 
 pub struct ChunkScanLock {
     buffers: Vec<RecordPage>,
     tx: Arc<Transaction>,
     filename: String,
-    layout: Arc<Layout>,
+    layout: Layout,
     start_b_num: i32,
     end_b_num: i32,
     current_b_num: i32,
@@ -26,14 +27,14 @@ impl ChunkScanLock {
     fn new(
         tx: &Arc<Transaction>,
         filename: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         start_b_num: i32,
         end_b_num: i32,
     ) -> DbResult<Self> {
         let mut buffers = vec![];
         for i in start_b_num..=end_b_num {
             let block = BlockId::new(filename, i);
-            buffers.push(RecordPage::new(tx, block, layout)?);
+            buffers.push(RecordPage::new(tx, block, layout.clone())?);
         }
         let chunk = Self {
             buffers,
@@ -42,7 +43,7 @@ impl ChunkScanLock {
             start_b_num,
             end_b_num,
             current_b_num: start_b_num,
-            layout: Arc::clone(layout),
+            layout,
             current_slot: -1,
             rp: 0,
         };
@@ -83,7 +84,7 @@ impl ChunkScanLock {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         if let Some(rp) = self.buffers.get(self.rp as usize) {
             rp.get_i32(self.current_slot, field_name)
         } else {
@@ -91,7 +92,7 @@ impl ChunkScanLock {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         if let Some(rp) = self.buffers.get(self.rp as usize) {
             rp.get_string(self.current_slot, field_name)
         } else {
@@ -99,20 +100,20 @@ impl ChunkScanLock {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
-        match self.layout.schema().info(field_name)? {
-            Some(FieldInfo::Integer) => Ok(Constant::Integer(self.get_i32(field_name)?)),
-            Some(FieldInfo::Varchar(_)) => Ok(Constant::Varchar(self.get_string(field_name)?)),
-            _ => Err(DbError::field_not_exists(field_name)),
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
+        match self.layout.schema().info(field_name) {
+            Some(FieldInfo::Integer) => Ok(Value::Integer(self.get_i32(field_name)?)),
+            Some(FieldInfo::Varchar(_)) => Ok(Value::Varchar(self.get_string(field_name)?)),
+            _ => Err(DbError::FieldNotExists(field_name.to_string())),
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> bool {
         self.layout.schema().has_field(field_name)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(self.layout.schema())
+    fn schema(&self) -> Schema {
+        self.layout.schema().clone()
     }
 }
 
@@ -122,7 +123,7 @@ impl ChunkScan {
     pub fn new(
         tx: &Arc<Transaction>,
         filename: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         start_b_num: i32,
         end_b_num: i32,
     ) -> DbResult<Self> {
@@ -148,24 +149,24 @@ impl Scan for ChunkScan {
         write.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         let read = self.0.borrow();
         read.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         let read = self.0.borrow();
         read.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<crate::value::Value> {
         let read = self.0.borrow();
         read.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         let read = self.0.borrow();
-        read.has_field(field_name)
+        Ok(read.has_field(field_name))
     }
 
     fn close(&self) -> DbResult<()> {
@@ -173,8 +174,8 @@ impl Scan for ChunkScan {
         read.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let read = self.0.borrow();
-        read.schema()
+        Ok(read.schema())
     }
 }

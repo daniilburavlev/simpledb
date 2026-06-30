@@ -2,12 +2,13 @@ use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc, sync::Arc}
 
 use common::{DbResult, error::DbError};
 
-use crate::{constant::Constant, scan::Scan, schema::Schema};
+use crate::element::Element;
+use crate::{scan::Scan, schema::Schema, value::Value};
 
 #[allow(dead_code)]
 #[derive(Clone)]
 pub enum AggregationFn {
-    MaxFn { field: String, value: Constant },
+    MaxFn { field: Element, value: Value },
 }
 
 impl AggregationFn {
@@ -32,13 +33,13 @@ impl AggregationFn {
         Ok(())
     }
 
-    pub fn field_name(&self) -> String {
+    pub fn field_name(&self) -> &Element {
         match self {
-            Self::MaxFn { field, .. } => format!("max_of_{}", field),
+            Self::MaxFn { field, .. } => field,
         }
     }
 
-    pub fn value(&self) -> Constant {
+    pub fn value(&self) -> Value {
         match self {
             Self::MaxFn { value, .. } => value.clone(),
         }
@@ -47,11 +48,11 @@ impl AggregationFn {
 
 #[derive(PartialEq, Eq)]
 struct GroupValue {
-    values: HashMap<String, Constant>,
+    values: HashMap<Element, Value>,
 }
 
 impl GroupValue {
-    fn new(scan: &Rc<dyn Scan>, fields: Vec<String>) -> DbResult<Self> {
+    fn new(scan: &Rc<dyn Scan>, fields: Vec<Element>) -> DbResult<Self> {
         let mut values = HashMap::new();
         for field in fields {
             let value = scan.get_val(&field)?;
@@ -60,17 +61,17 @@ impl GroupValue {
         Ok(Self { values })
     }
 
-    fn get_val(&self, field: &str) -> DbResult<Constant> {
+    fn get_val(&self, field: &Element) -> DbResult<Value> {
         match self.values.get(field) {
             Some(value) => Ok(value.clone()),
-            _ => Err(DbError::field_not_exists(field)),
+            _ => Err(DbError::FieldNotExists(field.to_string())),
         }
     }
 }
 
 struct GroupByScanLock {
     scan: Rc<dyn Scan>,
-    group_fields: Vec<String>,
+    group_fields: Vec<Element>,
     agg_fns: Vec<AggregationFn>,
     group_val: GroupValue,
     more_groups: bool,
@@ -79,7 +80,7 @@ struct GroupByScanLock {
 impl GroupByScanLock {
     fn new(
         scan: &Rc<dyn Scan>,
-        group_fields: Vec<String>,
+        group_fields: Vec<Element>,
         agg_fns: Vec<AggregationFn>,
     ) -> DbResult<Self> {
         let mut g = Self {
@@ -127,8 +128,8 @@ impl GroupByScanLock {
         self.scan.close()
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
-        if self.group_fields.contains(&field_name.to_string()) {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
+        if self.group_fields.contains(field_name) {
             return self.group_val.get_val(field_name);
         }
         for f in &self.agg_fns {
@@ -136,19 +137,19 @@ impl GroupByScanLock {
                 return Ok(f.value());
             }
         }
-        Err(DbError::field_not_exists(field_name))
+        Err(DbError::FieldNotExists(field_name.to_string()))
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         self.get_val(field_name)?.as_i32()
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         self.get_val(field_name)?.as_string()
     }
 
-    fn has_field(&self, field_name: &str) -> bool {
-        if self.group_fields.contains(&field_name.to_string()) {
+    fn has_field(&self, field_name: &Element) -> bool {
+        if self.group_fields.contains(field_name) {
             return true;
         }
         for f in &self.agg_fns {
@@ -159,7 +160,7 @@ impl GroupByScanLock {
         false
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.scan.schema()
     }
 }
@@ -171,7 +172,7 @@ pub struct GroupByScan {
 impl GroupByScan {
     pub fn new(
         scan: &Rc<dyn Scan>,
-        group_fields: Vec<String>,
+        group_fields: Vec<Element>,
         agg_fns: Vec<AggregationFn>,
     ) -> DbResult<Self> {
         Ok(Self {
@@ -191,22 +192,22 @@ impl Scan for GroupByScan {
         write.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
         let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         let read = self.lock.borrow();
         Ok(read.has_field(field_name))
     }
@@ -216,7 +217,7 @@ impl Scan for GroupByScan {
         read.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let read = self.lock.borrow();
         read.schema()
     }

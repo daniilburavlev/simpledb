@@ -12,16 +12,17 @@ use crate::{
     scan::{Scan, project::ProjectScan},
     schema::Schema,
 };
+use crate::schema::SchemaBuilder;
 
 pub struct ProjectPlan {
     plan: Rc<dyn Plan>,
-    schema: Arc<Schema>,
+    schema: Schema,
     mapping: HashMap<String, String>,
 }
 
 impl ProjectPlan {
     pub fn new(plan: Rc<dyn Plan>, fields: Vec<Element>, tables: Vec<Element>) -> DbResult<Self> {
-        let schema = Arc::new(Schema::default());
+        let schema = SchemaBuilder::default().build();
         //for field in fields {
         //    let other = plan.schema()?;
         //   schema.add(field, &other)?;
@@ -37,7 +38,7 @@ impl ProjectPlan {
 impl Plan for ProjectPlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let scan = self.plan.open()?;
-        let fields: HashSet<String> = self.schema.fields()?.into_iter().map(|(f, _)| f).collect();
+        let fields: HashSet<Element> = self.schema.fields().into_iter().map(|(f, _)| f).collect();
         Ok(Rc::new(ProjectScan::new(scan, fields)))
     }
 
@@ -49,11 +50,11 @@ impl Plan for ProjectPlan {
         self.plan.records_output()
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
         self.plan.distinct_values(field_name)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }

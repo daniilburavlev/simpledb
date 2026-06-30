@@ -3,6 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 
 use crate::{scan::Scan, schema::Schema};
+use crate::element::Element;
 
 pub(crate) mod group;
 pub mod index;
@@ -12,7 +13,7 @@ pub(crate) mod multibuffer;
 pub mod product;
 pub mod project;
 pub mod select;
-pub(crate) mod sort;
+pub(crate) mod order;
 pub mod table;
 
 pub trait Plan {
@@ -22,7 +23,7 @@ pub trait Plan {
 
     fn records_output(&self) -> DbResult<i32>;
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32>;
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32>;
 
-    fn schema(&self) -> DbResult<Arc<Schema>>;
+    fn schema(&self) -> DbResult<Schema>;
 }

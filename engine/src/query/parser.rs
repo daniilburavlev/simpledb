@@ -1,7 +1,6 @@
 use common::{DbResult, error::DbError};
 
 use crate::{
-    constant::Constant,
     element::Element,
     predicate::{Expression, Predicate, Term},
     query::{
@@ -14,7 +13,9 @@ use crate::{
     },
     schema::Schema,
     sort_by::SortByData,
+    value::Value,
 };
+use crate::schema::SchemaBuilder;
 
 pub(crate) struct Parser {
     lexer: Lexer,
@@ -30,12 +31,12 @@ impl Parser {
     pub(crate) fn element(&self) -> DbResult<Element> {
         let id = self.lexer.eat_id()?;
         if self.lexer.match_delim('.') {
-            self.lexer.eat_delimiter(',')?;
+            self.lexer.eat_delimiter('.')?;
             let spec = self.lexer.eat_id()?;
-            Ok(Element::Specifier { source: id, spec })
+            Ok(Element::Spec(id, spec))
         } else if self.lexer.match_id() {
             let name = self.lexer.eat_id()?;
-            Ok(Element::Id { source: id, name })
+            Ok(Element::View(id, name))
         } else {
             Ok(Element::Raw(id))
         }
@@ -45,7 +46,7 @@ impl Parser {
         self.lexer.eat_id()
     }
 
-    pub(crate) fn constant(&self) -> DbResult<Constant> {
+    pub(crate) fn constant(&self) -> DbResult<Value> {
         if self.lexer.match_string_constant() {
             self.lexer.eat_string_constant()
         } else {
@@ -55,7 +56,7 @@ impl Parser {
 
     pub(crate) fn expression(&self) -> DbResult<Expression> {
         if self.lexer.match_id() {
-            Ok(Expression::Field(self.field()?))
+            Ok(Expression::Field(self.element()?))
         } else {
             Ok(Expression::Value(self.constant()?))
         }
@@ -97,7 +98,7 @@ impl Parser {
         if self.lexer.match_keyword(Token::Sort) {
             self.lexer.eat_keyword(Token::Sort)?;
             self.lexer.eat_keyword(Token::By)?;
-            sort_by = self.sort_by()?;
+            sort_by = self.order_by()?;
         }
         self.check_remainder()?;
         Ok(Command::Query(QueryData {
@@ -154,7 +155,7 @@ impl Parser {
         self.lexer.eat_keyword(Token::Update)?;
         let table = self.lexer.eat_id()?;
         self.lexer.eat_keyword(Token::Set)?;
-        let field = self.field()?;
+        let field = self.element()?;
         self.lexer.eat_delimiter('=')?;
         let value = self.expression()?;
         let mut predicate = Predicate::default();
@@ -200,17 +201,17 @@ impl Parser {
         }))
     }
 
-    fn field_list(&self) -> DbResult<Vec<String>> {
+    fn field_list(&self) -> DbResult<Vec<Element>> {
         let mut fields = vec![];
-        fields.push(self.field()?);
+        fields.push(self.element()?);
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            fields.push(self.field()?);
+            fields.push(self.element()?);
         }
         Ok(fields)
     }
 
-    fn constants_list(&self) -> DbResult<Vec<Constant>> {
+    fn constants_list(&self) -> DbResult<Vec<Value>> {
         let mut constants = vec![];
         constants.push(self.constant()?);
         while self.lexer.match_delim(',') {
@@ -230,35 +231,35 @@ impl Parser {
     }
 
     fn field_definitions(&self) -> DbResult<Schema> {
-        let schema = Schema::default();
-        self.field_definition(&schema)?;
+        let mut schema = SchemaBuilder::default();
+        schema = self.field_definition(schema)?;
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            self.field_definition(&schema)?;
+            schema = self.field_definition(schema)?;
         }
-        Ok(schema)
+        Ok(schema.build())
     }
 
-    fn field_definition(&self, schema: &Schema) -> DbResult<()> {
-        let field_name = self.field()?;
+    fn field_definition(&self, schema: SchemaBuilder) -> DbResult<SchemaBuilder> {
+        let field_name = self.element()?;
         self.field_type(field_name, schema)
     }
 
-    fn field_type(&self, field_name: String, schema: &Schema) -> DbResult<()> {
+    fn field_type(&self, field_name: Element, mut schema: SchemaBuilder) -> DbResult<SchemaBuilder> {
         if self.lexer.match_keyword(Token::Int) {
             self.lexer.eat_keyword(Token::Int)?;
-            schema.add_int_field(field_name)?;
+            schema = schema.add_int_field(field_name);
         } else {
             self.lexer.eat_keyword(Token::Varchar)?;
             self.lexer.eat_delimiter('(')?;
             let str_len = self.lexer.eat_int_constant()?;
             self.lexer.eat_delimiter(')')?;
             match str_len {
-                Constant::Integer(value) => schema.add_string_field(field_name, value)?,
+                Value::Integer(value) => schema = schema.add_string_field(field_name, value),
                 _ => return Err(DbError::BadSyntax),
             }
         }
-        Ok(())
+        Ok(schema)
     }
 
     pub fn create_view(&self) -> DbResult<Command> {
@@ -288,19 +289,19 @@ impl Parser {
     }
 
     fn group_by(&self) -> DbResult<GroupByData> {
-        let mut fields = vec![self.lexer.eat_id()?];
+        let mut fields = vec![self.element()?];
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            fields.push(self.lexer.eat_id()?);
+            fields.push(self.element()?);
         }
         Ok(GroupByData { fields })
     }
 
-    fn sort_by(&self) -> DbResult<SortByData> {
-        let mut fields = vec![self.lexer.eat_id()?];
+    fn order_by(&self) -> DbResult<SortByData> {
+        let mut fields = vec![self.element()?];
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
-            fields.push(self.lexer.eat_id()?);
+            fields.push(self.element()?);
         }
         Ok(SortByData { fields })
     }

@@ -16,8 +16,8 @@ use crate::{
 };
 
 pub mod buffer_needs;
-pub mod constant;
-pub(crate) mod element;
+pub mod value;
+pub mod element;
 pub mod field_info;
 pub mod index;
 pub mod index_mgr;
@@ -107,9 +107,24 @@ impl SimpleDB {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use tempfile::tempdir;
-
+    use tempfile::{tempdir, TempDir};
+    use crate::element::Element;
     use super::*;
+
+    pub(crate) fn init() -> (TempDir, Arc<Transaction>) {
+        init_with_size(512)
+    }
+
+    pub(crate) fn init_with_size(block_size: i32) -> (TempDir, Arc<Transaction>) {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), block_size).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
+        let bm = Arc::new(BufferMgr::new(&fm, &lm, 16).unwrap());
+        let lock_table = Arc::new(LockTable::default());
+
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
+        (dir, tx)
+    }
 
     #[test]
     fn select_with_index() {
@@ -128,8 +143,8 @@ mod tests {
             .query(&tx, "SELECT id, name FROM users WHERE id = 2")
             .unwrap();
         while result.next().unwrap() {
-            let id = result.get_i32("id").unwrap();
-            let name = result.get_string("name").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
             assert_eq!(id, 2);
             assert_eq!(name, "Name");
         }
@@ -185,8 +200,8 @@ mod tests {
             .unwrap();
         for i in 0..1000 {
             assert!(result.next().unwrap());
-            let id = result.get_i32("id").unwrap();
-            let name = result.get_string("name").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
             assert!(ids.remove(&(id as usize)));
             if i < 200 {
                 assert_eq!(name, "a");
@@ -222,7 +237,7 @@ mod tests {
 
         let result = db.query(&tx, "SELECT id FROM test").unwrap();
         while result.next().unwrap() {
-            let id = result.get_i32("id").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
             assert!(existed.remove(&id));
         }
         assert!(existed.is_empty());
@@ -253,8 +268,8 @@ mod tests {
                 )
                 .unwrap();
             while result.next().unwrap() {
-                assert_eq!(i, result.get_i32("i1").unwrap());
-                assert_eq!(i, result.get_i32("i2").unwrap());
+                assert_eq!(i, result.get_i32(&Element::raw("i1")).unwrap());
+                assert_eq!(i, result.get_i32(&Element::raw("i2")).unwrap());
             }
         }
         tx.commit().unwrap();

@@ -2,7 +2,8 @@ use common::{DbResult, error::DbError};
 use std::sync::Arc;
 
 use crate::schema::Schema;
-use crate::{constant::Constant, rid::RID};
+use crate::{value::Value, rid::RID};
+use crate::element::Element;
 
 pub mod chunk;
 pub(crate) mod group;
@@ -12,7 +13,7 @@ pub(crate) mod multibuffer;
 pub mod product;
 pub mod project;
 pub mod select;
-pub(crate) mod sort;
+pub(crate) mod order;
 pub mod table;
 
 pub trait Scan {
@@ -20,27 +21,27 @@ pub trait Scan {
 
     fn next(&self) -> DbResult<bool>;
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32>;
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32>;
 
-    fn get_string(&self, field_name: &str) -> DbResult<String>;
+    fn get_string(&self, field_name: &Element) -> DbResult<String>;
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant>;
+    fn get_val(&self, field_name: &Element) -> DbResult<Value>;
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool>;
+    fn has_field(&self, field_name: &Element) -> DbResult<bool>;
 
     fn close(&self) -> DbResult<()>;
 
-    fn schema(&self) -> DbResult<Arc<Schema>>;
+    fn schema(&self) -> DbResult<Schema>;
 
-    fn set_i32(&self, _: &str, _: i32) -> DbResult<()> {
+    fn set_i32(&self, _: &Element, _: i32) -> DbResult<()> {
         Err(DbError::other("cannot set integer"))
     }
 
-    fn set_string(&self, _: &str, _: &str) -> DbResult<()> {
+    fn set_string(&self, _: &Element, _: &str) -> DbResult<()> {
         Err(DbError::other("cannot set string"))
     }
 
-    fn set_val(&self, _: &str, _: Constant) -> DbResult<()> {
+    fn set_val(&self, _: &Element, _: Value) -> DbResult<()> {
         Err(DbError::other("cannot set value"))
     }
 

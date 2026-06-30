@@ -81,7 +81,7 @@ impl UpdatePlanner for BasicUpdatePlanner {
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         self.md
-            .create_table(&data.name, &Arc::new(data.schema), tx)?;
+            .create_table(&data.name, data.schema, tx)?;
         Ok(0)
     }
 

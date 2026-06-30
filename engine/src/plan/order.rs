@@ -7,16 +7,17 @@ use crate::{
     plan::{Plan, materialize::MaterializePlan},
     scan::{
         Scan,
-        sort::{RecordComparator, SortScan},
+        order::{RecordComparator, OrderScan},
     },
     schema::Schema,
     temp::TempTable,
 };
+use crate::element::Element;
 
 pub struct SortPlan {
     plan: Rc<dyn Plan>,
     tx: Arc<Transaction>,
-    schema: Arc<Schema>,
+    schema: Schema,
     comp: RecordComparator,
 }
 
@@ -24,7 +25,7 @@ impl SortPlan {
     pub fn new(
         tx: &Arc<Transaction>,
         plan: &Rc<dyn Plan>,
-        sort_fields: Vec<String>,
+        sort_fields: Vec<Element>,
     ) -> DbResult<Self> {
         let schema = plan.schema()?;
         Ok(Self {
@@ -41,13 +42,13 @@ impl SortPlan {
         if !source.next()? {
             return Ok(temps);
         }
-        let mut current_temp = TempTable::new(&self.tx, &self.schema)?;
+        let mut current_temp = TempTable::new(&self.tx, self.schema.clone())?;
         let mut current_scan = current_temp.open()?;
         temps.push(current_temp);
         while self.copy(source, &current_scan)? {
             if self.comp.compare(source, &current_scan)? == Ordering::Less {
                 current_scan.close()?;
-                current_temp = TempTable::new(&self.tx, &self.schema)?;
+                current_temp = TempTable::new(&self.tx, self.schema.clone())?;
                 temps.push(current_temp.clone());
                 current_scan = current_temp.open()?;
             }
@@ -72,7 +73,7 @@ impl SortPlan {
     fn merge_two_runs(&self, p1: TempTable, p2: TempTable) -> DbResult<TempTable> {
         let src1 = p1.open()?;
         let src2 = p2.open()?;
-        let result = TempTable::new(&self.tx, &self.schema)?;
+        let result = TempTable::new(&self.tx, self.schema.clone())?;
         let dest = result.open()?;
 
         let mut has_more1 = src1.next()?;
@@ -102,7 +103,7 @@ impl SortPlan {
 
     fn copy(&self, source: &Rc<dyn Scan>, dest: &Rc<dyn Scan>) -> DbResult<bool> {
         dest.insert()?;
-        for (field, _) in self.schema.fields()? {
+        for (field, _) in self.schema.fields() {
             dest.set_val(&field, source.get_val(&field)?)?;
         }
         source.next()
@@ -117,7 +118,7 @@ impl Plan for SortPlan {
         while runs.len() > 2 {
             runs = self.do_merge_iteration(runs)?;
         }
-        Ok(Rc::new(SortScan::new(runs, self.comp.clone())?))
+        Ok(Rc::new(OrderScan::new(runs, self.comp.clone())?))
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {
@@ -129,11 +130,11 @@ impl Plan for SortPlan {
         self.plan.records_output()
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
         self.plan.distinct_values(field_name)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         Ok(self.schema.clone())
     }
 }

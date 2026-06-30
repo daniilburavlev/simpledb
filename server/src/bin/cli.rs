@@ -1,6 +1,7 @@
 use clap::Parser;
 use common::DbResult;
 use engine::SimpleDB;
+use engine::element::Element;
 use engine::field_info::FieldInfo;
 use engine::scan::Scan;
 use engine::schema::Schema;
@@ -34,7 +35,7 @@ fn execute(db: &SimpleDB, query: &str) -> DbResult<()> {
 }
 
 fn print_data(schema: &Schema, result: &Rc<dyn Scan>) -> DbResult<()> {
-    let fields = schema.fields()?;
+    let fields = schema.fields();
     let mut rows: Vec<Vec<String>> = vec![];
     while result.next()? {
         let mut row = Vec::with_capacity(fields.len());
@@ -46,7 +47,7 @@ fn print_data(schema: &Schema, result: &Rc<dyn Scan>) -> DbResult<()> {
         }
         rows.push(row);
     }
-    let headers: Vec<String> = fields.into_iter().map(|(f, _)| f).collect();
+    let headers: Vec<Element> = fields.into_iter().map(|(f, _)| f).collect();
     let mut widths: Vec<usize> = headers.iter().map(|f| f.len()).collect();
     for row in &rows {
         for (i, w) in widths.iter_mut().enumerate() {

@@ -4,33 +4,36 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    plan::{Plan, sort::SortPlan},
+    plan::{Plan, order::SortPlan},
     scan::group::{AggregationFn, GroupByScan},
     schema::Schema,
 };
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 
 pub struct GroupByPlan {
     plan: Rc<dyn Plan>,
-    group_fields: Vec<String>,
+    group_fields: Vec<Element>,
     aggregation_fn: Vec<AggregationFn>,
-    schema: Arc<Schema>,
+    schema: Schema,
 }
 
 impl GroupByPlan {
     pub fn new(
         tx: &Arc<Transaction>,
         plan: &Rc<dyn Plan>,
-        group_fields: Vec<String>,
+        group_fields: Vec<Element>,
         aggregation_fn: Vec<AggregationFn>,
     ) -> DbResult<Self> {
-        let schema = Arc::new(Schema::default());
+        let mut schema = SchemaBuilder::default();
         let s = plan.schema()?;
         for field in &group_fields {
-            schema.add(field.to_string(), &s)?;
+            schema = schema.add(field.clone(), &s);
         }
         for f in &aggregation_fn {
-            schema.add_int_field(f.field_name())?;
+            schema = schema.add_int_field(f.field_name().clone());
         }
+        let schema = schema.build();
         let plan = Rc::new(SortPlan::new(tx, plan, group_fields.clone())?);
         Ok(Self {
             plan,
@@ -63,15 +66,15 @@ impl Plan for GroupByPlan {
         Ok(num_groups)
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
-        if self.plan.schema()?.has_field(field_name)? {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
+        if self.plan.schema()?.has_field(field_name) {
             self.plan.distinct_values(field_name)
         } else {
             self.records_output()
         }
     }
 
-    fn schema(&self) -> DbResult<Arc<crate::schema::Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }

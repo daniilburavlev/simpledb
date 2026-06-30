@@ -7,6 +7,7 @@ use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
 use transaction::transaction::Transaction;
+use crate::element::Element;
 
 pub struct MaterializePlan {
     source: Rc<dyn Plan>,
@@ -25,12 +26,12 @@ impl MaterializePlan {
 impl Plan for MaterializePlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let schema = self.source.schema()?;
-        let temp = TempTable::new(&self.tx, &schema)?;
+        let temp = TempTable::new(&self.tx, schema.clone())?;
         let source = self.source.open()?;
         let dest = temp.open()?;
         while source.next()? {
             dest.insert()?;
-            for (field, _) in schema.fields()? {
+            for (field, _) in schema.fields() {
                 dest.set_val(&field, source.get_val(&field)?)?;
             }
         }
@@ -40,7 +41,7 @@ impl Plan for MaterializePlan {
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {
-        let layout = Layout::new(&self.source.schema()?)?;
+        let layout = Layout::new(self.source.schema()?);
         let rpd = self.tx.block_size() / layout.slotsize();
         Ok(self.source.records_output()? / rpd)
     }
@@ -49,11 +50,11 @@ impl Plan for MaterializePlan {
         self.source.records_output()
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
         self.source.distinct_values(field_name)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.source.schema()
     }
 }

@@ -8,6 +8,7 @@ use crate::{
     scan::{Scan, select::SelectScan},
     schema::Schema,
 };
+use crate::element::Element;
 
 pub struct SelectPlan {
     plan: Rc<dyn Plan>,
@@ -34,7 +35,7 @@ impl Plan for SelectPlan {
         Ok(self.plan.records_output()? / self.predicate.reduction_factor(&self.plan)?)
     }
 
-    fn distinct_values(&self, field_name: &str) -> common::DbResult<i32> {
+    fn distinct_values(&self, field_name: &Element) -> common::DbResult<i32> {
         if self.predicate.equates_with_constant(field_name)?.is_some() {
             return Ok(1);
         } else {
@@ -48,7 +49,7 @@ impl Plan for SelectPlan {
         self.plan.distinct_values(field_name)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.plan.schema()
     }
 }

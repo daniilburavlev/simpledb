@@ -6,37 +6,39 @@ use std::{
 
 use common::{DbResult, error::DbError};
 
-use crate::{constant::Constant, plan::Plan, scan::Scan, schema::Schema};
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
+use crate::{plan::Plan, scan::Scan, schema::Schema, value::Value};
 
 #[derive(Debug, Clone)]
 pub enum Expression {
-    Value(Constant),
-    Field(String),
+    Value(Value),
+    Field(Element),
 }
 
 impl Expression {
-    pub fn evaluate(&self, scan: &Rc<dyn Scan>) -> DbResult<Constant> {
+    pub fn evaluate(&self, scan: &Rc<dyn Scan>) -> DbResult<Value> {
         match self {
             Self::Value(value) => Ok(value.clone()),
             Self::Field(field) => scan.get_val(field),
         }
     }
 
-    pub fn applies_to(&self, schema: &Schema) -> DbResult<bool> {
+    pub fn applies_to(&self, schema: &Schema) -> bool {
         match self {
-            Self::Value(_) => Ok(true),
+            Self::Value(_) => true,
             Self::Field(field) => schema.has_field(field),
         }
     }
 
-    pub fn as_field_name(&self) -> Option<&str> {
+    pub fn as_field_name(&self) -> Option<&Element> {
         match self {
             Self::Field(field) => Some(field),
             _ => None,
         }
     }
 
-    pub fn as_constant(&self) -> Option<&Constant> {
+    pub fn as_constant(&self) -> Option<&Value> {
         match self {
             Self::Value(value) => Some(value),
             _ => None,
@@ -70,8 +72,8 @@ impl Term {
         Ok(left == right)
     }
 
-    pub fn applies_to(&self, schema: &Schema) -> DbResult<bool> {
-        Ok(self.left.applies_to(schema)? && self.right.applies_to(schema)?)
+    pub fn applies_to(&self, schema: &Schema) -> bool {
+        self.left.applies_to(schema) && self.right.applies_to(schema)
     }
 
     pub fn reduction_factor(&self, p: &Rc<dyn Plan>) -> DbResult<i32> {
@@ -96,7 +98,7 @@ impl Term {
         }
     }
 
-    pub fn equates_with_constant(&self, field_name: &str) -> DbResult<Option<Constant>> {
+    pub fn equates_with_constant(&self, field_name: &Element) -> DbResult<Option<Value>> {
         if let Some(field) = self.left.as_field_name()
             && field == field_name
             && let Some(value) = self.right.as_constant()
@@ -112,17 +114,17 @@ impl Term {
         }
     }
 
-    pub fn equates_with_field(&self, field_name: &str) -> DbResult<Option<String>> {
+    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<Element>> {
         if let Some(left) = self.left.as_field_name()
             && left == field_name
             && let Some(right) = self.right.as_field_name()
         {
-            Ok(Some(right.to_string()))
+            Ok(Some(right.clone()))
         } else if let Some(right) = self.right.as_field_name()
             && right == field_name
             && let Some(left) = self.left.as_field_name()
         {
-            Ok(Some(left.to_string()))
+            Ok(Some(left.clone()))
         } else {
             Ok(None)
         }
@@ -181,7 +183,7 @@ impl Predicate {
         {
             let mut terms = result.terms.write().map_err(DbError::lock)?;
             for t in read.iter() {
-                if t.applies_to(schema)? {
+                if t.applies_to(schema) {
                     terms.push(t.clone());
                 }
             }
@@ -191,14 +193,12 @@ impl Predicate {
 
     pub fn join_sub_pred(&self, s1: &Schema, s2: &Schema) -> DbResult<Option<Predicate>> {
         let result = Predicate::default();
-        let new_schema = Schema::default();
-        new_schema.add_all(s1)?;
-        new_schema.add_all(s2)?;
+        let new_schema = SchemaBuilder::default().add_all(s1).add_all(s2).build();
         let read = self.terms.read().map_err(DbError::lock)?;
         {
             let mut terms = result.terms.write().map_err(DbError::lock)?;
             for t in read.iter() {
-                if !t.applies_to(s1)? && !t.applies_to(s2)? && t.applies_to(&new_schema)? {
+                if !t.applies_to(s1) && !t.applies_to(s2) && t.applies_to(&new_schema) {
                     terms.push(t.clone());
                 }
             }
@@ -209,7 +209,7 @@ impl Predicate {
         Ok(Some(result))
     }
 
-    pub fn equates_with_constant(&self, field_name: &str) -> DbResult<Option<Constant>> {
+    pub fn equates_with_constant(&self, field_name: &Element) -> DbResult<Option<Value>> {
         let terms = self.terms.read().map_err(DbError::lock)?;
         for t in terms.iter() {
             if let Some(c) = t.equates_with_constant(field_name)? {
@@ -219,7 +219,7 @@ impl Predicate {
         Ok(None)
     }
 
-    pub fn equates_with_field(&self, field_name: &str) -> DbResult<Option<String>> {
+    pub fn equates_with_field(&self, field_name: &Element) -> DbResult<Option<Element>> {
         let terms = self.terms.read().map_err(DbError::lock)?;
         for t in terms.iter() {
             if let Some(field) = t.equates_with_field(field_name)? {
