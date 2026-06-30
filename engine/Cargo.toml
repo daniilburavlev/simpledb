@@ -15,7 +15,6 @@ file = { path = "../file" }
 transaction = { path = "../transaction" }
 tracing = { workspace = true }
 rand = { workspace = true }
-planner = { path = "../planner" }
 
 [dev-dependencies]
 criterion = { workspace = true }

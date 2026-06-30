@@ -1,28 +1,32 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use common::DbResult;
-use planner::mgr::metadata::MetadataMgr;
-use planner::plan::Plan;
 use transaction::transaction::Transaction;
 
-use crate::query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner};
+use crate::plan::group::GroupByPlan;
+use crate::plan::sort::SortPlan;
+use crate::{
+    metadata_mgr::MetadataMgr,
+    plan::{Plan, project::ProjectPlan},
+    query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner},
+};
 
-struct HeuristicQueryPlanner {
+struct HeuristicQueryPlannerInner {
     table_planners: Vec<TablePlanner>,
-    md: MetadataMgr,
+    md: Arc<MetadataMgr>,
 }
 
-impl HeuristicQueryPlanner {
-    fn new(md: MetadataMgr) -> Self {
+impl HeuristicQueryPlannerInner {
+    fn new(md: &Arc<MetadataMgr>) -> Self {
         Self {
             table_planners: vec![],
-            md,
+            md: Arc::clone(md),
         }
     }
 
-    fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Plan> {
+    fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         for table in &data.tables {
-            let tp = TablePlanner::new(table.as_raw()?, data.predicate.clone(), tx, &self.md)?;
+            let tp = TablePlanner::new(table.source()?, data.predicate.clone(), tx, &self.md)?;
             self.table_planners.push(tp);
         }
         let mut current = self.get_lowest_select_plan()?;
@@ -41,17 +45,17 @@ impl HeuristicQueryPlanner {
                 vec![],
             )?);
         }
-        if !data.order_by.is_empty() {
-            current = Rc::new(SortPlan::new(tx, &current, data.order_by.fields)?);
+        if !data.sort_by.is_empty() {
+            current = Rc::new(SortPlan::new(tx, &current, data.sort_by.fields)?);
         }
-        Ok(Plan::project(
+        Ok(Rc::new(ProjectPlan::new(
             current,
             data.fields,
             data.tables,
-        ))
+        )?))
     }
 
-    fn get_lowest_select_plan(&mut self) -> DbResult<Box<Plan>> {
+    fn get_lowest_select_plan(&mut self) -> DbResult<Rc<dyn Plan>> {
         let mut index = 0;
         let mut best_plan = self.table_planners.first().unwrap().make_select_plan()?;
         for (i, tp) in self.table_planners.iter().skip(1).enumerate() {
@@ -65,7 +69,7 @@ impl HeuristicQueryPlanner {
         Ok(best_plan)
     }
 
-    fn get_lowest_join_plan(&mut self, current: &Plan) -> DbResult<Option<Plan>> {
+    fn get_lowest_join_plan(&mut self, current: &Rc<dyn Plan>) -> DbResult<Option<Rc<dyn Plan>>> {
         let mut index = 0;
         let mut best_plan = None;
         for (i, tp) in self.table_planners.iter().enumerate() {
@@ -88,7 +92,7 @@ impl HeuristicQueryPlanner {
         Ok(best_plan)
     }
 
-    fn get_lowest_product_plan(&mut self, current: &Plan) -> DbResult<Plan> {
+    fn get_lowest_product_plan(&mut self, current: &Rc<dyn Plan>) -> DbResult<Rc<dyn Plan>> {
         let mut index = 0;
         let mut best_plan = self
             .table_planners
@@ -104,5 +108,20 @@ impl HeuristicQueryPlanner {
         }
         self.table_planners.remove(index);
         Ok(best_plan)
+    }
+}
+
+pub(crate) struct HeuristicQueryPlanner(RefCell<HeuristicQueryPlannerInner>);
+
+impl HeuristicQueryPlanner {
+    pub(crate) fn new(md: &Arc<MetadataMgr>) -> Self {
+        Self(RefCell::new(HeuristicQueryPlannerInner::new(md)))
+    }
+}
+
+impl QueryPlanner for HeuristicQueryPlanner {
+    fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+        let mut write = self.0.borrow_mut();
+        write.create_plan(data, tx)
     }
 }

@@ -1,27 +1,32 @@
 use std::{rc::Rc, sync::Arc};
 
 use common::{DbResult, error::DbError};
-use planner::mgr::metadata::MetadataMgr;
-use planner::plan::Plan;
 use transaction::transaction::Transaction;
 
-use crate::query::command::{InsertData, TableData};
-use crate::query::{command::IndexData, planner::UpdatePlanner};
+use crate::{
+    metadata_mgr::MetadataMgr,
+    plan::{Plan, select::SelectPlan, table::TablePlan},
+    query::{command::IndexData, planner::UpdatePlanner},
+};
 
 pub struct BasicUpdatePlanner {
-    md: MetadataMgr,
+    md: Arc<MetadataMgr>,
 }
 
 impl BasicUpdatePlanner {
-    pub fn new(md: MetadataMgr) -> Self {
-        Self { md }
+    pub fn new(md: &Arc<MetadataMgr>) -> Self {
+        Self { md: Arc::clone(md) }
     }
 }
 
 impl UpdatePlanner for BasicUpdatePlanner {
-    fn execute_insert(&self, data: InsertData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let p = Plan::table(tx, data.table.clone(), &self.md)?;
-        let mut s = p.open()?;
+    fn execute_insert(
+        &self,
+        data: super::command::InsertData,
+        tx: &Arc<Transaction>,
+    ) -> DbResult<i32> {
+        let p = Rc::new(TablePlan::new(tx, data.table.clone(), &self.md)?);
+        let s = p.open()?;
         s.insert()?;
         if data.fields.len() != data.values.len() {
             return Err(DbError::InvalidValuesAmount);
@@ -40,8 +45,8 @@ impl UpdatePlanner for BasicUpdatePlanner {
         data: super::command::UpdateData,
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
-        let p = Box::new(Plan::table(tx, data.table, &self.md)?);
-        let p = Plan::select(p, data.predicate);
+        let p = Rc::new(TablePlan::new(tx, data.table, &self.md)?);
+        let p = Rc::new(SelectPlan::new(p, data.predicate));
         let s = p.open()?;
         let mut count = 0;
         while s.next()? {
@@ -58,8 +63,8 @@ impl UpdatePlanner for BasicUpdatePlanner {
         data: super::command::DeleteData,
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
-        let p = Box::new(Plan::table(tx, data.name, &self.md)?);
-        let p = Plan::select(p, data.predicate);
+        let p = Rc::new(TablePlan::new(tx, data.name, &self.md)?);
+        let p = Rc::new(SelectPlan::new(p, data.predicate));
         let s = p.open()?;
         let mut count = 0;
         while s.next()? {
@@ -72,11 +77,11 @@ impl UpdatePlanner for BasicUpdatePlanner {
 
     fn execute_create_table(
         &self,
-        data: TableData,
+        data: super::command::TableData,
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
         self.md
-            .create_table(&data.name, data.schema, tx)?;
+            .create_table(&data.name, &Arc::new(data.schema), tx)?;
         Ok(0)
     }
 

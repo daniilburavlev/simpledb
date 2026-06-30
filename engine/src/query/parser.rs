@@ -105,7 +105,7 @@ impl Parser {
             tables,
             predicate,
             group_by,
-            order_by: sort_by,
+            sort_by,
         }))
     }
 
