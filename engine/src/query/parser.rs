@@ -1,5 +1,6 @@
 use common::{DbResult, error::DbError};
 
+use crate::schema::SchemaBuilder;
 use crate::{
     element::Element,
     predicate::{Expression, Predicate, Term},
@@ -15,7 +16,6 @@ use crate::{
     sort_by::SortByData,
     value::Value,
 };
-use crate::schema::SchemaBuilder;
 
 pub(crate) struct Parser {
     lexer: Lexer,
@@ -245,7 +245,11 @@ impl Parser {
         self.field_type(field_name, schema)
     }
 
-    fn field_type(&self, field_name: Element, mut schema: SchemaBuilder) -> DbResult<SchemaBuilder> {
+    fn field_type(
+        &self,
+        field_name: Element,
+        mut schema: SchemaBuilder,
+    ) -> DbResult<SchemaBuilder> {
         if self.lexer.match_keyword(Token::Int) {
             self.lexer.eat_keyword(Token::Int)?;
             schema = schema.add_int_field(field_name);

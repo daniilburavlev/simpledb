@@ -5,11 +5,11 @@ use common::{DbResult, error::DbError};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::schema::Schema;
 use crate::{
-    value::Value, field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan,
+    field_info::FieldInfo, layout::Layout, record_page::RecordPage, scan::Scan, value::Value,
 };
-use crate::element::Element;
 
 pub struct ChunkScanLock {
     buffers: Vec<RecordPage>,

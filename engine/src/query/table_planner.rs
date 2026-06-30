@@ -3,6 +3,7 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     index_mgr::IndexInfo,
     metadata_mgr::MetadataMgr,
@@ -16,7 +17,6 @@ use crate::{
     predicate::Predicate,
     schema::Schema,
 };
-use crate::element::Element;
 
 pub(crate) struct TablePlanner {
     plan: Rc<TablePlan>,

@@ -134,8 +134,13 @@ impl IndexMgr {
                 let stat = self
                     .stat_mgr
                     .get_stat_info(table_name, layout.clone(), tx)?;
-                let index =
-                    IndexInfo::new(idx_name, Element::raw(&field_name), layout.schema(), tx, stat)?;
+                let index = IndexInfo::new(
+                    idx_name,
+                    Element::raw(&field_name),
+                    layout.schema(),
+                    tx,
+                    stat,
+                )?;
                 result.insert(Element::Raw(field_name), index);
             }
         }

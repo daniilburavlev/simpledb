@@ -6,13 +6,13 @@ use std::{
 
 use common::DbResult;
 
+use crate::schema::SchemaBuilder;
 use crate::{
     element::Element,
     plan::Plan,
     scan::{Scan, project::ProjectScan},
     schema::Schema,
 };
-use crate::schema::SchemaBuilder;
 
 pub struct ProjectPlan {
     plan: Rc<dyn Plan>,

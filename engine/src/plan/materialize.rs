@@ -1,3 +1,4 @@
+use crate::element::Element;
 use crate::layout::Layout;
 use crate::plan::Plan;
 use crate::scan::Scan;
@@ -7,7 +8,6 @@ use common::DbResult;
 use std::rc::Rc;
 use std::sync::Arc;
 use transaction::transaction::Transaction;
-use crate::element::Element;
 
 pub struct MaterializePlan {
     source: Rc<dyn Plan>,

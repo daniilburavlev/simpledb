@@ -16,7 +16,6 @@ use crate::{
 };
 
 pub mod buffer_needs;
-pub mod value;
 pub mod element;
 pub mod field_info;
 pub mod index;
@@ -34,6 +33,7 @@ pub mod sort_by;
 pub mod stat_mgr;
 pub mod table_mgr;
 mod temp;
+pub mod value;
 pub mod view_mgr;
 
 const LOG_FILE: &str = "wal.log";
@@ -106,10 +106,10 @@ impl SimpleDB {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use tempfile::{tempdir, TempDir};
-    use crate::element::Element;
     use super::*;
+    use crate::element::Element;
+    use std::collections::HashSet;
+    use tempfile::{TempDir, tempdir};
 
     pub(crate) fn init() -> (TempDir, Arc<Transaction>) {
         init_with_size(512)

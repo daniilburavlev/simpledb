@@ -3,13 +3,13 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 use crate::{
     plan::{Plan, order::SortPlan},
     scan::group::{AggregationFn, GroupByScan},
     schema::Schema,
 };
-use crate::element::Element;
-use crate::schema::SchemaBuilder;
 
 pub struct GroupByPlan {
     plan: Rc<dyn Plan>,

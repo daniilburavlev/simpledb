@@ -2,18 +2,18 @@ use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
-use crate::{scan::Scan, schema::Schema};
 use crate::element::Element;
+use crate::{scan::Scan, schema::Schema};
 
 pub(crate) mod group;
 pub mod index;
 pub(crate) mod materialize;
 pub(crate) mod merge;
 pub(crate) mod multibuffer;
+pub(crate) mod order;
 pub mod product;
 pub mod project;
 pub mod select;
-pub(crate) mod order;
 pub mod table;
 
 pub trait Plan {

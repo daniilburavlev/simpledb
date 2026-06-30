@@ -3,16 +3,16 @@ use std::{cmp::Ordering, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     plan::{Plan, materialize::MaterializePlan},
     scan::{
         Scan,
-        order::{RecordComparator, OrderScan},
+        order::{OrderScan, RecordComparator},
     },
     schema::Schema,
     temp::TempTable,
 };
-use crate::element::Element;
 
 pub struct SortPlan {
     plan: Rc<dyn Plan>,

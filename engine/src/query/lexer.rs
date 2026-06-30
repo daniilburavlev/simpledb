@@ -1,8 +1,8 @@
 use common::{DbResult, error::DbError};
 
 use crate::{
-    value::Value,
     query::{token::Token, tokenizer::Tokenizer},
+    value::Value,
 };
 
 pub struct Lexer {

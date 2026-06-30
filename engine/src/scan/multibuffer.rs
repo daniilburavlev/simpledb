@@ -3,13 +3,13 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use common::{DbResult, error::DbError};
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     buffer_needs::BufferNeeds,
     layout::Layout,
     scan::{Scan, chunk::ChunkScan, product::ProductScan},
     schema::Schema,
 };
-use crate::element::Element;
 
 struct MultiBufferProductScanInner {
     tx: Arc<Transaction>,

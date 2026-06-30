@@ -34,7 +34,8 @@ fn bench_index_insert(c: &mut Criterion) {
             let id = rng.random::<i32>();
             db.execute(&tx, &format!("INSERT INTO test(id) VALUES({})", id))
                 .unwrap();
-            db.query(&tx, &format!("SELECT id FROM test WHERE id={}", id)).unwrap();
+            db.query(&tx, &format!("SELECT id FROM test WHERE id={}", id))
+                .unwrap();
         });
     });
 }

@@ -2,13 +2,13 @@ use std::{rc::Rc, sync::Arc};
 
 use common::DbResult;
 
+use crate::element::Element;
 use crate::{
     plan::Plan,
     predicate::Predicate,
     scan::{Scan, select::SelectScan},
     schema::Schema,
 };
-use crate::element::Element;
 
 pub struct SelectPlan {
     plan: Rc<dyn Plan>,

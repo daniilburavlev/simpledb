@@ -3,9 +3,9 @@ use std::sync::Arc;
 use common::DbResult;
 use transaction::transaction::Transaction;
 
-use crate::{element::Element, scan::Scan, schema::SchemaBuilder};
 use crate::scan::table::TableScan;
 use crate::table_mgr::TableMgr;
+use crate::{element::Element, scan::Scan, schema::SchemaBuilder};
 
 const MAX_NAME: i32 = 16;
 const MAX_VIEW_DEF: i32 = 100;

@@ -1,19 +1,19 @@
 use common::{DbResult, error::DbError};
 use std::sync::Arc;
 
-use crate::schema::Schema;
-use crate::{value::Value, rid::RID};
 use crate::element::Element;
+use crate::schema::Schema;
+use crate::{rid::RID, value::Value};
 
 pub mod chunk;
 pub(crate) mod group;
 pub mod index;
 pub(crate) mod merge;
 pub(crate) mod multibuffer;
+pub(crate) mod order;
 pub mod product;
 pub mod project;
 pub mod select;
-pub(crate) mod order;
 pub mod table;
 
 pub trait Scan {

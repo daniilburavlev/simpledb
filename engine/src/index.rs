@@ -22,12 +22,12 @@ pub trait Index {
 mod tests {
     use tempfile::tempdir;
 
+    use crate::element::Element;
     use crate::schema::SchemaBuilder;
     use crate::{
         SimpleDB,
         plan::{Plan, table::TablePlan},
     };
-    use crate::element::Element;
 
     #[test]
     fn index_retrieval() {
@@ -39,7 +39,7 @@ mod tests {
         let md = db.metadata_mgr();
 
         let table = "student";
-        
+
         let sid = Element::raw("sid");
         let sname = Element::raw("sname");
         let majorid = Element::raw("majorid");

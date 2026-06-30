@@ -80,8 +80,7 @@ impl UpdatePlanner for BasicUpdatePlanner {
         data: super::command::TableData,
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
-        self.md
-            .create_table(&data.name, data.schema, tx)?;
+        self.md.create_table(&data.name, data.schema, tx)?;
         Ok(0)
     }
 
