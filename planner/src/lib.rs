@@ -1,3 +1,4 @@
+pub mod buffer_needs;
 pub mod element;
 pub mod field_info;
 pub mod index;
@@ -9,6 +10,7 @@ pub mod record_page;
 pub mod rid;
 pub mod scan;
 pub mod schema;
+pub mod temp;
 pub mod value;
 
 #[cfg(test)]

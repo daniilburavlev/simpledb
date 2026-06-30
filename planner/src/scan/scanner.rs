@@ -7,10 +7,14 @@ use crate::{
     schema::Schema,
     value::Value,
 };
+use crate::scan::chunk::ChunkScan;
+use crate::scan::product::ProductScan;
 
 pub(crate) enum Scanner {
     Table(TableScan),
     Select(SelectScan),
+    Chunk(ChunkScan),
+    Product(ProductScan),
 }
 
 impl Scanner {
@@ -18,6 +22,11 @@ impl Scanner {
         match self {
             Self::Table(table) => table.before_first(),
             Self::Select(select) => select.before_first(),
+            Self::Chunk(chunk) => {
+                chunk.before_first();
+                Ok(())
+            }
+            Self::Product(product) => product.before_first(),
         }
     }
 
@@ -25,6 +34,8 @@ impl Scanner {
         match self {
             Self::Table(table) => table.next(),
             Self::Select(select) => select.next(),
+            Self::Chunk(chunk) => chunk.next(),
+            Self::Product(product) => product.next_row(),
         }
     }
 
@@ -32,6 +43,8 @@ impl Scanner {
         match self {
             Self::Table(table) => table.get_i32(field),
             Self::Select(select) => select.get_i32(field),
+            Self::Chunk(chunk) => chunk.get_i32(field),
+            Self::Product(product) => product.get_i32(field),
         }
     }
 
@@ -39,6 +52,8 @@ impl Scanner {
         match self {
             Self::Table(table) => table.get_string(field),
             Self::Select(select) => select.get_string(field),
+            Self::Chunk(chunk) => chunk.get_string(field),
+            Self::Product(product) => product.get_string(field),
         }
     }
 
@@ -46,6 +61,8 @@ impl Scanner {
         match self {
             Self::Table(table) => table.get_val(field),
             Self::Select(select) => select.get_val(field),
+            Self::Chunk(chunk) => chunk.get_val(field),
+            Self::Product(product) => product.get_val(field),
         }
     }
 
@@ -53,6 +70,8 @@ impl Scanner {
         match self {
             Self::Table(table) => Ok(table.has_field(field)),
             Self::Select(select) => select.has_field(field),
+            Self::Chunk(chunk) => Ok(chunk.has_field(field)),
+            Self::Product(product) => product.has_field(field),
         }
     }
 
@@ -60,6 +79,8 @@ impl Scanner {
         match self {
             Self::Table(table) => table.close(),
             Self::Select(select) => select.close(),
+            Self::Chunk(chunk) => chunk.close(),
+            Self::Product(product) => product.close(),
         }
     }
 
@@ -67,6 +88,8 @@ impl Scanner {
         match self {
             Self::Table(table) => Ok(table.schema().clone()),
             Self::Select(select) => select.schema(),
+            Self::Chunk(chunk) => Ok(chunk.schema()),
+            Self::Product(product) => product.schema(),
         }
     }
 
@@ -74,6 +97,7 @@ impl Scanner {
         match self {
             Self::Table(table) => table.set_i32(field, value),
             Self::Select(select) => select.set_i32(field, value),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
@@ -81,6 +105,7 @@ impl Scanner {
         match self {
             Self::Table(table) => table.set_string(field, value),
             Self::Select(select) => select.set_string(field, value),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
@@ -88,6 +113,7 @@ impl Scanner {
         match self {
             Self::Table(table) => table.set_val(field, value),
             Self::Select(select) => select.set_val(field, value),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
@@ -95,6 +121,7 @@ impl Scanner {
         match self {
             Self::Table(table) => table.insert(),
             Self::Select(select) => select.insert(),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
@@ -102,6 +129,7 @@ impl Scanner {
         match self {
             Self::Table(table) => table.delete(),
             Self::Select(select) => select.delete(),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
@@ -109,17 +137,23 @@ impl Scanner {
         match self {
             Self::Table(table) => Ok(table.get_rid()),
             Self::Select(select) => select.get_rid(),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
     pub fn move_to_rid(&mut self, rid: RID) -> DbResult<()> {
         match self {
             Self::Table(table) => table.move_to_rid(rid),
-            Self::Select(table) => table.move_to_rid(rid),
+            Self::Select(select) => select.move_to_rid(rid),
+            Self::Chunk(_) | Self::Product(_) => Err(Self::read_only()),
         }
     }
 
     pub fn save_position(&self) -> DbResult<()> {
         Err(DbError::other("cannot save position"))
+    }
+
+    fn read_only() -> DbError {
+        DbError::other("scan does not support record modification")
     }
 }

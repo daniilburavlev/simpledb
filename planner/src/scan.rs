@@ -3,6 +3,7 @@ use std::sync::Arc;
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::scan::chunk::ChunkScan;
 use crate::{
     element::Element,
     layout::Layout,
@@ -12,11 +13,16 @@ use crate::{
     schema::Schema,
     value::Value,
 };
+use crate::scan::product::ProductScan;
 
 pub(crate) mod chunk;
 pub(crate) mod group;
 pub(crate) mod index;
 pub(crate) mod merge;
+pub(crate) mod multibuffer;
+pub(crate) mod order;
+pub(crate) mod product;
+pub(crate) mod project;
 pub(crate) mod scanner;
 pub(crate) mod select;
 pub(crate) mod table;
@@ -33,11 +39,31 @@ impl Scan {
         })
     }
 
-    pub fn select(scan: Box<Self>, predicate: Predicate) -> Self {
+    pub fn select(scan: Box<Scan>, predicate: Predicate) -> Self {
         let select = SelectScan::new(scan, predicate);
         Self {
             scan: Scanner::Select(select),
         }
+    }
+
+    pub fn product(s1: Box<Scan>, s2: Box<Scan>) -> DbResult<Self> {
+        let product = ProductScan::new(s1, s2)?;
+        Ok(Self {
+            scan: Scanner::Product(product),
+        })
+    }
+
+    pub fn chunk(
+        tx: &Arc<Transaction>,
+        filename: &str,
+        layout: Layout,
+        start_b_num: i32,
+        end_b_num: i32,
+    ) -> DbResult<Self> {
+        let select = ChunkScan::new(tx, filename, layout, start_b_num, end_b_num)?;
+        Ok(Self {
+            scan: Scanner::Chunk(select),
+        })
     }
 
     pub fn before_first(&mut self) -> DbResult<()> {
