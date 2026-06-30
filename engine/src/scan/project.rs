@@ -3,7 +3,6 @@ use crate::scan::Scan;
 use crate::schema::{Schema, SchemaBuilder};
 use common::DbResult;
 use common::error::DbError;
-use std::sync::Arc;
 use std::{collections::HashSet, rc::Rc};
 
 pub struct ProjectScan {

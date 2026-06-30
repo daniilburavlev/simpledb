@@ -13,14 +13,14 @@ use crate::{
 
 struct HeuristicQueryPlannerInner {
     table_planners: Vec<TablePlanner>,
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl HeuristicQueryPlannerInner {
-    fn new(md: &Arc<MetadataMgr>) -> Self {
+    fn new(md: MetadataMgr) -> Self {
         Self {
             table_planners: vec![],
-            md: Arc::clone(md),
+            md,
         }
     }
 
@@ -48,11 +48,7 @@ impl HeuristicQueryPlannerInner {
         if !data.sort_by.is_empty() {
             current = Rc::new(SortPlan::new(tx, &current, data.sort_by.fields)?);
         }
-        Ok(Rc::new(ProjectPlan::new(
-            current,
-            data.fields,
-            data.tables,
-        )?))
+        Ok(Rc::new(ProjectPlan::new(current, data.fields)?))
     }
 
     fn get_lowest_select_plan(&mut self) -> DbResult<Rc<dyn Plan>> {
@@ -114,7 +110,7 @@ impl HeuristicQueryPlannerInner {
 pub(crate) struct HeuristicQueryPlanner(RefCell<HeuristicQueryPlannerInner>);
 
 impl HeuristicQueryPlanner {
-    pub(crate) fn new(md: &Arc<MetadataMgr>) -> Self {
+    pub(crate) fn new(md: MetadataMgr) -> Self {
         Self(RefCell::new(HeuristicQueryPlannerInner::new(md)))
     }
 }

@@ -45,7 +45,7 @@ pub struct SimpleDB {
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
     lock_table: Arc<LockTable>,
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl SimpleDB {
@@ -66,7 +66,7 @@ impl SimpleDB {
             tracing::debug!("recovering existing database");
             tx.recover()?;
         }
-        let md = Arc::new(MetadataMgr::new(is_new, &tx)?);
+        let md = MetadataMgr::new(is_new, &tx)?;
         tx.commit()?;
         Ok(Self {
             fm,
@@ -82,8 +82,8 @@ impl SimpleDB {
         Ok(Arc::new(tx))
     }
 
-    pub fn metadata_mgr(&self) -> Arc<MetadataMgr> {
-        Arc::clone(&self.md)
+    pub fn metadata_mgr(&self) -> &MetadataMgr {
+        &self.md
     }
 
     pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {
@@ -98,8 +98,8 @@ impl SimpleDB {
     }
 
     fn planner(&self) -> Planner {
-        let query_planner = HeuristicQueryPlanner::new(&self.md);
-        let update_planner = BasicUpdatePlanner::new(&self.md);
+        let query_planner = HeuristicQueryPlanner::new(self.md.clone());
+        let update_planner = BasicUpdatePlanner::new(self.md.clone());
         Planner::new(Rc::new(query_planner), Rc::new(update_planner))
     }
 }
@@ -175,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn sort_by() {
+    fn order_by_field() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();

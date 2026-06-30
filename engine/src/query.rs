@@ -4,7 +4,6 @@ pub(crate) mod heuristic_planner;
 pub mod lexer;
 pub mod parser;
 pub mod planner;
-pub(crate) mod result;
 pub(crate) mod table_planner;
 pub mod token;
 pub mod tokenizer;

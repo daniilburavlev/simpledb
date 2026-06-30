@@ -13,6 +13,7 @@ use crate::{
     view_mgr::ViewMgr,
 };
 
+#[derive(Clone)]
 pub struct MetadataMgr {
     table_mgr: TableMgr,
     view_mgr: ViewMgr,

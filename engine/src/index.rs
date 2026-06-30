@@ -31,9 +31,6 @@ mod tests {
 
     #[test]
     fn index_retrieval() {
-        use crate::schema::Schema;
-        use std::sync::Arc;
-
         let dir = tempdir().unwrap();
         let db = SimpleDB::configured(dir.path(), 512, 8).unwrap();
         let md = db.metadata_mgr();

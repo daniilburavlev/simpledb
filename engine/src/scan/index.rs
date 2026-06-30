@@ -1,6 +1,5 @@
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::element::Element;
 use crate::schema::{Schema, SchemaBuilder};
@@ -159,11 +158,10 @@ impl Scan for IndexJoinScan {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::sync::Arc;
     use tempfile::tempdir;
 
     use crate::element::Element;
-    use crate::schema::{Schema, SchemaBuilder};
+    use crate::schema::SchemaBuilder;
     use crate::{
         SimpleDB,
         plan::{Plan, table::TablePlan},

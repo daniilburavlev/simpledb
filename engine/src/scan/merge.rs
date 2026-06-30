@@ -1,5 +1,4 @@
 use common::DbResult;
-use std::sync::Arc;
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use crate::element::Element;

@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{collections::HashSet, rc::Rc};
 
 use common::DbResult;
 
@@ -17,20 +13,18 @@ use crate::{
 pub struct ProjectPlan {
     plan: Rc<dyn Plan>,
     schema: Schema,
-    mapping: HashMap<String, String>,
 }
 
 impl ProjectPlan {
-    pub fn new(plan: Rc<dyn Plan>, fields: Vec<Element>, tables: Vec<Element>) -> DbResult<Self> {
-        let schema = SchemaBuilder::default().build();
-        //for field in fields {
-        //    let other = plan.schema()?;
-        //   schema.add(field, &other)?;
-        // }
+    pub fn new(plan: Rc<dyn Plan>, fields: Vec<Element>) -> DbResult<Self> {
+        let mut schema = SchemaBuilder::default();
+        for field in fields {
+            let other = plan.schema()?;
+            schema = schema.add(field, &other);
+        }
         Ok(Self {
             plan,
-            schema,
-            mapping: HashMap::new(),
+            schema: schema.build(),
         })
     }
 }

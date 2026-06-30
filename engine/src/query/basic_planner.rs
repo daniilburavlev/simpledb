@@ -10,12 +10,12 @@ use crate::{
 };
 
 pub struct BasicUpdatePlanner {
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl BasicUpdatePlanner {
-    pub fn new(md: &Arc<MetadataMgr>) -> Self {
-        Self { md: Arc::clone(md) }
+    pub fn new(md: MetadataMgr) -> Self {
+        Self { md }
     }
 }
 

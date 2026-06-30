@@ -3,7 +3,6 @@ use crate::scan::Scan;
 use crate::schema::{Schema, SchemaBuilder};
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub struct ProductScan {
     s1: Rc<dyn Scan>,

@@ -14,6 +14,7 @@ const VIEW_NAME: &str = "view";
 const VIEW_DEF: &str = "view_def";
 const VIEW_TABLE: &str = "sp_view";
 
+#[derive(Clone)]
 pub struct ViewMgr {
     table_mgr: TableMgr,
 }
@@ -32,7 +33,7 @@ impl ViewMgr {
 
     pub fn create_view(&self, name: &str, def: &str, tx: &Arc<Transaction>) -> DbResult<()> {
         let layout = self.table_mgr.get_layout(VIEW_TABLE, tx)?;
-        let mut ts = TableScan::new(tx, VIEW_TABLE, layout)?;
+        let ts = TableScan::new(tx, VIEW_TABLE, layout)?;
         ts.insert()?;
         ts.set_string(&Element::raw(VIEW_NAME), name)?;
         ts.set_string(&Element::raw(VIEW_DEF), def)?;
@@ -41,7 +42,7 @@ impl ViewMgr {
 
     pub fn get_view_def(&self, name: &str, tx: &Arc<Transaction>) -> DbResult<Option<String>> {
         let layout = self.table_mgr.get_layout(VIEW_TABLE, tx)?;
-        let mut ts = TableScan::new(tx, VIEW_TABLE, layout)?;
+        let ts = TableScan::new(tx, VIEW_TABLE, layout)?;
         let mut result = None;
         while ts.next()? {
             if ts.get_string(&Element::raw(VIEW_NAME))? == name {

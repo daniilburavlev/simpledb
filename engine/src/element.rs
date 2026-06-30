@@ -35,6 +35,10 @@ impl Element {
             Self::Spec(source, target) => source.len() + 4 + target.len(),
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl std::fmt::Display for Element {

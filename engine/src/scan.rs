@@ -1,5 +1,4 @@
 use common::{DbResult, error::DbError};
-use std::sync::Arc;
 
 use crate::element::Element;
 use crate::schema::Schema;

@@ -72,6 +72,7 @@ impl IndexInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct IndexMgr {
     layout: Layout,
     table_mgr: TableMgr,
@@ -111,7 +112,7 @@ impl IndexMgr {
         field_name: &str,
         tx: &Arc<Transaction>,
     ) -> DbResult<()> {
-        let mut ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
+        let ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
         ts.insert()?;
         ts.set_string(&Element::raw(IDX_NAME), idx_name)?;
         ts.set_string(&Element::raw(TABLE_NAME), table_name)?;
@@ -125,7 +126,7 @@ impl IndexMgr {
         tx: &Arc<Transaction>,
     ) -> DbResult<HashMap<Element, IndexInfo>> {
         let mut result = HashMap::new();
-        let mut ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
+        let ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
         while ts.next()? {
             if ts.get_string(&Element::raw(TABLE_NAME))? == table_name {
                 let idx_name = ts.get_string(&Element::raw(IDX_NAME))?;

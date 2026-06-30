@@ -254,7 +254,7 @@ impl Scan for TableScan {
 
 #[cfg(test)]
 mod tests {
-    use crate::schema::{Schema, SchemaBuilder};
+    use crate::schema::SchemaBuilder;
     use buffer::mgr::BufferMgr;
     use file::mgr::FileMgr;
     use log::mgr::LogMgr;
