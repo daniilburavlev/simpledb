@@ -1,9 +1,12 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::scan::chunk::ChunkScan;
+use crate::scan::product::ProductScan;
+use crate::scan::project::ProjectScan;
 use crate::{
     element::Element,
     layout::Layout,
@@ -13,7 +16,6 @@ use crate::{
     schema::Schema,
     value::Value,
 };
-use crate::scan::product::ProductScan;
 
 pub(crate) mod chunk;
 pub(crate) mod group;
@@ -51,6 +53,13 @@ impl Scan {
         Ok(Self {
             scan: Scanner::Product(product),
         })
+    }
+
+    pub fn project(s1: Box<Scan>, fields: HashSet<Element>) -> Self {
+        let project = ProjectScan::new(s1, fields);
+        Self {
+            scan: Scanner::Project(project),
+        }
     }
 
     pub fn chunk(

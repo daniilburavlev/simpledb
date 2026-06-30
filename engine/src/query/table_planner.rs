@@ -1,27 +1,19 @@
 use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 use common::DbResult;
+use planner::element::Element;
+use planner::mgr::index::IndexInfo;
+use planner::mgr::metadata::MetadataMgr;
+use planner::plan::Plan;
+use planner::predicate::Predicate;
+use planner::schema::Schema;
 use transaction::transaction::Transaction;
 
-use crate::{
-    index_mgr::IndexInfo,
-    metadata_mgr::MetadataMgr,
-    plan::{
-        Plan,
-        index::{IndexJoinPlan, IndexSelectPlan},
-        multibuffer::MultiBufferProductPlan,
-        select::SelectPlan,
-        table::TablePlan,
-    },
-    predicate::Predicate,
-    schema::Schema,
-};
-
 pub(crate) struct TablePlanner {
-    plan: Rc<TablePlan>,
+    plan: Plan,
     predicate: Predicate,
-    schema: Arc<Schema>,
-    indexes: HashMap<String, IndexInfo>,
+    schema: Schema,
+    indexes: HashMap<Element, IndexInfo>,
     tx: Arc<Transaction>,
 }
 
@@ -30,14 +22,14 @@ impl TablePlanner {
         table: &str,
         predicate: Predicate,
         tx: &Arc<Transaction>,
-        md: &MetadataMgr,
+        md: MetadataMgr,
     ) -> DbResult<Self> {
-        let plan = TablePlan::new(tx, table.to_string(), md)?;
+        let plan = Plan::table(tx, table.to_string(), &md)?;
         Ok(Self {
             predicate,
             tx: Arc::clone(tx),
             schema: plan.schema()?,
-            plan: Rc::new(plan),
+            plan: plan,
             indexes: md.get_index_info(table, tx)?,
         })
     }

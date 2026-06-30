@@ -1,10 +1,8 @@
-use crate::{
-    constant::Constant,
-    element::Element,
-    predicate::{Expression, Predicate},
-    schema::Schema,
-    sort_by::SortByData,
-};
+use planner::element::Element;
+use planner::predicate::{Expression, Predicate};
+use planner::schema::Schema;
+use planner::value::Value;
+use crate::order::OrderByData;
 
 pub enum Command {
     Insert(InsertData),
@@ -35,7 +33,7 @@ pub struct QueryData {
     pub tables: Vec<Element>,
     pub predicate: Predicate,
     pub group_by: GroupByData,
-    pub sort_by: SortByData,
+    pub order_by: OrderByData,
 }
 
 impl std::fmt::Display for QueryData {
@@ -63,8 +61,8 @@ impl std::fmt::Display for QueryData {
         if !self.group_by.is_empty() {
             write!(f, " {}", self.group_by)?;
         }
-        if !self.sort_by.is_empty() {
-            write!(f, " {}", self.sort_by)?;
+        if !self.order_by.is_empty() {
+            write!(f, " {}", self.order_by)?;
         }
         Ok(())
     }
@@ -99,8 +97,8 @@ impl std::fmt::Display for DeleteData {
 
 pub struct InsertData {
     pub table: String,
-    pub fields: Vec<String>,
-    pub values: Vec<Constant>,
+    pub fields: Vec<Element>,
+    pub values: Vec<Value>,
 }
 
 impl std::fmt::Display for InsertData {
@@ -168,13 +166,7 @@ pub struct TableData {
 impl std::fmt::Display for TableData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CREATE TABLE {}(", self.name)?;
-        for (i, (field, value)) in self
-            .schema
-            .fields()
-            .map_err(|_| std::fmt::Error)?
-            .iter()
-            .enumerate()
-        {
+        for (i, (field, value)) in self.schema.fields().iter().enumerate() {
             if i == 0 {
                 write!(f, "{} {}", field, value)?;
             } else {

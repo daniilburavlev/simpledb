@@ -14,6 +14,7 @@ use crate::{
 
 pub(crate) mod select;
 pub(crate) mod table;
+mod project;
 
 pub(crate) enum Planner {
     Table(TablePlan),
@@ -28,6 +29,10 @@ impl Plan {
     }
 
     pub fn select(plan: Box<Plan>, predicate: Predicate) -> Self {
+        Self(Planner::Select(SelectPlan::new(plan, predicate)))
+    }
+
+    pub fn project(plan: Box<Plan>, predicate: Predicate) -> Self {
         Self(Planner::Select(SelectPlan::new(plan, predicate)))
     }
 

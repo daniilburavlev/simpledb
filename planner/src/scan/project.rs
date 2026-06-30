@@ -22,7 +22,7 @@ impl ProjectScan {
         self.scan.before_first()
     }
 
-    pub(crate) fn next(&mut self) -> DbResult<bool> {
+    pub(crate) fn next_row(&mut self) -> DbResult<bool> {
         self.scan.next_row()
     }
 

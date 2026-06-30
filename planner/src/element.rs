@@ -1,3 +1,6 @@
+use common::DbResult;
+use common::error::DbError;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Element {
     Raw(String),
@@ -16,6 +19,13 @@ impl Element {
 
     pub fn spec(source: &str, target: &str) -> Self {
         Self::Spec(source.to_string(), target.to_string())
+    }
+
+    pub fn as_raw(&self) -> DbResult<&str> {
+        match self {
+            Self::Raw(s) => Ok(s),
+            _ => Err(DbError::InvalidFieldType),
+        }
     }
 }
 

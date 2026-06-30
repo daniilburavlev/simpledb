@@ -325,6 +325,7 @@ dependencies = [
  "criterion",
  "file",
  "log 0.0.1",
+ "planner",
  "rand",
  "tempfile",
  "tracing",

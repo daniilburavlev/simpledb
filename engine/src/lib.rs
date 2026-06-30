@@ -4,37 +4,16 @@ use buffer::mgr::BufferMgr;
 use common::DbResult;
 use file::mgr::FileMgr;
 use log::mgr::LogMgr;
+use planner::mgr::metadata::MetadataMgr;
+use planner::scan::Scan;
 use transaction::{lock_table::LockTable, transaction::Transaction};
 
-use crate::{
-    metadata_mgr::MetadataMgr,
-    query::{
-        basic_planner::BasicUpdatePlanner, heuristic_planner::HeuristicQueryPlanner,
-        planner::Planner,
-    },
-    scan::Scan,
+use crate::query::{
+    basic_planner::BasicUpdatePlanner, heuristic_planner::HeuristicQueryPlanner, planner::Planner,
 };
 
-pub mod buffer_needs;
-pub mod constant;
-pub(crate) mod element;
-pub mod field_info;
-pub mod index;
-pub mod index_mgr;
-pub mod layout;
-pub mod metadata_mgr;
-pub mod plan;
-pub mod predicate;
 pub mod query;
-pub mod record_page;
-pub mod rid;
-pub mod scan;
-pub mod schema;
-pub mod sort_by;
-pub mod stat_mgr;
-pub mod table_mgr;
-mod temp;
-pub mod view_mgr;
+mod order;
 
 const LOG_FILE: &str = "wal.log";
 const BLOCK_SIZE: usize = 8 * 1024;
@@ -45,7 +24,7 @@ pub struct SimpleDB {
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
     lock_table: Arc<LockTable>,
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl SimpleDB {
@@ -66,7 +45,7 @@ impl SimpleDB {
             tracing::debug!("recovering existing database");
             tx.recover()?;
         }
-        let md = Arc::new(MetadataMgr::new(is_new, &tx)?);
+        let md = MetadataMgr::new(is_new, &tx)?;
         tx.commit()?;
         Ok(Self {
             fm,
@@ -82,11 +61,11 @@ impl SimpleDB {
         Ok(Arc::new(tx))
     }
 
-    pub fn metadata_mgr(&self) -> Arc<MetadataMgr> {
-        Arc::clone(&self.md)
+    pub fn metadata_mgr(&self) -> &MetadataMgr {
+        &self.md
     }
 
-    pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {
+    pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Scan> {
         let planner = self.planner();
         let plan = planner.create_query_plan(query, tx)?;
         plan.open()
