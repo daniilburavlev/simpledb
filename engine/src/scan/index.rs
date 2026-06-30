@@ -1,18 +1,18 @@
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::Arc;
 
-use crate::schema::Schema;
-use crate::{constant::Constant, index::Index, scan::Scan};
+use crate::element::Element;
+use crate::schema::{Schema, SchemaBuilder};
+use crate::{index::Index, scan::Scan, value::Value};
 
 pub struct IndexSelectScan {
     scan: Rc<dyn Scan>,
     index: Rc<dyn Index>,
-    value: Constant,
+    value: Value,
 }
 
 impl IndexSelectScan {
-    pub fn new(scan: &Rc<dyn Scan>, index: &Rc<dyn Index>, value: Constant) -> DbResult<Self> {
+    pub fn new(scan: &Rc<dyn Scan>, index: &Rc<dyn Index>, value: Value) -> DbResult<Self> {
         let scan = Self {
             scan: Rc::clone(scan),
             index: Rc::clone(index),
@@ -37,19 +37,19 @@ impl Scan for IndexSelectScan {
         Ok(ok)
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         self.scan.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         self.scan.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
         self.scan.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         self.scan.has_field(field_name)
     }
 
@@ -58,7 +58,7 @@ impl Scan for IndexSelectScan {
         self.scan.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.scan.schema()
     }
 }
@@ -67,20 +67,20 @@ pub struct IndexJoinScan {
     left: Rc<dyn Scan>,
     right: Rc<dyn Scan>,
     index: Rc<dyn Index>,
-    field: String,
+    field: Element,
 }
 
 impl IndexJoinScan {
     pub fn new(
         left: &Rc<dyn Scan>,
         index: &Rc<dyn Index>,
-        field: &str,
+        field: Element,
         right: &Rc<dyn Scan>,
     ) -> DbResult<Self> {
         let scan = Self {
             left: Rc::clone(left),
             right: Rc::clone(right),
-            field: field.to_string(),
+            field,
             index: Rc::clone(index),
         };
         scan.before_first()?;
@@ -113,7 +113,7 @@ impl Scan for IndexJoinScan {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         if self.right.has_field(field_name)? {
             self.right.get_i32(field_name)
         } else {
@@ -121,7 +121,7 @@ impl Scan for IndexJoinScan {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         if self.right.has_field(field_name)? {
             self.right.get_string(field_name)
         } else {
@@ -129,7 +129,7 @@ impl Scan for IndexJoinScan {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
         if self.right.has_field(field_name)? {
             self.right.get_val(field_name)
         } else {
@@ -137,7 +137,7 @@ impl Scan for IndexJoinScan {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         Ok(self.right.has_field(field_name)? || self.left.has_field(field_name)?)
     }
 
@@ -147,40 +147,46 @@ impl Scan for IndexJoinScan {
         self.right.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let s1 = self.left.schema()?;
         let s2 = self.right.schema()?;
-        s1.add_all(&s2)?;
-        Ok(s1)
+        let s = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        Ok(s)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::sync::Arc;
     use tempfile::tempdir;
 
-    use crate::schema::Schema;
+    use crate::element::Element;
+    use crate::schema::SchemaBuilder;
     use crate::{
         SimpleDB,
         plan::{Plan, table::TablePlan},
     };
 
     #[test]
-    fn update_index() {
+    fn index_scan_update() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
         let md = db.metadata_mgr();
 
-        let schema = Schema::default();
-        schema.add_int_field("sid".to_string()).unwrap();
-        schema.add_string_field("sname".to_string(), 16).unwrap();
-        schema.add_int_field("gadyear".to_string()).unwrap();
-        schema.add_int_field("majorid".to_string()).unwrap();
+        let sid = Element::raw("sid");
+        let sname = Element::raw("sname");
+        let gadyear = Element::raw("gadyear");
+        let majorid = Element::raw("majorid");
 
-        md.create_table("users", &Arc::new(schema), &tx).unwrap();
+        let schema = SchemaBuilder::default()
+            .add_int_field(sid.clone())
+            .add_string_field(sname.clone(), 16)
+            .add_int_field(gadyear.clone())
+            .add_int_field(majorid.clone())
+            .build();
+
+        md.create_table("users", schema, &tx).unwrap();
         md.create_index("users_ids", "users", "sid", &tx).unwrap();
 
         let plan = TablePlan::new(&tx, "users".to_string(), &md).unwrap();
@@ -194,10 +200,10 @@ mod tests {
         }
 
         s.insert().unwrap();
-        s.set_i32("sid", 11).unwrap();
-        s.set_string("sname", "Sam").unwrap();
-        s.set_i32("gadyear", 2023).unwrap();
-        s.set_i32("majorid", 30).unwrap();
+        s.set_i32(&sid, 11).unwrap();
+        s.set_string(&sname, "Sam").unwrap();
+        s.set_i32(&gadyear, 2023).unwrap();
+        s.set_i32(&majorid, 30).unwrap();
 
         let rid = s.get_rid().unwrap();
         for (field, index) in indexes.iter() {
@@ -207,7 +213,7 @@ mod tests {
 
         s.before_first().unwrap();
         while s.next().unwrap() {
-            if s.get_string("sname").unwrap() == "joe" {
+            if s.get_string(&sname).unwrap() == "joe" {
                 let rid = s.get_rid().unwrap();
                 for (field, index) in indexes.iter() {
                     let value = s.get_val(field).unwrap();
@@ -221,8 +227,8 @@ mod tests {
         while s.next().unwrap() {
             println!(
                 "{} {}",
-                s.get_string("sname").unwrap(),
-                s.get_i32("sid").unwrap()
+                s.get_string(&sname).unwrap(),
+                s.get_i32(&sid).unwrap()
             );
         }
         s.close().unwrap();

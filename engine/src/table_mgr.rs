@@ -3,11 +3,13 @@ use std::{collections::HashMap, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::scan::table::TableScan;
 use crate::{
+    element::Element,
     field_info::FieldInfo,
     layout::Layout,
-    scan::{Scan, table::TableScan},
-    schema::Schema,
+    scan::Scan,
+    schema::{Schema, SchemaBuilder},
 };
 
 const MAX_NAME: i32 = 16;
@@ -21,34 +23,37 @@ const F_FIELD_NAME: &str = "field";
 const F_TYPE_LENGTH: &str = "length";
 const F_OFFSET: &str = "offset";
 
+#[derive(Clone, Debug)]
 pub struct TableMgr {
-    table_catalog_layout: Arc<Layout>,
-    fields_catalog_layout: Arc<Layout>,
+    table_layout: Layout,
+    fields_layout: Layout,
 }
 
 impl TableMgr {
     pub fn new(is_new: bool, tx: &Arc<Transaction>) -> DbResult<Self> {
-        let table_catalog_schema = Arc::new(Schema::default());
-        table_catalog_schema.add_string_field(TABLE_NAME.to_string(), MAX_NAME)?;
-        table_catalog_schema.add_int_field(TABLE_SLOT_SIZE.to_string())?;
-        let table_catalog_layout = Layout::new(&table_catalog_schema)?;
+        let table_schema = SchemaBuilder::default()
+            .add_string_field(Element::raw(TABLE_NAME), MAX_NAME)
+            .add_int_field(Element::raw(TABLE_SLOT_SIZE))
+            .build();
+        let table_layout = Layout::new(table_schema.clone());
 
-        let fields_catalog_schema = Arc::new(Schema::default());
-        fields_catalog_schema.add_string_field(TABLE_NAME.to_string(), MAX_NAME)?;
-        fields_catalog_schema.add_string_field(F_FIELD_NAME.to_string(), MAX_NAME)?;
-        fields_catalog_schema.add_int_field(F_TYPE.to_string())?;
-        fields_catalog_schema.add_int_field(F_TYPE_LENGTH.to_string())?;
-        fields_catalog_schema.add_int_field(F_OFFSET.to_string())?;
-        let fields_catalog_layout = Layout::new(&fields_catalog_schema)?;
+        let fields_schema = SchemaBuilder::default()
+            .add_string_field(Element::raw(TABLE_NAME), MAX_NAME)
+            .add_string_field(Element::raw(F_FIELD_NAME), MAX_NAME)
+            .add_int_field(Element::raw(F_TYPE))
+            .add_int_field(Element::raw(F_TYPE_LENGTH))
+            .add_int_field(Element::raw(F_OFFSET))
+            .build();
+        let fields_layout = Layout::new(fields_schema.clone());
 
         let mgr = Self {
-            table_catalog_layout: Arc::new(table_catalog_layout),
-            fields_catalog_layout: Arc::new(fields_catalog_layout),
+            table_layout,
+            fields_layout,
         };
 
         if is_new {
-            mgr.create_table(TABLE_NAME, &table_catalog_schema, tx)?;
-            mgr.create_table(FIELDS_NAME, &fields_catalog_schema, tx)?;
+            mgr.create_table(TABLE_NAME, table_schema, tx)?;
+            mgr.create_table(FIELDS_NAME, fields_schema, tx)?;
         }
 
         Ok(mgr)
@@ -57,55 +62,59 @@ impl TableMgr {
     pub fn create_table(
         &self,
         table_name: &str,
-        schema: &Arc<Schema>,
+        schema: Schema,
         tx: &Arc<Transaction>,
     ) -> DbResult<()> {
-        let layout = Layout::new(schema)?;
+        let layout = Layout::new(schema.clone());
 
-        let tcat = TableScan::new(tx, TABLE_NAME, &self.table_catalog_layout)?;
+        let tcat = TableScan::new(tx, TABLE_NAME, self.table_layout.clone())?;
         tcat.insert()?;
-        tcat.set_string(TABLE_NAME, table_name)?;
-        tcat.set_i32(TABLE_SLOT_SIZE, layout.slotsize())?;
+        tcat.set_string(&Element::raw(TABLE_NAME), table_name)?;
+        tcat.set_i32(&Element::raw(TABLE_SLOT_SIZE), layout.slotsize())?;
         tcat.close()?;
 
-        let fcat = TableScan::new(tx, FIELDS_NAME, &self.fields_catalog_layout)?;
-        for (field_name, info) in schema.fields()? {
+        let fcat = TableScan::new(tx, FIELDS_NAME, self.fields_layout.clone())?;
+        for (field_name, info) in schema.fields() {
             fcat.insert()?;
-            fcat.set_string(TABLE_NAME, table_name)?;
-            fcat.set_string(F_FIELD_NAME, &field_name)?;
-            fcat.set_i32(F_TYPE, info.type_id())?;
-            fcat.set_i32(F_TYPE_LENGTH, info.length())?;
-            fcat.set_i32(F_OFFSET, layout.offset(&field_name))?;
+            fcat.set_string(&Element::raw(TABLE_NAME), table_name)?;
+            fcat.set_string(&Element::raw(F_FIELD_NAME), &field_name.to_string())?;
+            fcat.set_i32(&Element::raw(F_TYPE), info.type_id())?;
+            fcat.set_i32(&Element::raw(F_TYPE_LENGTH), info.length())?;
+            fcat.set_i32(&Element::raw(F_OFFSET), layout.offset(&field_name))?;
         }
         fcat.close()
     }
 
     pub fn get_layout(&self, table_name: &str, tx: &Arc<Transaction>) -> DbResult<Layout> {
         let mut size = -1;
-        let tcat = TableScan::new(tx, TABLE_NAME, &self.table_catalog_layout)?;
+        let tcat = TableScan::new(tx, TABLE_NAME, self.table_layout.clone())?;
         while tcat.next()? {
-            if tcat.get_string(TABLE_NAME)? == table_name {
-                size = tcat.get_i32(TABLE_SLOT_SIZE)?;
+            if tcat.get_string(&Element::raw(TABLE_NAME))? == table_name {
+                size = tcat.get_i32(&Element::raw(TABLE_SLOT_SIZE))?;
                 break;
             }
         }
         tcat.close()?;
-        let schema = Arc::new(Schema::default());
+        let mut schema = SchemaBuilder::default();
         let mut offsets = HashMap::new();
-        let fcat = TableScan::new(tx, FIELDS_NAME, &self.fields_catalog_layout)?;
+        let fcat = TableScan::new(tx, FIELDS_NAME, self.fields_layout.clone())?;
         while fcat.next()? {
-            let table = fcat.get_string(TABLE_NAME)?;
+            let table = fcat.get_string(&Element::raw(TABLE_NAME))?;
             if table == table_name {
-                let field_name = fcat.get_string(F_FIELD_NAME)?;
-                let field_type = fcat.get_i32(F_TYPE)?;
-                let field_len = fcat.get_i32(F_TYPE_LENGTH)?;
-                let offset = fcat.get_i32(F_OFFSET)?;
-                schema.add_field(field_name.clone(), FieldInfo::new(field_type, field_len)?)?;
-                offsets.insert(field_name, offset);
+                let field_name = fcat.get_string(&Element::raw(F_FIELD_NAME))?;
+                let field_type = fcat.get_i32(&Element::raw(F_TYPE))?;
+                let field_len = fcat.get_i32(&Element::raw(F_TYPE_LENGTH))?;
+                let offset = fcat.get_i32(&Element::raw(F_OFFSET))?;
+                schema = schema.add_field(
+                    Element::Raw(field_name.clone()),
+                    FieldInfo::new(field_type, field_len)?,
+                );
+                offsets.insert(Element::Raw(field_name), offset);
             }
         }
+        let schema = schema.build();
         fcat.close()?;
-        Ok(Layout::from(&schema, offsets, size))
+        Ok(Layout::from(schema, offsets, size))
     }
 }
 
@@ -113,29 +122,28 @@ impl TableMgr {
 mod tests {
     use std::collections::HashSet;
 
+    use crate::tests::init;
+
     use super::*;
-    use crate::SimpleDB;
-    use tempfile::tempdir;
 
     #[test]
     fn manager() {
-        let dir = tempdir().unwrap();
-        let db = SimpleDB::new(dir.path()).unwrap();
+        let (_dir, tx) = init();
 
-        let tx = db.get_tx().unwrap();
         let tm = TableMgr::new(true, &tx).unwrap();
 
-        let schema = Arc::new(Schema::default());
-        schema.add_int_field("A".to_string()).unwrap();
-        schema.add_string_field("B".to_string(), 9).unwrap();
+        let schema = SchemaBuilder::default()
+            .add_int_field(Element::raw("A"))
+            .add_string_field(Element::raw("B"), 9)
+            .build();
 
-        tm.create_table("MyTable", &schema, &tx).unwrap();
+        tm.create_table("MyTable", schema, &tx).unwrap();
 
         let layout = tm.get_layout("MyTable", &tx).unwrap();
         let mut expected_fields = HashSet::new();
-        expected_fields.insert(("A".to_string(), FieldInfo::Integer));
-        expected_fields.insert(("B".to_string(), FieldInfo::Varchar(9)));
-        for (field_name, info) in layout.schema().fields().unwrap() {
+        expected_fields.insert((Element::raw("A"), FieldInfo::Integer));
+        expected_fields.insert((Element::raw("B"), FieldInfo::Varchar(9)));
+        for (field_name, info) in layout.schema().fields() {
             assert!(expected_fields.contains(&(field_name, info)));
         }
         tx.commit().unwrap();

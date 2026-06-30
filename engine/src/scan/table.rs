@@ -5,35 +5,36 @@ use common::{DbResult, error::DbError};
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::schema::Schema;
 use crate::{
-    constant::Constant, field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID,
-    scan::Scan,
+    field_info::FieldInfo, layout::Layout, record_page::RecordPage, rid::RID, scan::Scan,
+    value::Value,
 };
 
 struct TableScanInner {
     tx: Arc<Transaction>,
-    layout: Arc<Layout>,
+    layout: Layout,
     rp: RecordPage,
     filename: String,
     current_slot: i32,
 }
 
 impl TableScanInner {
-    fn new(tx: &Arc<Transaction>, table_name: &str, layout: &Arc<Layout>) -> DbResult<Self> {
+    fn new(tx: &Arc<Transaction>, table_name: &str, layout: Layout) -> DbResult<Self> {
         let filename = format!("{}.tbl", table_name);
         let rp = if tx.size(&filename)? == 0 {
             let block = tx.append(&filename)?;
-            let rp = RecordPage::new(tx, block, layout)?;
+            let rp = RecordPage::new(tx, block, layout.clone())?;
             rp.format()?;
             rp
         } else {
             let block = BlockId::new(&filename, 0);
-            RecordPage::new(tx, block, layout)?
+            RecordPage::new(tx, block, layout.clone())?
         };
         Ok(Self {
             tx: Arc::clone(tx),
-            layout: Arc::clone(layout),
+            layout,
             rp,
             current_slot: -1,
             filename,
@@ -60,44 +61,44 @@ impl TableScanInner {
         Ok(true)
     }
 
-    pub fn get_i32(&self, filename: &str) -> DbResult<i32> {
+    pub fn get_i32(&self, filename: &Element) -> DbResult<i32> {
         self.rp.get_i32(self.current_slot, filename)
     }
 
-    pub fn get_string(&self, filename: &str) -> DbResult<String> {
+    pub fn get_string(&self, filename: &Element) -> DbResult<String> {
         self.rp.get_string(self.current_slot, filename)
     }
 
-    pub fn get_val(&self, fieldname: &str) -> DbResult<Constant> {
-        let Some(info) = self.layout.schema().info(fieldname)? else {
-            return Err(DbError::field_not_exists(fieldname));
+    pub fn get_val(&self, fieldname: &Element) -> DbResult<Value> {
+        let Some(info) = self.layout.schema().info(fieldname) else {
+            return Err(DbError::FieldNotExists(fieldname.to_string()));
         };
         match info {
-            FieldInfo::Integer => Ok(Constant::Integer(self.get_i32(fieldname)?)),
-            FieldInfo::Varchar(_) => Ok(Constant::Varchar(self.get_string(fieldname)?)),
+            FieldInfo::Integer => Ok(Value::Integer(self.get_i32(fieldname)?)),
+            FieldInfo::Varchar(_) => Ok(Value::Varchar(self.get_string(fieldname)?)),
         }
     }
 
-    pub fn has_field(&self, fieldname: &str) -> DbResult<bool> {
+    pub fn has_field(&self, fieldname: &Element) -> bool {
         self.layout.schema().has_field(fieldname)
     }
 
-    pub fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
+    pub fn set_i32(&self, field: &Element, value: i32) -> DbResult<()> {
         let current_slot = self.current_slot;
         let rp = &self.rp;
         rp.set_i32(current_slot, field, value)
     }
 
-    pub fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
+    pub fn set_string(&self, field: &Element, value: &str) -> DbResult<()> {
         let current_slot = self.current_slot;
         let rp = &self.rp;
         rp.set_string(current_slot, field, value)
     }
 
-    pub fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
+    pub fn set_val(&self, field: &Element, value: Value) -> DbResult<()> {
         match value {
-            Constant::Integer(value) => self.set_i32(field, value),
-            Constant::Varchar(value) => self.set_string(field, &value),
+            Value::Integer(value) => self.set_i32(field, value),
+            Value::Varchar(value) => self.set_string(field, &value),
         }
     }
 
@@ -125,7 +126,7 @@ impl TableScanInner {
     pub fn move_to_rid(&mut self, rid: RID) -> DbResult<()> {
         self.close()?;
         let block = BlockId::new(&self.filename, rid.block_num());
-        let rp = RecordPage::new(&self.tx, block, &self.layout)?;
+        let rp = RecordPage::new(&self.tx, block, self.layout.clone())?;
         self.rp = rp;
         self.current_slot = rid.slot();
         Ok(())
@@ -139,7 +140,7 @@ impl TableScanInner {
     fn move_to_block(&mut self, num: i32) -> DbResult<()> {
         self.close()?;
         let block = BlockId::new(&self.filename, num);
-        self.rp = RecordPage::new(&self.tx, block, &self.layout)?;
+        self.rp = RecordPage::new(&self.tx, block, self.layout.clone())?;
         self.current_slot = -1;
         Ok(())
     }
@@ -147,7 +148,7 @@ impl TableScanInner {
     fn move_to_new_block(&mut self) -> DbResult<()> {
         self.close()?;
         let block = self.tx.append(&self.filename)?;
-        self.rp = RecordPage::new(&self.tx, block, &self.layout)?;
+        self.rp = RecordPage::new(&self.tx, block, self.layout.clone())?;
         self.rp.format()?;
         self.current_slot = -1;
         Ok(())
@@ -157,8 +158,8 @@ impl TableScanInner {
         Ok(self.rp.block().num == self.tx.size(&self.filename)? as i32 - 1)
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(self.layout.schema())
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.layout.schema().clone())
     }
 }
 
@@ -167,7 +168,7 @@ pub struct TableScan {
 }
 
 impl TableScan {
-    pub fn new(tx: &Arc<Transaction>, tablename: &str, layout: &Arc<Layout>) -> DbResult<Self> {
+    pub fn new(tx: &Arc<Transaction>, tablename: &str, layout: Layout) -> DbResult<Self> {
         Ok(Self {
             lock: RefCell::new(TableScanInner::new(tx, tablename, layout)?),
         })
@@ -185,24 +186,24 @@ impl Scan for TableScan {
         write.next()
     }
 
-    fn get_i32(&self, field: &str) -> DbResult<i32> {
+    fn get_i32(&self, field: &Element) -> DbResult<i32> {
         let read = self.lock.borrow();
         read.get_i32(field)
     }
 
-    fn get_string(&self, field: &str) -> DbResult<String> {
+    fn get_string(&self, field: &Element) -> DbResult<String> {
         let read = self.lock.borrow();
         read.get_string(field)
     }
 
-    fn get_val(&self, field: &str) -> DbResult<Constant> {
+    fn get_val(&self, field: &Element) -> DbResult<Value> {
         let read = self.lock.borrow();
         read.get_val(field)
     }
 
-    fn has_field(&self, field: &str) -> DbResult<bool> {
+    fn has_field(&self, field: &Element) -> DbResult<bool> {
         let read = self.lock.borrow();
-        read.has_field(field)
+        Ok(read.has_field(field))
     }
 
     fn close(&self) -> DbResult<()> {
@@ -210,17 +211,17 @@ impl Scan for TableScan {
         read.close()
     }
 
-    fn set_i32(&self, field: &str, value: i32) -> DbResult<()> {
+    fn set_i32(&self, field: &Element, value: i32) -> DbResult<()> {
         let read = self.lock.borrow();
         read.set_i32(field, value)
     }
 
-    fn set_string(&self, field: &str, value: &str) -> DbResult<()> {
+    fn set_string(&self, field: &Element, value: &str) -> DbResult<()> {
         let read = self.lock.borrow();
         read.set_string(field, value)
     }
 
-    fn set_val(&self, field: &str, value: Constant) -> DbResult<()> {
+    fn set_val(&self, field: &Element, value: Value) -> DbResult<()> {
         let read = self.lock.borrow();
         read.set_val(field, value)
     }
@@ -245,7 +246,7 @@ impl Scan for TableScan {
         Ok(read.get_rid())
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let read = self.lock.borrow();
         read.schema()
     }
@@ -253,14 +254,12 @@ impl Scan for TableScan {
 
 #[cfg(test)]
 mod tests {
+    use crate::schema::SchemaBuilder;
     use buffer::mgr::BufferMgr;
     use file::mgr::FileMgr;
     use log::mgr::LogMgr;
-    use rand::RngExt;
     use tempfile::tempdir;
-    use transaction::{lock_table::LockTable, txnum_generator::TxNumGenerator};
-
-    use crate::schema::Schema;
+    use transaction::lock_table::LockTable;
 
     use super::*;
 
@@ -270,54 +269,51 @@ mod tests {
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
 
-        let tx = Arc::new(Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap());
-        let schema = Arc::new(Schema::default());
-        schema.add_int_field("A".to_string()).unwrap();
-        schema.add_string_field("B".to_string(), 9).unwrap();
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
+        let schema = SchemaBuilder::default()
+            .add_int_field(Element::raw("A"))
+            .add_string_field(Element::raw("B"), 9)
+            .build();
 
-        let layout = Arc::new(Layout::new(&schema).unwrap());
-        for (field, _) in layout.schema().fields().unwrap() {
-            let offset = layout.offset(&field);
-            println!("{} has offset {}", field, offset);
-        }
+        let layout = Layout::new(schema);
+        let offset_a = layout.offset(&Element::raw("A"));
+        let offset_b = layout.offset(&Element::raw("B"));
+        assert_ne!(offset_a, offset_b, "fields must occupy distinct offsets");
 
-        let ts = TableScan::new(&tx, "T", &layout).unwrap();
-        println!("Fillins the table with 50 random records");
+        // Fill the table with 50 records carrying known A-values 0..50.
+        let ts = TableScan::new(&tx, "T", layout).unwrap();
         ts.before_first().unwrap();
-        let mut rng = rand::rng();
-        for _ in 0..50 {
+        for n in 0..50 {
             ts.insert().unwrap();
-            let n = rng.random::<i32>();
-            ts.set_i32("A", n).unwrap();
-            ts.set_string("B", &format!("record{}", n)).unwrap();
-            println!(
-                "inserting into slot {} {{'{}' 'record{}'}}",
-                ts.get_rid().unwrap(),
-                n,
-                n
-            );
+            ts.set_i32(&Element::raw("A"), n).unwrap();
+            ts.set_string(&Element::raw("B"), &format!("record{}", n))
+                .unwrap();
         }
-        println!("Deleting records with A-values < 10.");
-        let mut count = 0;
+
+        // Delete every record whose A-value is below 10 (exactly 0..10).
+        let mut deleted = 0;
         ts.before_first().unwrap();
         while ts.next().unwrap() {
-            let a = ts.get_i32("A").unwrap();
-            let b = ts.get_string("B").unwrap();
+            let a = ts.get_i32(&Element::raw("A")).unwrap();
             if a < 10 {
-                count += 1;
-                println!("slot {} {{'{}' '{}'}}", ts.get_rid().unwrap(), a, b);
+                ts.delete().unwrap();
+                deleted += 1;
             }
         }
-        println!("{} values under 25 were deleted", count);
-        println!("Here are the remaining records.");
+        assert_eq!(deleted, 10, "records with A < 10 should be deleted");
+
+        // The remaining records are exactly the 40 with A-values 10..50.
+        let mut remaining = 0;
         ts.before_first().unwrap();
         while ts.next().unwrap() {
-            let a = ts.get_i32("A").unwrap();
-            let b = ts.get_string("B").unwrap();
-            println!("{} slot {{'{}' '{}'}}", ts.get_rid().unwrap(), a, b);
+            let a = ts.get_i32(&Element::raw("A")).unwrap();
+            let b = ts.get_string(&Element::raw("B")).unwrap();
+            assert!(a >= 10, "deleted records should not survive");
+            assert_eq!(b, format!("record{}", a), "A and B must stay paired");
+            remaining += 1;
         }
+        assert_eq!(remaining, 40, "40 records should remain after deletion");
     }
 }

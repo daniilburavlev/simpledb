@@ -1,6 +1,8 @@
+use crate::element::Element;
+
 #[derive(Debug, Default)]
 pub struct SortByData {
-    pub fields: Vec<String>,
+    pub fields: Vec<Element>,
 }
 
 impl SortByData {

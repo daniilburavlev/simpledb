@@ -4,7 +4,7 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::plan::group::GroupByPlan;
-use crate::plan::sort::SortPlan;
+use crate::plan::order::SortPlan;
 use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, project::ProjectPlan},
@@ -13,20 +13,20 @@ use crate::{
 
 struct HeuristicQueryPlannerInner {
     table_planners: Vec<TablePlanner>,
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl HeuristicQueryPlannerInner {
-    fn new(md: &Arc<MetadataMgr>) -> Self {
+    fn new(md: MetadataMgr) -> Self {
         Self {
             table_planners: vec![],
-            md: Arc::clone(md),
+            md,
         }
     }
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         for table in &data.tables {
-            let tp = TablePlanner::new(table, data.predicate.clone(), tx, &self.md)?;
+            let tp = TablePlanner::new(table.as_raw()?, data.predicate.clone(), tx, &self.md)?;
             self.table_planners.push(tp);
         }
         let mut current = self.get_lowest_select_plan()?;
@@ -110,7 +110,7 @@ impl HeuristicQueryPlannerInner {
 pub(crate) struct HeuristicQueryPlanner(RefCell<HeuristicQueryPlannerInner>);
 
 impl HeuristicQueryPlanner {
-    pub(crate) fn new(md: &Arc<MetadataMgr>) -> Self {
+    pub(crate) fn new(md: MetadataMgr) -> Self {
         Self(RefCell::new(HeuristicQueryPlannerInner::new(md)))
     }
 }

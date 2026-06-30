@@ -38,6 +38,8 @@ pub enum DbError {
     ToInt(#[from] std::num::TryFromIntError),
     #[error("Unexpected token: {0}")]
     UnexpectedToken(String),
+    #[error("max size ({0}) exceeded: {1}")]
+    MaxSize(usize, usize),
 }
 
 impl DbError {

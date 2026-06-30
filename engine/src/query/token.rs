@@ -1,6 +1,6 @@
 use common::error::DbError;
 
-use crate::constant::Constant;
+use crate::value::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
@@ -28,7 +28,7 @@ pub enum Token {
     By,
     Field(String),
     Delimiter(char),
-    Element(Constant),
+    Element(Value),
 }
 
 impl Token {
@@ -77,7 +77,7 @@ pub(crate) fn tokenize(query: &str) -> Result<Vec<Token>, DbError> {
             if str_char == Some(c) && prev_char != '\\' {
                 let token: String = token_chars.into_iter().collect();
                 token_chars = Vec::new();
-                tokens.push(Token::Element(Constant::Varchar(token)));
+                tokens.push(Token::Element(Value::Varchar(token)));
                 str_char = None;
                 continue;
             } else if last_idx == i && str_char.is_some() {
@@ -99,7 +99,7 @@ pub(crate) fn tokenize(query: &str) -> Result<Vec<Token>, DbError> {
                 if let Some(token) = Token::parse(&token.to_lowercase()) {
                     tokens.push(token);
                 } else if let Ok(value) = token.parse::<i32>() {
-                    tokens.push(Token::Element(Constant::Integer(value)));
+                    tokens.push(Token::Element(Value::Integer(value)));
                 } else {
                     tokens.push(Token::Field(token))
                 }
@@ -121,7 +121,7 @@ fn is_str_token(c: char) -> bool {
 }
 
 fn is_markable_delimeter(c: char) -> bool {
-    c == '(' || c == ')' || c == ',' || c == '='
+    c == '(' || c == ')' || c == ',' || c == '=' || c == '.'
 }
 
 fn is_delimeter(c: char) -> bool {

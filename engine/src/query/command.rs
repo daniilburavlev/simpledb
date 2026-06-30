@@ -1,8 +1,9 @@
 use crate::{
-    constant::Constant,
+    element::Element,
     predicate::{Expression, Predicate},
     schema::Schema,
     sort_by::SortByData,
+    value::Value,
 };
 
 pub enum Command {
@@ -29,16 +30,9 @@ impl std::fmt::Display for Command {
     }
 }
 
-#[allow(dead_code)]
-pub(crate) enum Element {
-    Raw(String),
-    Id { source: String, name: String },
-    Object { obj: String, field: String },
-}
-
 pub struct QueryData {
-    pub fields: Vec<String>,
-    pub tables: Vec<String>,
+    pub fields: Vec<Element>,
+    pub tables: Vec<Element>,
     pub predicate: Predicate,
     pub group_by: GroupByData,
     pub sort_by: SortByData,
@@ -105,8 +99,8 @@ impl std::fmt::Display for DeleteData {
 
 pub struct InsertData {
     pub table: String,
-    pub fields: Vec<String>,
-    pub values: Vec<Constant>,
+    pub fields: Vec<Element>,
+    pub values: Vec<Value>,
 }
 
 impl std::fmt::Display for InsertData {
@@ -134,7 +128,7 @@ impl std::fmt::Display for InsertData {
 
 pub struct UpdateData {
     pub table: String,
-    pub field: String,
+    pub field: Element,
     pub value: Expression,
     pub predicate: Predicate,
 }
@@ -174,13 +168,7 @@ pub struct TableData {
 impl std::fmt::Display for TableData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CREATE TABLE {}(", self.name)?;
-        for (i, (field, value)) in self
-            .schema
-            .fields()
-            .map_err(|_| std::fmt::Error)?
-            .iter()
-            .enumerate()
-        {
+        for (i, (field, value)) in self.schema.fields().iter().enumerate() {
             if i == 0 {
                 write!(f, "{} {}", field, value)?;
             } else {
@@ -193,7 +181,7 @@ impl std::fmt::Display for TableData {
 
 #[derive(Default)]
 pub struct GroupByData {
-    pub fields: Vec<String>,
+    pub fields: Vec<Element>,
 }
 
 impl GroupByData {

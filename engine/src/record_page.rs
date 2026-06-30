@@ -4,7 +4,7 @@ use common::DbResult;
 use file::block::BlockId;
 use transaction::transaction::Transaction;
 
-use crate::{field_info::FieldInfo, layout::Layout};
+use crate::{element::Element, field_info::FieldInfo, layout::Layout};
 
 const EMPTY: u8 = 0;
 const USED: u8 = 1;
@@ -13,35 +13,35 @@ const USED: u8 = 1;
 pub struct RecordPage {
     tx: Arc<Transaction>,
     block: BlockId,
-    layout: Arc<Layout>,
+    layout: Layout,
 }
 
 impl RecordPage {
-    pub fn new(tx: &Arc<Transaction>, block: BlockId, layout: &Arc<Layout>) -> DbResult<Self> {
+    pub fn new(tx: &Arc<Transaction>, block: BlockId, layout: Layout) -> DbResult<Self> {
         tx.pin(&block)?;
         Ok(Self {
             tx: Arc::clone(tx),
             block,
-            layout: Arc::clone(layout),
+            layout,
         })
     }
 
-    pub fn get_i32(&self, slot: i32, fieldname: &str) -> DbResult<i32> {
-        let pos = self.offset(slot) + self.layout.offset(fieldname);
+    pub fn get_i32(&self, slot: i32, field: &Element) -> DbResult<i32> {
+        let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.get_i32(&self.block, pos as usize)
     }
 
-    pub fn get_string(&self, slot: i32, fieldname: &str) -> DbResult<String> {
-        let pos = self.offset(slot) + self.layout.offset(fieldname);
+    pub fn get_string(&self, slot: i32, field: &Element) -> DbResult<String> {
+        let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.get_string(&self.block, pos as usize)
     }
 
-    pub fn set_i32(&self, slot: i32, field: &str, value: i32) -> DbResult<()> {
+    pub fn set_i32(&self, slot: i32, field: &Element, value: i32) -> DbResult<()> {
         let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.set_i32(&self.block, pos as usize, value, true)
     }
 
-    pub fn set_string(&self, slot: i32, field: &str, value: &str) -> DbResult<()> {
+    pub fn set_string(&self, slot: i32, field: &Element, value: &str) -> DbResult<()> {
         let pos = self.offset(slot) + self.layout.offset(field);
         self.tx.set_string(&self.block, pos as usize, value, true)
     }
@@ -56,7 +56,7 @@ impl RecordPage {
             self.tx
                 .set_u8(&self.block, self.offset(slot) as usize, EMPTY, false)?;
             let schema = self.layout.schema();
-            for (field, info) in schema.fields()? {
+            for (field, info) in schema.fields() {
                 let pos = self.offset(slot) + self.layout.offset(&field);
                 match info {
                     FieldInfo::Integer => self.tx.set_i32(&self.block, pos as usize, 0, false)?,
@@ -123,9 +123,9 @@ mod tests {
     use log::mgr::LogMgr;
     use rand::RngExt;
     use tempfile::tempdir;
-    use transaction::{lock_table::LockTable, txnum_generator::TxNumGenerator};
+    use transaction::lock_table::LockTable;
 
-    use crate::schema::Schema;
+    use crate::schema::SchemaBuilder;
 
     use super::*;
 
@@ -135,20 +135,24 @@ mod tests {
         let fm = Arc::new(FileMgr::new(dir.path(), 512).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
         let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
-        let txnum_generator = TxNumGenerator::default();
         let lock_table = Arc::new(LockTable::default());
 
-        let tx = Transaction::new(&txnum_generator, &fm, &lm, &bm, &lock_table).unwrap();
+        let tx = Transaction::new(&fm, &lm, &bm, &lock_table).unwrap();
         let tx = Arc::new(tx);
-        let schema = Arc::new(Schema::default());
-        schema.add_int_field("A".to_string()).unwrap();
-        schema.add_string_field("B".to_string(), 9).unwrap();
 
-        let layout = Arc::new(Layout::new(&schema).unwrap());
+        let a = Element::raw("A");
+        let b = Element::raw("B");
+
+        let schema = SchemaBuilder::default()
+            .add_int_field(a.clone())
+            .add_string_field(b.clone(), 9)
+            .build();
+
+        let layout = Layout::new(schema);
 
         let block = tx.append("testfile").unwrap();
         tx.pin(&block).unwrap();
-        let record_page = RecordPage::new(&tx, block.clone(), &layout).unwrap();
+        let record_page = RecordPage::new(&tx, block.clone(), layout).unwrap();
         record_page.format().unwrap();
 
         let mut rng = rand::rng();
@@ -164,17 +168,17 @@ mod tests {
             } else {
                 values_greater.insert((n, format!("rec{}", n)));
             }
-            record_page.set_i32(slot, "A", n).unwrap();
+            record_page.set_i32(slot, &a, n).unwrap();
             record_page
-                .set_string(slot, "B", &format!("rec{}", n))
+                .set_string(slot, &b, &format!("rec{}", n))
                 .unwrap();
             slot = record_page.insert_after(slot).unwrap();
         }
 
         let mut slot = record_page.next_after(-1).unwrap();
         while slot >= 0 {
-            let a = record_page.get_i32(slot, "A").unwrap();
-            let b = record_page.get_string(slot, "B").unwrap();
+            let a = record_page.get_i32(slot, &a).unwrap();
+            let b = record_page.get_string(slot, &b).unwrap();
             if a < 25 {
                 assert!(values_less.contains(&(a, b)));
                 record_page.delete(slot).unwrap();
@@ -184,8 +188,8 @@ mod tests {
 
         let mut slot = record_page.next_after(-1).unwrap();
         while slot >= 0 {
-            let a = record_page.get_i32(slot, "A").unwrap();
-            let b = record_page.get_string(slot, "B").unwrap();
+            let a = record_page.get_i32(slot, &a).unwrap();
+            let b = record_page.get_string(slot, &b).unwrap();
             assert!(values_greater.contains(&(a, b)));
             slot = record_page.next_after(slot).unwrap();
         }

@@ -1,20 +1,19 @@
-use common::{DbResult, error::DbError};
-use std::sync::Arc;
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
-
-use crate::constant::Constant;
+use crate::element::Element;
 use crate::rid::RID;
 use crate::scan::Scan;
-use crate::schema::Schema;
+use crate::schema::{Schema, SchemaBuilder};
 use crate::temp::TempTable;
+use crate::value::Value;
+use common::{DbResult, error::DbError};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 #[derive(Clone)]
 pub struct RecordComparator {
-    fields: Vec<String>,
+    fields: Vec<Element>,
 }
 
 impl RecordComparator {
-    pub fn new(fields: Vec<String>) -> Self {
+    pub fn new(fields: Vec<Element>) -> Self {
         Self { fields }
     }
 
@@ -37,7 +36,7 @@ enum CurrentScan {
     S2,
 }
 
-pub struct SortScanLock {
+pub struct OrderScanInner {
     s1: Rc<dyn Scan>,
     s2: Option<Rc<dyn Scan>>,
     current_scan: CurrentScan,
@@ -47,7 +46,7 @@ pub struct SortScanLock {
     saved_position: Vec<RID>,
 }
 
-impl SortScanLock {
+impl OrderScanInner {
     fn new(runs: Vec<TempTable>, comp: RecordComparator) -> DbResult<Self> {
         let s1 = runs[0].open()?;
         let (s2, has_more2) = if runs.len() > 1 {
@@ -69,7 +68,7 @@ impl SortScanLock {
     }
 }
 
-impl SortScanLock {
+impl OrderScanInner {
     fn before_first(&mut self) -> DbResult<()> {
         self.s1.before_first()?;
         self.has_more1 = self.s1.next()?;
@@ -113,7 +112,7 @@ impl SortScanLock {
         Ok(())
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
         match self.current_scan {
             CurrentScan::S1 => self.s1.get_val(field_name),
             CurrentScan::S2 if let Some(s2) = &self.s2 => s2.get_val(field_name),
@@ -121,7 +120,7 @@ impl SortScanLock {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         match self.current_scan {
             CurrentScan::S1 => self.s1.get_i32(field_name),
             CurrentScan::S2 if let Some(s2) = &self.s2 => s2.get_i32(field_name),
@@ -129,7 +128,7 @@ impl SortScanLock {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         match self.current_scan {
             CurrentScan::S1 => self.s1.get_string(field_name),
             CurrentScan::S2 if let Some(s2) = &self.s2 => s2.get_string(field_name),
@@ -137,7 +136,7 @@ impl SortScanLock {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         match self.current_scan {
             CurrentScan::S1 => self.s1.has_field(field_name),
             CurrentScan::S2 if let Some(s2) = &self.s2 => s2.has_field(field_name),
@@ -168,24 +167,27 @@ impl SortScanLock {
         Ok(())
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
+        let mut s = SchemaBuilder::default();
         let s1 = self.s1.schema()?;
+        s = s.add_all(&s1);
         if let Some(s2) = &self.s2 {
             let s2 = s2.schema()?;
-            s1.add_all(&s2)?;
+            s = s.add_all(&s2);
         }
-        Ok(s1)
+        let s = s.build();
+        Ok(s)
     }
 }
 
-pub struct SortScan {
-    lock: RefCell<SortScanLock>,
+pub struct OrderScan {
+    lock: RefCell<OrderScanInner>,
 }
 
-impl SortScan {
+impl OrderScan {
     pub fn new(runs: Vec<TempTable>, comp: RecordComparator) -> DbResult<Self> {
         Ok(Self {
-            lock: RefCell::new(SortScanLock::new(runs, comp)?),
+            lock: RefCell::new(OrderScanInner::new(runs, comp)?),
         })
     }
 
@@ -202,7 +204,7 @@ impl SortScan {
     }
 }
 
-impl Scan for SortScan {
+impl Scan for OrderScan {
     fn before_first(&self) -> DbResult<()> {
         let mut write = self.lock.borrow_mut();
         write.before_first()
@@ -213,22 +215,22 @@ impl Scan for SortScan {
         write.next()
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         let read = self.lock.borrow();
         read.get_i32(field_name)
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         let read = self.lock.borrow();
         read.get_string(field_name)
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<Value> {
         let read = self.lock.borrow();
         read.get_val(field_name)
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         let read = self.lock.borrow();
         read.has_field(field_name)
     }
@@ -238,7 +240,7 @@ impl Scan for SortScan {
         read.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let read = self.lock.borrow();
         read.schema()
     }

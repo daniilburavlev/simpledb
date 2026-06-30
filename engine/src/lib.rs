@@ -4,9 +4,7 @@ use buffer::mgr::BufferMgr;
 use common::DbResult;
 use file::mgr::FileMgr;
 use log::mgr::LogMgr;
-use transaction::{
-    lock_table::LockTable, transaction::Transaction, txnum_generator::TxNumGenerator,
-};
+use transaction::{lock_table::LockTable, transaction::Transaction};
 
 use crate::{
     metadata_mgr::MetadataMgr,
@@ -18,7 +16,7 @@ use crate::{
 };
 
 pub mod buffer_needs;
-pub mod constant;
+pub mod element;
 pub mod field_info;
 pub mod index;
 pub mod index_mgr;
@@ -35,6 +33,7 @@ pub mod sort_by;
 pub mod stat_mgr;
 pub mod table_mgr;
 mod temp;
+pub mod value;
 pub mod view_mgr;
 
 const LOG_FILE: &str = "wal.log";
@@ -42,12 +41,11 @@ const BLOCK_SIZE: usize = 8 * 1024;
 const NUM_BUFFERS: usize = 1024;
 
 pub struct SimpleDB {
-    tx_num_generator: TxNumGenerator,
     fm: Arc<FileMgr>,
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
     lock_table: Arc<LockTable>,
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl SimpleDB {
@@ -56,18 +54,11 @@ impl SimpleDB {
     }
 
     pub fn configured(dir: &Path, block_size: usize, num_buffers: usize) -> DbResult<Self> {
-        let tx_num_generator = TxNumGenerator::default();
         let fm = Arc::new(FileMgr::new(dir, block_size.try_into().unwrap())?);
         let lm = Arc::new(LogMgr::new(&fm, LOG_FILE.to_string())?);
         let bm = Arc::new(BufferMgr::new(&fm, &lm, num_buffers)?);
         let lock_table = Arc::new(LockTable::default());
-        let tx = Arc::new(Transaction::new(
-            &tx_num_generator,
-            &fm,
-            &lm,
-            &bm,
-            &lock_table,
-        )?);
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table)?);
         let is_new = fm.is_new()?;
         if is_new {
             tracing::debug!("creating new database");
@@ -75,10 +66,9 @@ impl SimpleDB {
             tracing::debug!("recovering existing database");
             tx.recover()?;
         }
-        let md = Arc::new(MetadataMgr::new(is_new, &tx)?);
+        let md = MetadataMgr::new(is_new, &tx)?;
         tx.commit()?;
         Ok(Self {
-            tx_num_generator,
             fm,
             lm,
             bm,
@@ -88,18 +78,12 @@ impl SimpleDB {
     }
 
     pub fn get_tx(&self) -> DbResult<Arc<Transaction>> {
-        let tx = Transaction::new(
-            &self.tx_num_generator,
-            &self.fm,
-            &self.lm,
-            &self.bm,
-            &self.lock_table,
-        )?;
+        let tx = Transaction::new(&self.fm, &self.lm, &self.bm, &self.lock_table)?;
         Ok(Arc::new(tx))
     }
 
-    pub fn metadata_mgr(&self) -> Arc<MetadataMgr> {
-        Arc::clone(&self.md)
+    pub fn metadata_mgr(&self) -> &MetadataMgr {
+        &self.md
     }
 
     pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {
@@ -114,18 +98,33 @@ impl SimpleDB {
     }
 
     fn planner(&self) -> Planner {
-        let query_planner = HeuristicQueryPlanner::new(&self.md);
-        let update_planner = BasicUpdatePlanner::new(&self.md);
+        let query_planner = HeuristicQueryPlanner::new(self.md.clone());
+        let update_planner = BasicUpdatePlanner::new(self.md.clone());
         Planner::new(Rc::new(query_planner), Rc::new(update_planner))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-    use tempfile::tempdir;
-
     use super::*;
+    use crate::element::Element;
+    use std::collections::HashSet;
+    use tempfile::{TempDir, tempdir};
+
+    pub(crate) fn init() -> (TempDir, Arc<Transaction>) {
+        init_with_size(512)
+    }
+
+    pub(crate) fn init_with_size(block_size: i32) -> (TempDir, Arc<Transaction>) {
+        let dir = tempdir().unwrap();
+        let fm = Arc::new(FileMgr::new(dir.path(), block_size).unwrap());
+        let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
+        let bm = Arc::new(BufferMgr::new(&fm, &lm, 16).unwrap());
+        let lock_table = Arc::new(LockTable::default());
+
+        let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
+        (dir, tx)
+    }
 
     #[test]
     fn select_with_index() {
@@ -144,8 +143,8 @@ mod tests {
             .query(&tx, "SELECT id, name FROM users WHERE id = 2")
             .unwrap();
         while result.next().unwrap() {
-            let id = result.get_i32("id").unwrap();
-            let name = result.get_string("name").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
             assert_eq!(id, 2);
             assert_eq!(name, "Name");
         }
@@ -176,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn sort_by() {
+    fn order_by_field() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
@@ -201,8 +200,8 @@ mod tests {
             .unwrap();
         for i in 0..1000 {
             assert!(result.next().unwrap());
-            let id = result.get_i32("id").unwrap();
-            let name = result.get_string("name").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
             assert!(ids.remove(&(id as usize)));
             if i < 200 {
                 assert_eq!(name, "a");
@@ -238,7 +237,7 @@ mod tests {
 
         let result = db.query(&tx, "SELECT id FROM test").unwrap();
         while result.next().unwrap() {
-            let id = result.get_i32("id").unwrap();
+            let id = result.get_i32(&Element::raw("id")).unwrap();
             assert!(existed.remove(&id));
         }
         assert!(existed.is_empty());
@@ -269,8 +268,8 @@ mod tests {
                 )
                 .unwrap();
             while result.next().unwrap() {
-                assert_eq!(i, result.get_i32("i1").unwrap());
-                assert_eq!(i, result.get_i32("i2").unwrap());
+                assert_eq!(i, result.get_i32(&Element::raw("i1")).unwrap());
+                assert_eq!(i, result.get_i32(&Element::raw("i2")).unwrap());
             }
         }
         tx.commit().unwrap();

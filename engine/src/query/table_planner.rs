@@ -3,6 +3,7 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     index_mgr::IndexInfo,
     metadata_mgr::MetadataMgr,
@@ -20,8 +21,8 @@ use crate::{
 pub(crate) struct TablePlanner {
     plan: Rc<TablePlan>,
     predicate: Predicate,
-    schema: Arc<Schema>,
-    indexes: HashMap<String, IndexInfo>,
+    schema: Schema,
+    indexes: HashMap<Element, IndexInfo>,
     tx: Arc<Transaction>,
 }
 
@@ -94,7 +95,7 @@ impl TablePlanner {
     ) -> DbResult<Option<Rc<dyn Plan>>> {
         for (field, info) in &self.indexes {
             if let Some(outer_field) = self.predicate.equates_with_field(field)?
-                && self.schema.has_field(field)?
+                && self.schema.has_field(field)
             {
                 let plan: Rc<dyn Plan> = self.plan.clone();
                 let p: Rc<dyn Plan> = Rc::new(IndexJoinPlan::new(

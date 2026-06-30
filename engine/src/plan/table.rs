@@ -3,6 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::{
     layout::Layout,
     metadata_mgr::MetadataMgr,
@@ -15,14 +16,14 @@ use crate::{
 pub struct TablePlan {
     tx: Arc<Transaction>,
     table: String,
-    layout: Arc<Layout>,
+    layout: Layout,
     stat: StatInfo,
 }
 
 impl TablePlan {
     pub fn new(tx: &Arc<Transaction>, table: String, md: &MetadataMgr) -> DbResult<Self> {
-        let layout = Arc::new(md.get_layout(&table, tx)?);
-        let stat = md.get_stat_info(&table, &layout, tx)?;
+        let layout = md.get_layout(&table, tx)?;
+        let stat = md.get_stat_info(&table, layout.clone(), tx)?;
         Ok(Self {
             tx: Arc::clone(tx),
             table,
@@ -37,7 +38,7 @@ impl Plan for TablePlan {
         Ok(Rc::new(TableScan::new(
             &self.tx,
             &self.table,
-            &self.layout,
+            self.layout.clone(),
         )?))
     }
 
@@ -49,11 +50,11 @@ impl Plan for TablePlan {
         Ok(self.stat.records_output())
     }
 
-    fn distinct_values(&self, _: &str) -> DbResult<i32> {
+    fn distinct_values(&self, _: &Element) -> DbResult<i32> {
         Ok(self.stat.distinct_values())
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(self.layout.schema())
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.layout.schema().clone())
     }
 }

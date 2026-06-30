@@ -1,18 +1,18 @@
-use std::{collections::HashMap, rc::Rc, sync::Arc};
-
 use common::DbResult;
 use common::error::DbError;
+use std::rc::Rc;
+use std::{collections::HashMap, sync::Arc};
 use transaction::transaction::Transaction;
 
-use crate::index::btree_page::{BLOCK, ID};
-use crate::{
-    index::{Index, b_tree::BTreeIndex, btree_page::VALUE},
-    layout::Layout,
-    scan::{Scan, table::TableScan},
-    schema::Schema,
-    stat_mgr::{StatInfo, StatMgr},
-    table_mgr::TableMgr,
-};
+use crate::element::Element;
+use crate::index::Index;
+use crate::index::b_tree::BTreeIndex;
+use crate::layout::Layout;
+use crate::scan::Scan;
+use crate::scan::table::TableScan;
+use crate::schema::{Schema, SchemaBuilder};
+use crate::stat_mgr::{StatInfo, StatMgr};
+use crate::table_mgr::TableMgr;
 
 const IDX_TABLE: &str = "idx";
 const IDX_NAME: &str = "idx_name";
@@ -23,50 +23,38 @@ const MAX_LENGTH: i32 = 16;
 #[derive(Clone)]
 pub struct IndexInfo {
     idx_name: String,
-    field_name: String,
+    field_name: Element,
     tx: Arc<Transaction>,
-    layout: Arc<Layout>,
+    slot_size: i32,
     stat: StatInfo,
 }
 
 impl IndexInfo {
     pub fn new(
         idx_name: String,
-        field_name: String,
-        schema: &Arc<Schema>,
+        field_name: Element,
+        schema: &Schema,
         tx: &Arc<Transaction>,
         stat: StatInfo,
     ) -> DbResult<Self> {
-        let layout = Arc::new(Self::create_idx_layout(&field_name, schema)?);
+        let Some(info) = schema.info(&field_name) else {
+            return Err(DbError::FieldNotExists(field_name.to_string()));
+        };
         Ok(Self {
             idx_name,
+            slot_size: info.length(),
             field_name,
             tx: Arc::clone(tx),
-            layout,
             stat,
         })
     }
 
-    fn create_idx_layout(field_name: &str, table_schema: &Arc<Schema>) -> DbResult<Layout> {
-        let schema = Arc::new(Schema::default());
-        schema.add_int_field(BLOCK.to_string())?;
-        schema.add_int_field(ID.to_string())?;
-        if let Some(info) = table_schema.info(field_name)? {
-            schema.add_field(VALUE.to_string(), info)?;
-        }
-        Layout::new(&schema)
-    }
-
     pub fn open(&self) -> DbResult<Rc<dyn Index>> {
-        Ok(Rc::new(BTreeIndex::new(
-            &self.tx,
-            &self.idx_name,
-            &self.layout,
-        )?))
+        Ok(Rc::new(BTreeIndex::new(&self.idx_name, &self.tx)?))
     }
 
     pub fn block_accessed(&self) -> DbResult<i32> {
-        let rpb = self.tx.block_size() / self.layout.slotsize();
+        let rpb = self.tx.block_size() / self.slot_size;
         let num_blocks = self.stat.records_output() / rpb;
         Ok(num_blocks)
     }
@@ -75,8 +63,8 @@ impl IndexInfo {
         self.stat.records_output() / self.stat.distinct_values()
     }
 
-    pub fn distinct_values(&self, field_name: &str) -> i32 {
-        if self.field_name == field_name {
+    pub fn distinct_values(&self, field_name: &Element) -> i32 {
+        if self.field_name == *field_name {
             1
         } else {
             self.stat.distinct_values()
@@ -84,34 +72,36 @@ impl IndexInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct IndexMgr {
-    layout: Arc<Layout>,
-    table_mgr: Arc<TableMgr>,
-    stat_mgr: Arc<StatMgr>,
+    layout: Layout,
+    table_mgr: TableMgr,
+    stat_mgr: StatMgr,
 }
 
 impl IndexMgr {
     pub fn new(
         is_new: bool,
-        table_mgr: &Arc<TableMgr>,
-        stat_mgr: &Arc<StatMgr>,
+        table_mgr: TableMgr,
+        stat_mgr: StatMgr,
         tx: &Arc<Transaction>,
     ) -> DbResult<Self> {
         if is_new {
-            let schema = Schema::default();
-            schema.add_string_field(IDX_NAME.to_string(), MAX_LENGTH)?;
-            schema.add_string_field(TABLE_NAME.to_string(), MAX_LENGTH)?;
-            schema.add_string_field(FIELD_NAME.to_string(), MAX_LENGTH)?;
-            table_mgr.create_table(IDX_TABLE, &Arc::new(schema), tx)?;
+            let schema = SchemaBuilder::default()
+                .add_string_field(Element::raw(IDX_NAME), MAX_LENGTH)
+                .add_string_field(Element::raw(TABLE_NAME), MAX_LENGTH)
+                .add_string_field(Element::raw(FIELD_NAME), MAX_LENGTH)
+                .build();
+            table_mgr.create_table(IDX_TABLE, schema, tx)?;
         }
-        let layout = Arc::new(table_mgr.get_layout(IDX_TABLE, tx)?);
-        if layout.schema().fields()?.is_empty() {
+        let layout = table_mgr.get_layout(IDX_TABLE, tx)?;
+        if layout.schema().fields().is_empty() {
             return Err(DbError::other("cannot initialize inner index table"));
         }
         Ok(Self {
             layout,
-            table_mgr: Arc::clone(table_mgr),
-            stat_mgr: Arc::clone(stat_mgr),
+            table_mgr,
+            stat_mgr,
         })
     }
 
@@ -122,11 +112,11 @@ impl IndexMgr {
         field_name: &str,
         tx: &Arc<Transaction>,
     ) -> DbResult<()> {
-        let ts = TableScan::new(tx, IDX_TABLE, &self.layout)?;
+        let ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
         ts.insert()?;
-        ts.set_string(IDX_NAME, idx_name)?;
-        ts.set_string(TABLE_NAME, table_name)?;
-        ts.set_string(FIELD_NAME, field_name)?;
+        ts.set_string(&Element::raw(IDX_NAME), idx_name)?;
+        ts.set_string(&Element::raw(TABLE_NAME), table_name)?;
+        ts.set_string(&Element::raw(FIELD_NAME), field_name)?;
         ts.close()
     }
 
@@ -134,18 +124,25 @@ impl IndexMgr {
         &self,
         table_name: &str,
         tx: &Arc<Transaction>,
-    ) -> DbResult<HashMap<String, IndexInfo>> {
+    ) -> DbResult<HashMap<Element, IndexInfo>> {
         let mut result = HashMap::new();
-        let ts = TableScan::new(tx, IDX_TABLE, &self.layout)?;
+        let ts = TableScan::new(tx, IDX_TABLE, self.layout.clone())?;
         while ts.next()? {
-            if ts.get_string(TABLE_NAME)? == table_name {
-                let idx_name = ts.get_string(IDX_NAME)?;
-                let field_name = ts.get_string(FIELD_NAME)?;
-                let layout = Arc::new(self.table_mgr.get_layout(table_name, tx)?);
-                let stat = self.stat_mgr.get_stat_info(table_name, &layout, tx)?;
-                let index =
-                    IndexInfo::new(idx_name, field_name.clone(), &layout.schema(), tx, stat)?;
-                result.insert(field_name, index);
+            if ts.get_string(&Element::raw(TABLE_NAME))? == table_name {
+                let idx_name = ts.get_string(&Element::raw(IDX_NAME))?;
+                let field_name = ts.get_string(&Element::raw(FIELD_NAME))?;
+                let layout = self.table_mgr.get_layout(table_name, tx)?;
+                let stat = self
+                    .stat_mgr
+                    .get_stat_info(table_name, layout.clone(), tx)?;
+                let index = IndexInfo::new(
+                    idx_name,
+                    Element::raw(&field_name),
+                    layout.schema(),
+                    tx,
+                    stat,
+                )?;
+                result.insert(Element::Raw(field_name), index);
             }
         }
         ts.close()?;

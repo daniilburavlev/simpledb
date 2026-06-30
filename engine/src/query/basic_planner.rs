@@ -10,12 +10,12 @@ use crate::{
 };
 
 pub struct BasicUpdatePlanner {
-    md: Arc<MetadataMgr>,
+    md: MetadataMgr,
 }
 
 impl BasicUpdatePlanner {
-    pub fn new(md: &Arc<MetadataMgr>) -> Self {
-        Self { md: Arc::clone(md) }
+    pub fn new(md: MetadataMgr) -> Self {
+        Self { md }
     }
 }
 
@@ -80,8 +80,7 @@ impl UpdatePlanner for BasicUpdatePlanner {
         data: super::command::TableData,
         tx: &Arc<Transaction>,
     ) -> DbResult<i32> {
-        self.md
-            .create_table(&data.name, &Arc::new(data.schema), tx)?;
+        self.md.create_table(&data.name, data.schema, tx)?;
         Ok(0)
     }
 

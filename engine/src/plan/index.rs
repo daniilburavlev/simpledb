@@ -3,8 +3,9 @@ use std::{rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
+use crate::schema::SchemaBuilder;
 use crate::{
-    constant::Constant,
     index_mgr::IndexInfo,
     metadata_mgr::MetadataMgr,
     plan::{Plan, select::SelectPlan, table::TablePlan},
@@ -14,16 +15,17 @@ use crate::{
     },
     scan::index::{IndexJoinScan, IndexSelectScan},
     schema::Schema,
+    value::Value,
 };
 
 pub struct IndexSelectPlan {
     plan: Rc<dyn Plan>,
     index: IndexInfo,
-    value: Constant,
+    value: Value,
 }
 
 impl IndexSelectPlan {
-    pub fn new(plan: &Rc<dyn Plan>, index: IndexInfo, value: Constant) -> Self {
+    pub fn new(plan: &Rc<dyn Plan>, index: IndexInfo, value: Value) -> Self {
         Self {
             plan: Rc::clone(plan),
             index,
@@ -51,11 +53,11 @@ impl Plan for IndexSelectPlan {
         Ok(self.index.records_output())
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
         Ok(self.index.distinct_values(field_name))
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         self.plan.schema()
     }
 }
@@ -64,8 +66,8 @@ pub struct IndexJoinPlan {
     p1: Rc<dyn Plan>,
     p2: Rc<dyn Plan>,
     index: IndexInfo,
-    field: String,
-    schema: Arc<Schema>,
+    field: Element,
+    schema: Schema,
 }
 
 impl IndexJoinPlan {
@@ -73,13 +75,11 @@ impl IndexJoinPlan {
         p1: &Rc<dyn Plan>,
         p2: &Rc<dyn Plan>,
         index: IndexInfo,
-        field: String,
+        field: Element,
     ) -> DbResult<Self> {
-        let schema = Arc::new(Schema::default());
         let s1 = p1.schema()?;
         let s2 = p2.schema()?;
-        schema.add_all(&s1)?;
-        schema.add_all(&s2)?;
+        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
         Ok(Self {
             p1: Rc::clone(p1),
             p2: Rc::clone(p2),
@@ -95,7 +95,12 @@ impl Plan for IndexJoinPlan {
         let s = self.p1.open()?;
         let ts = self.p2.open()?;
         let idx = self.index.open()?;
-        Ok(Rc::new(IndexJoinScan::new(&s, &idx, &self.field, &ts)?))
+        Ok(Rc::new(IndexJoinScan::new(
+            &s,
+            &idx,
+            self.field.clone(),
+            &ts,
+        )?))
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {
@@ -108,16 +113,16 @@ impl Plan for IndexJoinPlan {
         Ok(self.p1.records_output()? * self.index.records_output())
     }
 
-    fn distinct_values(&self, field_name: &str) -> DbResult<i32> {
-        if self.p1.schema()?.has_field(field_name)? {
+    fn distinct_values(&self, field_name: &Element) -> DbResult<i32> {
+        if self.p1.schema()?.has_field(field_name) {
             self.p1.distinct_values(field_name)
         } else {
             self.p2.distinct_values(field_name)
         }
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
-        Ok(Arc::clone(&self.schema))
+    fn schema(&self) -> DbResult<Schema> {
+        Ok(self.schema.clone())
     }
 }
 
@@ -201,13 +206,8 @@ impl UpdatePlanner for IndexUpdatePlanner {
         Ok(count)
     }
 
-    fn execute_create_table(
-        &self,
-        data: TableData,
-        tx: &Arc<transaction::transaction::Transaction>,
-    ) -> DbResult<i32> {
-        self.mg
-            .create_table(&data.name, &Arc::new(data.schema), tx)?;
+    fn execute_create_table(&self, data: TableData, tx: &Arc<Transaction>) -> DbResult<i32> {
+        self.mg.create_table(&data.name, data.schema.clone(), tx)?;
         Ok(0)
     }
 

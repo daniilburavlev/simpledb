@@ -1,16 +1,15 @@
 use std::{
     collections::HashMap,
+    rc::Rc,
     sync::{Arc, RwLock},
 };
 
 use common::{DbResult, error::DbError};
 use transaction::transaction::Transaction;
 
-use crate::{
-    layout::Layout,
-    scan::{Scan, table::TableScan},
-    table_mgr::{TABLE_NAME, TableMgr},
-};
+use crate::scan::table::TableScan;
+use crate::table_mgr::{TABLE_NAME, TableMgr};
+use crate::{element::Element, layout::Layout, scan::Scan};
 
 #[derive(Clone, Debug)]
 pub struct StatInfo {
@@ -40,15 +39,15 @@ impl StatInfo {
 }
 
 struct StatMgrLock {
-    table_mgr: Arc<TableMgr>,
+    table_mgr: TableMgr,
     table_stats: HashMap<String, StatInfo>,
     num_calls: u64,
 }
 
 impl StatMgrLock {
-    fn new(table_mgr: &Arc<TableMgr>) -> Self {
+    fn new(table_mgr: TableMgr) -> Self {
         Self {
-            table_mgr: Arc::clone(table_mgr),
+            table_mgr,
             table_stats: HashMap::new(),
             num_calls: 0,
         }
@@ -57,7 +56,7 @@ impl StatMgrLock {
     fn get_stat_info(
         &mut self,
         table_name: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         tx: &Arc<Transaction>,
     ) -> DbResult<StatInfo> {
         self.num_calls += 1;
@@ -77,12 +76,12 @@ impl StatMgrLock {
     fn refresh_statisic(&mut self, tx: &Arc<Transaction>) -> DbResult<()> {
         self.table_stats.clear();
         self.num_calls = 0;
-        let layout = Arc::new(self.table_mgr.get_layout(TABLE_NAME, tx)?);
-        let ts = TableScan::new(tx, TABLE_NAME, &layout)?;
+        let layout = self.table_mgr.get_layout(TABLE_NAME, tx)?;
+        let ts = TableScan::new(tx, TABLE_NAME, layout)?;
         while ts.next()? {
-            let table_name = ts.get_string(TABLE_NAME)?;
+            let table_name = ts.get_string(&Element::raw(TABLE_NAME))?;
             let layout = self.table_mgr.get_layout(&table_name, tx)?;
-            let stat = self.calc_table_stats(&table_name, &Arc::new(layout), tx)?;
+            let stat = self.calc_table_stats(&table_name, layout, tx)?;
             self.table_stats.insert(table_name, stat);
         }
         ts.close()
@@ -91,7 +90,7 @@ impl StatMgrLock {
     fn calc_table_stats(
         &self,
         table_name: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         tx: &Arc<Transaction>,
     ) -> DbResult<StatInfo> {
         let mut num_recs = 0;
@@ -106,23 +105,24 @@ impl StatMgrLock {
     }
 }
 
+#[derive(Clone)]
 pub struct StatMgr {
-    lock: RwLock<StatMgrLock>,
+    lock: Rc<RwLock<StatMgrLock>>,
 }
 
 impl StatMgr {
-    pub fn new(table_mgr: &Arc<TableMgr>, tx: &Arc<Transaction>) -> DbResult<Self> {
+    pub fn new(table_mgr: TableMgr, tx: &Arc<Transaction>) -> DbResult<Self> {
         let mut lock = StatMgrLock::new(table_mgr);
         lock.refresh_statisic(tx)?;
         Ok(Self {
-            lock: RwLock::new(lock),
+            lock: Rc::new(RwLock::new(lock)),
         })
     }
 
     pub fn get_stat_info(
         &self,
         table_name: &str,
-        layout: &Arc<Layout>,
+        layout: Layout,
         tx: &Arc<Transaction>,
     ) -> DbResult<StatInfo> {
         let mut write = self.lock.write().map_err(DbError::lock)?;

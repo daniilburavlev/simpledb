@@ -1,9 +1,8 @@
+use crate::element::Element;
+use crate::scan::Scan;
+use crate::schema::{Schema, SchemaBuilder};
 use common::DbResult;
 use std::rc::Rc;
-use std::sync::Arc;
-
-use crate::scan::Scan;
-use crate::schema::Schema;
 
 pub struct ProductScan {
     s1: Rc<dyn Scan>,
@@ -33,7 +32,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_i32(&self, field_name: &str) -> DbResult<i32> {
+    fn get_i32(&self, field_name: &Element) -> DbResult<i32> {
         if self.s1.has_field(field_name)? {
             self.s1.get_i32(field_name)
         } else {
@@ -41,7 +40,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_string(&self, field_name: &str) -> DbResult<String> {
+    fn get_string(&self, field_name: &Element) -> DbResult<String> {
         if self.s1.has_field(field_name)? {
             self.s1.get_string(field_name)
         } else {
@@ -49,7 +48,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn get_val(&self, field_name: &str) -> DbResult<crate::constant::Constant> {
+    fn get_val(&self, field_name: &Element) -> DbResult<crate::value::Value> {
         if self.s1.has_field(field_name)? {
             self.s1.get_val(field_name)
         } else {
@@ -57,7 +56,7 @@ impl Scan for ProductScan {
         }
     }
 
-    fn has_field(&self, field_name: &str) -> DbResult<bool> {
+    fn has_field(&self, field_name: &Element) -> DbResult<bool> {
         Ok(self.s1.has_field(field_name)? || self.s2.has_field(field_name)?)
     }
 
@@ -66,10 +65,10 @@ impl Scan for ProductScan {
         self.s2.close()
     }
 
-    fn schema(&self) -> DbResult<Arc<Schema>> {
+    fn schema(&self) -> DbResult<Schema> {
         let s1 = self.s1.schema()?;
         let s2 = self.s2.schema()?;
-        s1.add_all(&s2)?;
-        Ok(s1)
+        let s = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        Ok(s)
     }
 }

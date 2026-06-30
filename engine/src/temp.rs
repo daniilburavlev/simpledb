@@ -18,15 +18,15 @@ fn next_table_num() -> i32 {
 pub struct TempTable {
     tx: Arc<Transaction>,
     table_name: String,
-    layout: Arc<Layout>,
+    layout: Layout,
 }
 
 impl TempTable {
-    pub fn new(tx: &Arc<Transaction>, schema: &Arc<Schema>) -> DbResult<Self> {
+    pub fn new(tx: &Arc<Transaction>, schema: Schema) -> DbResult<Self> {
         Ok(Self {
             table_name: format!("temp_{}", next_table_num()),
             tx: Arc::clone(tx),
-            layout: Arc::new(Layout::new(schema)?),
+            layout: Layout::new(schema),
         })
     }
 
@@ -34,7 +34,7 @@ impl TempTable {
         Ok(Rc::new(TableScan::new(
             &self.tx,
             &self.table_name,
-            &self.layout,
+            self.layout.clone(),
         )?))
     }
 
@@ -42,7 +42,7 @@ impl TempTable {
         self.table_name.clone()
     }
 
-    pub(crate) fn layout(&self) -> Arc<Layout> {
+    pub(crate) fn layout(&self) -> Layout {
         self.layout.clone()
     }
 }

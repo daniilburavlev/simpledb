@@ -1,0 +1,7 @@
+[package]
+name = "index"
+edition = "2024"
+version.workspace = true
+
+[dependencies]
+scan =
