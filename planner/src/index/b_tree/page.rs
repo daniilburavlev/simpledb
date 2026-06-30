@@ -66,7 +66,7 @@ impl BTreePage {
             }
             _ => Err(DbError::other("invalid page type")),
         };
-        tx.commit()?;
+        tx.unpin(block)?;
         page
     }
 
@@ -99,7 +99,7 @@ impl BTreePage {
                 write_entries(tx, block, children, offset)?;
             }
         }
-        tx.commit()
+        tx.unpin(block)
     }
 }
 

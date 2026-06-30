@@ -168,7 +168,7 @@ mod tests {
     };
 
     #[test]
-    fn update_index() {
+    fn index_scan_update() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();

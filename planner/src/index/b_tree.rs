@@ -274,7 +274,9 @@ impl BTreeIndex {
     }
 
     pub(crate) fn close(&self) -> DbResult<()> {
-        todo!()
+        // Each B-tree page read/write pins and unpins its block immediately,
+        // so the index holds no open buffers to release here.
+        Ok(())
     }
 
     fn rewrite_parent(&self, values: &[BTreePointer], parent: i32) -> DbResult<()> {
@@ -309,7 +311,7 @@ fn create_index(tx: &Transaction, index_name: &str) -> DbResult<()> {
     };
     metadata.write(&metadata_block, tx)?;
     leaf.write(&leaf_block, tx)?;
-    tx.commit()
+    Ok(())
 }
 
 #[cfg(test)]
