@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug, rc::Rc};
 
 use crate::{element::Element, field_info::FieldInfo};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInner {
     fields: Vec<Element>,
     infos: HashMap<Element, FieldInfo>,
@@ -55,7 +55,7 @@ impl SchemaInner {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Schema(Rc<SchemaInner>);
 
 impl Schema {

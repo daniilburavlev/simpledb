@@ -126,7 +126,10 @@ impl BufferMgr {
                 Some(buffer) => {
                     return Ok(buffer);
                 }
-                None if start.elapsed() >= MAX_WAIT => return Err(DbError::BufferAbort),
+                None if start.elapsed() >= MAX_WAIT => {
+                    tracing::debug!("buffer {:?} lock abort", block);
+                    return Err(DbError::BufferAbort);
+                },
                 None => {
                     drop(lock);
                     thread::sleep(SLEEP)

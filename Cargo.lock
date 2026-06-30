@@ -102,6 +102,7 @@ dependencies = [
  "file",
  "log 0.0.1",
  "tempfile",
+ "tracing",
 ]
 
 [[package]]

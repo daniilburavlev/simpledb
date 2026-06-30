@@ -29,7 +29,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let fm = Arc::new(FileMgr::new(dir.path(), block_size).unwrap());
         let lm = Arc::new(LogMgr::new(&fm, "testlog".to_string()).unwrap());
-        let bm = Arc::new(BufferMgr::new(&fm, &lm, 1).unwrap());
+        let bm = Arc::new(BufferMgr::new(&fm, &lm, 16).unwrap());
         let lock_table = Arc::new(LockTable::default());
 
         let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());

@@ -121,7 +121,7 @@ impl IndexMgr {
         &self,
         table_name: &str,
         tx: &Arc<Transaction>,
-    ) -> DbResult<HashMap<String, IndexInfo>> {
+    ) -> DbResult<HashMap<Element, IndexInfo>> {
         let mut result = HashMap::new();
         let mut ts = Scan::table(tx, IDX_TABLE, self.layout.clone())?;
         while ts.next_row()? {
@@ -134,7 +134,7 @@ impl IndexMgr {
                     .get_stat_info(table_name, layout.clone(), tx)?;
                 let index =
                     IndexInfo::new(idx_name, field_name.clone(), layout.schema(), tx, stat)?;
-                result.insert(field_name, index);
+                result.insert(Element::Raw(field_name), index);
             }
         }
         ts.close()?;

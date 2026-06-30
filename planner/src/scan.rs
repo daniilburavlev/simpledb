@@ -13,6 +13,10 @@ use crate::{
     value::Value,
 };
 
+pub(crate) mod chunk;
+pub(crate) mod group;
+pub(crate) mod index;
+pub(crate) mod merge;
 pub(crate) mod scanner;
 pub(crate) mod select;
 pub(crate) mod table;

@@ -80,7 +80,7 @@ impl StatMgrLock {
         self.table_stats.clear();
         self.num_calls = 0;
         let layout = self.table_mgr.get_layout(TABLE_NAME, tx)?;
-        let mut ts = Scan::table(tx, TABLE_NAME, layout.clone())?;
+        let mut ts = Scan::table(tx, TABLE_NAME, layout)?;
         while ts.next_row()? {
             let table_name = ts.get_string(&Element::raw(TABLE_NAME))?;
             let layout = self.table_mgr.get_layout(&table_name, tx)?;

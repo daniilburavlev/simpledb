@@ -7,6 +7,7 @@ version.workspace = true
 common = { path = "../common" }
 file = { path = "../file" }
 log = { path = "../log" }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

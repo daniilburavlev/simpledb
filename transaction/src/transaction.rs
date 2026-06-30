@@ -126,6 +126,9 @@ impl Transaction {
 
     pub fn get_u8(&self, block: &BlockId, offset: usize) -> DbResult<u8> {
         self.concurrency_mgr.s_lock(block)?;
+        if block.filename == "users.tbl" {
+            println!("s lock users");
+        }
         let Some(buffer) = self.buffers.get_buffer(block)? else {
             return Err(DbError::BufferAbort);
         };

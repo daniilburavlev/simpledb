@@ -13,6 +13,7 @@ use crate::{
     },
     schema::Schema,
 };
+use crate::element::Element;
 
 pub struct MetadataMgr {
     table_mgr: TableMgr,
@@ -85,7 +86,7 @@ impl MetadataMgr {
         &self,
         table_name: &str,
         tx: &Arc<Transaction>,
-    ) -> DbResult<HashMap<String, IndexInfo>> {
+    ) -> DbResult<HashMap<Element, IndexInfo>> {
         self.index_mgr.get_index_info(table_name, tx)
     }
 }
