@@ -137,9 +137,17 @@ impl std::fmt::Display for Term {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Predicate {
     terms: Arc<RwLock<Vec<Term>>>,
+}
+
+impl Default for Predicate {
+    fn default() -> Self {
+        Self {
+            terms: Arc::new(RwLock::new(vec![])),
+        }
+    }
 }
 
 impl Predicate {
@@ -177,7 +185,7 @@ impl Predicate {
         Ok(factor)
     }
 
-    pub fn select_sub_pred(&self, schema: &Schema) -> DbResult<Predicate> {
+    pub(crate) fn select_sub_pred(&self, schema: &Schema) -> DbResult<Predicate> {
         let result = Predicate::default();
         let read = self.terms.read().map_err(DbError::lock)?;
         {
@@ -191,7 +199,7 @@ impl Predicate {
         Ok(result)
     }
 
-    pub fn join_sub_pred(&self, s1: &Schema, s2: &Schema) -> DbResult<Option<Predicate>> {
+    pub(crate) fn join_sub_pred(&self, s1: &Schema, s2: &Schema) -> DbResult<Option<Predicate>> {
         let result = Predicate::default();
         let new_schema = SchemaBuilder::default().add_all(s1).add_all(s2).build();
         let read = self.terms.read().map_err(DbError::lock)?;

@@ -3,6 +3,7 @@ use std::{collections::HashSet, rc::Rc};
 use common::DbResult;
 
 use crate::schema::SchemaBuilder;
+use crate::schema_mapping::SchemaMapping;
 use crate::{
     element::Element,
     plan::Plan,
@@ -10,13 +11,14 @@ use crate::{
     schema::Schema,
 };
 
-pub struct ProjectPlan {
+pub(crate) struct ProjectPlan {
     plan: Rc<dyn Plan>,
     schema: Schema,
+    mapping: SchemaMapping,
 }
 
 impl ProjectPlan {
-    pub fn new(plan: Rc<dyn Plan>, fields: Vec<Element>) -> DbResult<Self> {
+    pub(crate) fn new(plan: Rc<dyn Plan>, fields: Vec<Element>, mapping: SchemaMapping) -> DbResult<Self> {
         let mut schema = SchemaBuilder::default();
         for field in fields {
             let other = plan.schema()?;
@@ -25,6 +27,7 @@ impl ProjectPlan {
         Ok(Self {
             plan,
             schema: schema.build(),
+            mapping,
         })
     }
 }
@@ -33,7 +36,7 @@ impl Plan for ProjectPlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let scan = self.plan.open()?;
         let fields: HashSet<Element> = self.schema.fields().into_iter().map(|(f, _)| f).collect();
-        Ok(Rc::new(ProjectScan::new(scan, fields)))
+        Ok(Rc::new(ProjectScan::new(scan, fields, self.mapping.clone())))
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {

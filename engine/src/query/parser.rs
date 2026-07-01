@@ -1,6 +1,7 @@
 use common::{DbResult, error::DbError};
 
 use crate::schema::SchemaBuilder;
+use crate::schema_mapping::{SchemaMapping, SchemaMappingBuilder};
 use crate::{
     element::Element,
     predicate::{Expression, Predicate, Term},
@@ -78,35 +79,44 @@ impl Parser {
         Ok(pred)
     }
 
-    pub fn query(&self) -> DbResult<Command> {
+    pub(crate) fn query(&self) -> DbResult<Command> {
         self.lexer.eat_keyword(Token::Select)?;
         let fields = self.select_list()?;
+
         self.lexer.eat_keyword(Token::From)?;
-        let tables = self.table_list()?;
+        let table = self.element()?;
+
         let mut predicate = Predicate::default();
         if self.lexer.match_keyword(Token::Where) {
             self.lexer.eat_keyword(Token::Where)?;
             predicate = self.predicate()?;
         }
+
         let mut group_by = GroupByData::default();
         if self.lexer.match_keyword(Token::Group) {
             self.lexer.eat_keyword(Token::Group)?;
             self.lexer.eat_keyword(Token::By)?;
             group_by = self.group_by()?;
         }
-        let mut sort_by = SortByData::default();
+
+        let mut order_by = SortByData::default();
         if self.lexer.match_keyword(Token::Sort) {
             self.lexer.eat_keyword(Token::Sort)?;
             self.lexer.eat_keyword(Token::By)?;
-            sort_by = self.order_by()?;
+            order_by = self.order_by()?;
         }
+
+        let (fields, table, predicate, group_by, order_by, mapping) =
+            process_schema(fields, table, predicate, group_by, order_by)?;
+
         self.check_remainder()?;
         Ok(Command::Query(QueryData {
             fields,
-            tables,
+            table,
             predicate,
             group_by,
-            sort_by,
+            order_by,
+            mapping,
         }))
     }
 
@@ -117,15 +127,6 @@ impl Parser {
             fields.push(self.element()?);
         }
         Ok(fields)
-    }
-
-    fn table_list(&self) -> DbResult<Vec<Element>> {
-        let mut tables = vec![self.element()?];
-        while self.lexer.match_delim(',') {
-            self.lexer.eat_delimiter(',')?;
-            tables.push(self.element()?);
-        }
-        Ok(tables)
     }
 
     pub fn update_cmd(&self) -> DbResult<Command> {
@@ -319,6 +320,56 @@ impl Parser {
     }
 }
 
+fn process_schema(
+    fields: Vec<Element>,
+    table: Element,
+    predicate: Predicate,
+    group_by: GroupByData,
+    order_by: SortByData,
+) -> DbResult<(
+    Vec<Element>,
+    Element,
+    Predicate,
+    GroupByData,
+    SortByData,
+    SchemaMapping,
+)> {
+    let mut mapping = SchemaMappingBuilder::default();
+    let table = match table {
+        Element::Raw(table) => Element::Raw(table),
+        Element::View(source, id) => {
+            mapping = mapping.add_table(Element::raw(&id), Element::raw(&source));
+            Element::Raw(id)
+        }
+        _ => return Err(DbError::InvalidFieldType),
+    };
+    let mut new_fields = Vec::with_capacity(fields.len());
+    for field in fields {
+        match field {
+            Element::Raw(field) => {
+                mapping = mapping.add_table_field(table.clone(), Element::raw(&field));
+                new_fields.push(Element::Raw(field)); },
+            Element::View(source, id) => {
+                mapping = mapping.add_table_field(table.clone(), Element::raw(&source));
+                mapping = mapping.add_field(table.clone(), Element::raw(&id), Element::raw(&source));
+                new_fields.push(Element::Raw(id));
+            }
+            Element::Spec(source, target) => {
+                mapping = mapping.add_table_field(Element::raw(&source), Element::raw(&target));
+                new_fields.push(Element::Spec(source, target));
+            }
+        }
+    }
+    Ok((
+        new_fields,
+        table,
+        predicate,
+        group_by,
+        order_by,
+        mapping.build(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -399,6 +450,14 @@ mod tests {
     #[should_panic]
     fn select_invalid() {
         let query = "SELECT * FROM users WHERE GROUP BY id";
+        let parser = Parser::new(query).unwrap();
+        let select = parser.query().unwrap();
+        assert_eq!(query, select.to_string());
+    }
+
+    #[test]
+    fn select_with_views_and_specs() {
+        let query = "SELECT id i, name n, age a FROM users u WHERE u.id=10";
         let parser = Parser::new(query).unwrap();
         let select = parser.query().unwrap();
         assert_eq!(query, select.to_string());

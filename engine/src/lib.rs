@@ -29,6 +29,7 @@ pub mod record_page;
 pub mod rid;
 pub mod scan;
 pub mod schema;
+mod schema_mapping;
 pub mod sort_by;
 pub mod stat_mgr;
 pub mod table_mgr;
@@ -273,5 +274,30 @@ mod tests {
             }
         }
         tx.commit().unwrap();
+    }
+
+    #[test]
+    fn select_with_views_and_specs() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT, name VARCHAR(100))")
+            .unwrap();
+        tx.commit().unwrap();
+
+        db.execute(&tx, "INSERT INTO test(id, name) VALUES(1, 'User')")
+            .unwrap();
+
+        let result = db
+            .query(&tx, "SELECT id i, name n FROM test t WHERE t.id=1")
+            .unwrap();
+        assert!(result.next().unwrap());
+        assert_eq!(result.get_i32(&Element::raw("i")).unwrap(), 1);
+        assert_eq!(result.get_string(&Element::raw("n")).unwrap(), "User");
+
+        let result = db
+            .query(&tx, "SELECT id i, name n FROM test t WHERE t.id=2")
+            .unwrap();
+        assert!(!result.next().unwrap());
     }
 }

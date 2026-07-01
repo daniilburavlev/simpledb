@@ -1,9 +1,8 @@
 use std::rc::Rc;
 
-use common::DbResult;
-
 use crate::element::Element;
 use crate::{scan::Scan, schema::Schema};
+use common::DbResult;
 
 pub(crate) mod group;
 pub mod index;
