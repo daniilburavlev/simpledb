@@ -18,8 +18,12 @@ pub(crate) struct ProjectPlan {
 }
 
 impl ProjectPlan {
-    pub(crate) fn new(plan: Rc<dyn Plan>, fields: Vec<Element>, mapping: SchemaMapping) -> DbResult<Self> {
-        let mut schema = SchemaBuilder::default();
+    pub(crate) fn new(
+        plan: Rc<dyn Plan>,
+        fields: Vec<Element>,
+        mapping: SchemaMapping,
+    ) -> DbResult<Self> {
+        let mut schema = SchemaBuilder::new(plan.schema()?.table().clone());
         for field in fields {
             let other = plan.schema()?;
             schema = schema.add(field, &other);
@@ -36,7 +40,11 @@ impl Plan for ProjectPlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         let scan = self.plan.open()?;
         let fields: HashSet<Element> = self.schema.fields().into_iter().map(|(f, _)| f).collect();
-        Ok(Rc::new(ProjectScan::new(scan, fields, self.mapping.clone())))
+        Ok(Rc::new(ProjectScan::new(
+            scan,
+            fields,
+            self.mapping.clone(),
+        )))
     }
 
     fn blocks_accessed(&self) -> DbResult<i32> {

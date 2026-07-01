@@ -272,7 +272,7 @@ mod tests {
         let lock_table = Arc::new(LockTable::default());
 
         let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("test"))
             .add_int_field(Element::raw("A"))
             .add_string_field(Element::raw("B"), 9)
             .build();

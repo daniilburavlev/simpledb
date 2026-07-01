@@ -121,7 +121,7 @@ impl TablePlanner {
     }
 
     fn add_select_pred(&self, p: &Rc<dyn Plan>) -> DbResult<Rc<dyn Plan>> {
-        let select_predicate = self.predicate.select_sub_pred(&self.schema)?;
+        let select_predicate = self.predicate.select_sub_pred(&self.schema, &self.mapping)?;
         Ok(Rc::new(SelectPlan::new(p.clone(), select_predicate)))
     }
 

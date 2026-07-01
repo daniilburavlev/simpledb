@@ -27,7 +27,14 @@ impl MultiBufferProductPlan {
     ) -> DbResult<Self> {
         let s1 = left.schema()?;
         let s2 = right.schema()?;
-        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        let schema = SchemaBuilder::new(Element::Raw(format!(
+            "multibuffer_{}_{}",
+            left.schema()?.table(),
+            right.schema()?.table()
+        )))
+        .add_all(&s1)
+        .add_all(&s2)
+        .build();
         let plan = Self {
             tx: Arc::clone(tx),
             left: Rc::new(MaterializePlan::new(left, tx)),

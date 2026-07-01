@@ -68,7 +68,14 @@ impl Scan for ProductScan {
     fn schema(&self) -> DbResult<Schema> {
         let s1 = self.s1.schema()?;
         let s2 = self.s2.schema()?;
-        let s = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        let s = SchemaBuilder::new(Element::Raw(format!(
+            "product_{}_{}",
+            s1.table(),
+            s2.table()
+        )))
+        .add_all(&s1)
+        .add_all(&s2)
+        .build();
         Ok(s)
     }
 }

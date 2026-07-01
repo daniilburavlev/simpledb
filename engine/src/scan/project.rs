@@ -70,8 +70,8 @@ impl Scan for ProjectScan {
     }
 
     fn schema(&self) -> DbResult<Schema> {
-        let mut project = SchemaBuilder::default();
         let schema = self.scan.schema()?;
+        let mut project = SchemaBuilder::new(schema.table().clone());
         for (field, info) in schema.fields() {
             if self.fields.contains(&field) {
                 project = project.add_field(field, info);

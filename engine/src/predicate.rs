@@ -8,6 +8,7 @@ use common::{DbResult, error::DbError};
 
 use crate::element::Element;
 use crate::schema::SchemaBuilder;
+use crate::schema_mapping::SchemaMapping;
 use crate::{plan::Plan, scan::Scan, schema::Schema, value::Value};
 
 #[derive(Debug, Clone)]
@@ -31,6 +32,35 @@ impl Expression {
         }
     }
 
+    pub(crate) fn applies_to_table(&self, schema: &Schema, mapping: &SchemaMapping) -> bool {
+        let Self::Field(field) = self else {
+            return true;
+        };
+        match field {
+            Element::Raw(field) => {
+                let field = if let Some(field) = mapping.field(&Element::raw(field)) {
+                    field
+                } else {
+                    &Element::raw(field)
+                };
+                schema.has_field(field)
+            }
+            Element::Spec(source, target) => {
+                let table = if let Some(table) = mapping.table(&Element::raw(source)) {
+                    table
+                } else {
+                    &Element::raw(source)
+                };
+                if schema.table() != table {
+                    return false;
+                }
+                let field = Element::raw(target);
+                schema.has_field(&field)
+            }
+            _ => false,
+        }
+    }
+
     pub fn as_field_name(&self) -> Option<&Element> {
         match self {
             Self::Field(field) => Some(field),
@@ -43,6 +73,26 @@ impl Expression {
             Self::Value(value) => Some(value),
             _ => None,
         }
+    }
+
+    pub(crate) fn resolve(&self, mapping: &SchemaMapping) -> Self {
+        let Self::Field(field) = self else {
+            return self.clone();
+        };
+        let field = match field {
+            Element::Raw(field) => {
+                if let Some(field) = mapping.field(&Element::raw(field)) {
+                    field.clone()
+                } else {
+                    Element::raw(field)
+                }
+            }
+            Element::Spec(_, target) => {
+                Element::raw(target)
+            }
+            _ => panic!("unprocessable field")
+        };
+        Self::Field(field)
     }
 }
 
@@ -74,6 +124,10 @@ impl Term {
 
     pub fn applies_to(&self, schema: &Schema) -> bool {
         self.left.applies_to(schema) && self.right.applies_to(schema)
+    }
+
+    pub(crate) fn applies_to_table(&self, schema: &Schema, mapping: &SchemaMapping) -> bool {
+        self.left.applies_to_table(schema, mapping) && self.right.applies_to_table(schema, mapping)
     }
 
     pub fn reduction_factor(&self, p: &Rc<dyn Plan>) -> DbResult<i32> {
@@ -128,6 +182,12 @@ impl Term {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn resolve(&self, mapping: &SchemaMapping) -> Term {
+        let left = self.left.resolve(mapping);
+        let right = self.right.resolve(mapping);
+        Term::new(left, right)
     }
 }
 
@@ -185,14 +245,19 @@ impl Predicate {
         Ok(factor)
     }
 
-    pub(crate) fn select_sub_pred(&self, schema: &Schema) -> DbResult<Predicate> {
+    pub(crate) fn select_sub_pred(
+        &self,
+        schema: &Schema,
+        mapping: &SchemaMapping,
+    ) -> DbResult<Predicate> {
         let result = Predicate::default();
         let read = self.terms.read().map_err(DbError::lock)?;
         {
             let mut terms = result.terms.write().map_err(DbError::lock)?;
             for t in read.iter() {
-                if t.applies_to(schema) {
-                    terms.push(t.clone());
+                if t.applies_to_table(schema, mapping) {
+                    let term = t.resolve(mapping);
+                    terms.push(term);
                 }
             }
         }
@@ -201,7 +266,11 @@ impl Predicate {
 
     pub(crate) fn join_sub_pred(&self, s1: &Schema, s2: &Schema) -> DbResult<Option<Predicate>> {
         let result = Predicate::default();
-        let new_schema = SchemaBuilder::default().add_all(s1).add_all(s2).build();
+        let new_schema =
+            SchemaBuilder::new(Element::Raw(format!("join_{}_{}", s1.table(), s2.table())))
+                .add_all(s1)
+                .add_all(s2)
+                .build();
         let read = self.terms.read().map_err(DbError::lock)?;
         {
             let mut terms = result.terms.write().map_err(DbError::lock)?;

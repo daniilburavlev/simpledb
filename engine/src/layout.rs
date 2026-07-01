@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn from() {
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("test"))
             .add_int_field(Element::raw("id"))
             .build();
         Layout::from(schema, HashMap::new(), 16);

@@ -30,7 +30,12 @@ impl MergeJoinPlan {
     ) -> DbResult<Self> {
         let p1 = Rc::new(SortPlan::new(tx, p1, vec![field_name1.clone()])?);
         let p2 = Rc::new(SortPlan::new(tx, p2, vec![field_name2.clone()])?);
-        let schema = SchemaBuilder::default().build();
+        let schema = SchemaBuilder::new(Element::Raw(format!(
+            "merge_join_{}_{}",
+            p1.schema()?.table(),
+            p2.schema()?.table()
+        )))
+        .build();
         Ok(Self {
             p1,
             p2,

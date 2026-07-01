@@ -22,7 +22,7 @@ pub struct ViewMgr {
 impl ViewMgr {
     pub fn new(is_new: bool, table_mgr: TableMgr, tx: &Arc<Transaction>) -> DbResult<Self> {
         if is_new {
-            let schema = SchemaBuilder::default()
+            let schema = SchemaBuilder::new(Element::raw(VIEW_TABLE))
                 .add_string_field(Element::raw(VIEW_NAME), MAX_NAME)
                 .add_string_field(Element::raw(VIEW_DEF), MAX_VIEW_DEF)
                 .build();

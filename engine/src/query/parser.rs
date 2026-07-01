@@ -226,13 +226,13 @@ impl Parser {
         self.lexer.eat_keyword(Token::Table)?;
         let name = self.lexer.eat_id()?;
         self.lexer.eat_delimiter('(')?;
-        let schema = self.field_definitions()?;
+        let schema = self.field_definitions(&name)?;
         self.lexer.eat_delimiter(')')?;
         Ok(Command::CreateTable(TableData { name, schema }))
     }
 
-    fn field_definitions(&self) -> DbResult<Schema> {
-        let mut schema = SchemaBuilder::default();
+    fn field_definitions(&self, table: &str) -> DbResult<Schema> {
+        let mut schema = SchemaBuilder::new(Element::raw(table));
         schema = self.field_definition(schema)?;
         while self.lexer.match_delim(',') {
             self.lexer.eat_delimiter(',')?;
@@ -348,10 +348,12 @@ fn process_schema(
         match field {
             Element::Raw(field) => {
                 mapping = mapping.add_table_field(table.clone(), Element::raw(&field));
-                new_fields.push(Element::Raw(field)); },
+                new_fields.push(Element::Raw(field));
+            }
             Element::View(source, id) => {
                 mapping = mapping.add_table_field(table.clone(), Element::raw(&source));
-                mapping = mapping.add_field(table.clone(), Element::raw(&id), Element::raw(&source));
+                mapping =
+                    mapping.add_field(table.clone(), Element::raw(&id), Element::raw(&source));
                 new_fields.push(Element::Raw(id));
             }
             Element::Spec(source, target) => {
