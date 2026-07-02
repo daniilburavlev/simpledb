@@ -143,7 +143,7 @@ mod tests {
         let a = Element::raw("A");
         let b = Element::raw("B");
 
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("test"))
             .add_int_field(a.clone())
             .add_string_field(b.clone(), 9)
             .build();

@@ -79,7 +79,14 @@ impl IndexJoinPlan {
     ) -> DbResult<Self> {
         let s1 = p1.schema()?;
         let s2 = p2.schema()?;
-        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        let schema = SchemaBuilder::new(Element::Raw(format!(
+            "index_join_{}_{}",
+            p1.schema()?.table(),
+            p2.schema()?.table()
+        )))
+        .add_all(&s1)
+        .add_all(&s2)
+        .build();
         Ok(Self {
             p1: Rc::clone(p1),
             p2: Rc::clone(p2),

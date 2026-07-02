@@ -168,8 +168,8 @@ impl OrderScanInner {
     }
 
     fn schema(&self) -> DbResult<Schema> {
-        let mut s = SchemaBuilder::default();
         let s1 = self.s1.schema()?;
+        let mut s = SchemaBuilder::new(Element::raw("group"));
         s = s.add_all(&s1);
         if let Some(s2) = &self.s2 {
             let s2 = s2.schema()?;

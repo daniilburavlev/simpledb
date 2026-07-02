@@ -15,7 +15,7 @@ use crate::{
 
 pub struct TablePlan {
     tx: Arc<Transaction>,
-    table: String,
+    table: Element,
     layout: Layout,
     stat: StatInfo,
 }
@@ -26,7 +26,7 @@ impl TablePlan {
         let stat = md.get_stat_info(&table, layout.clone(), tx)?;
         Ok(Self {
             tx: Arc::clone(tx),
-            table,
+            table: Element::Raw(table),
             layout,
             stat,
         })
@@ -37,7 +37,7 @@ impl Plan for TablePlan {
     fn open(&self) -> DbResult<Rc<dyn Scan>> {
         Ok(Rc::new(TableScan::new(
             &self.tx,
-            &self.table,
+            self.table.as_raw()?,
             self.layout.clone(),
         )?))
     }

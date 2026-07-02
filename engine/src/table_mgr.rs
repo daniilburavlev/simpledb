@@ -31,13 +31,13 @@ pub struct TableMgr {
 
 impl TableMgr {
     pub fn new(is_new: bool, tx: &Arc<Transaction>) -> DbResult<Self> {
-        let table_schema = SchemaBuilder::default()
+        let table_schema = SchemaBuilder::new(Element::raw(TABLE_NAME))
             .add_string_field(Element::raw(TABLE_NAME), MAX_NAME)
             .add_int_field(Element::raw(TABLE_SLOT_SIZE))
             .build();
         let table_layout = Layout::new(table_schema.clone());
 
-        let fields_schema = SchemaBuilder::default()
+        let fields_schema = SchemaBuilder::new(Element::raw(FIELDS_NAME))
             .add_string_field(Element::raw(TABLE_NAME), MAX_NAME)
             .add_string_field(Element::raw(F_FIELD_NAME), MAX_NAME)
             .add_int_field(Element::raw(F_TYPE))
@@ -95,7 +95,7 @@ impl TableMgr {
             }
         }
         tcat.close()?;
-        let mut schema = SchemaBuilder::default();
+        let mut schema = SchemaBuilder::new(Element::raw(table_name));
         let mut offsets = HashMap::new();
         let fcat = TableScan::new(tx, FIELDS_NAME, self.fields_layout.clone())?;
         while fcat.next()? {
@@ -132,7 +132,7 @@ mod tests {
 
         let tm = TableMgr::new(true, &tx).unwrap();
 
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("table"))
             .add_int_field(Element::raw("A"))
             .add_string_field(Element::raw("B"), 9)
             .build();

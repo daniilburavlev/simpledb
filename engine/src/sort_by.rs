@@ -13,7 +13,7 @@ impl SortByData {
 
 impl std::fmt::Display for SortByData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SORT BY")?;
+        write!(f, "ORDER BY")?;
         for (i, field) in self.fields.iter().enumerate() {
             if i == 0 {
                 write!(f, "{}", field)?;

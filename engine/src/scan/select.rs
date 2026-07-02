@@ -5,13 +5,13 @@ use crate::element::Element;
 use crate::schema::Schema;
 use crate::{predicate::Predicate, scan::Scan};
 
-pub struct SelectScan {
+pub(crate) struct SelectScan {
     scan: Rc<dyn Scan>,
     predicate: Predicate,
 }
 
 impl SelectScan {
-    pub fn new(scan: Rc<dyn Scan>, predicate: Predicate) -> Self {
+    pub(crate) fn new(scan: Rc<dyn Scan>, predicate: Predicate) -> Self {
         Self { scan, predicate }
     }
 }

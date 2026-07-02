@@ -61,26 +61,26 @@ impl TableScanInner {
         Ok(true)
     }
 
-    pub fn get_i32(&self, filename: &Element) -> DbResult<i32> {
-        self.rp.get_i32(self.current_slot, filename)
+    pub fn get_i32(&self, field: &Element) -> DbResult<i32> {
+        self.rp.get_i32(self.current_slot, field)
     }
 
-    pub fn get_string(&self, filename: &Element) -> DbResult<String> {
-        self.rp.get_string(self.current_slot, filename)
+    pub fn get_string(&self, field: &Element) -> DbResult<String> {
+        self.rp.get_string(self.current_slot, field)
     }
 
-    pub fn get_val(&self, fieldname: &Element) -> DbResult<Value> {
-        let Some(info) = self.layout.schema().info(fieldname) else {
-            return Err(DbError::FieldNotExists(fieldname.to_string()));
+    pub fn get_val(&self, field: &Element) -> DbResult<Value> {
+        let Some(info) = self.layout.schema().info(field) else {
+            return Err(DbError::FieldNotExists(field.to_string()));
         };
         match info {
-            FieldInfo::Integer => Ok(Value::Integer(self.get_i32(fieldname)?)),
-            FieldInfo::Varchar(_) => Ok(Value::Varchar(self.get_string(fieldname)?)),
+            FieldInfo::Integer => Ok(Value::Integer(self.get_i32(field)?)),
+            FieldInfo::Varchar(_) => Ok(Value::Varchar(self.get_string(field)?)),
         }
     }
 
-    pub fn has_field(&self, fieldname: &Element) -> bool {
-        self.layout.schema().has_field(fieldname)
+    pub fn has_field(&self, field: &Element) -> bool {
+        self.layout.schema().has_field(field)
     }
 
     pub fn set_i32(&self, field: &Element, value: i32) -> DbResult<()> {
@@ -272,7 +272,7 @@ mod tests {
         let lock_table = Arc::new(LockTable::default());
 
         let tx = Arc::new(Transaction::new(&fm, &lm, &bm, &lock_table).unwrap());
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("test"))
             .add_int_field(Element::raw("A"))
             .add_string_field(Element::raw("B"), 9)
             .build();

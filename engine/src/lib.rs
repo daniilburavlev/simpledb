@@ -29,6 +29,7 @@ pub mod record_page;
 pub mod rid;
 pub mod scan;
 pub mod schema;
+mod schema_mapping;
 pub mod sort_by;
 pub mod stat_mgr;
 pub mod table_mgr;
@@ -196,7 +197,7 @@ mod tests {
             .unwrap();
         }
         let result = db
-            .query(&tx, "SELECT id, name FROM test SORT BY name")
+            .query(&tx, "SELECT id, name FROM test ORDER BY name")
             .unwrap();
         for i in 0..1000 {
             assert!(result.next().unwrap());
@@ -248,30 +249,93 @@ mod tests {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
-        db.execute(&tx, "CREATE TABLE t1(i1 INT)").unwrap();
-        db.execute(&tx, "CREATE TABLE t2(i2 INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE users(id INT, name VARCHAR(20))")
+            .unwrap();
+        db.execute(&tx, "CREATE TABLE employees(eid INT, uid INT)")
+            .unwrap();
         tx.commit().unwrap();
         for i in 0..100 {
-            db.execute(&tx, &format!("INSERT INTO t1(i1) VALUES({})", i))
-                .unwrap();
-            db.execute(&tx, &format!("INSERT INTO t2(i2) VALUES({})", i))
-                .unwrap();
+            db.execute(
+                &tx,
+                &format!("INSERT INTO users(id, name) VALUES({}, 'user{}')", i, i),
+            )
+            .unwrap();
+            db.execute(
+                &tx,
+                &format!(
+                    "INSERT INTO employees(eid, uid) VALUES({}, {})",
+                    i + 1000,
+                    i
+                ),
+            )
+            .unwrap();
         }
         tx.commit().unwrap();
-        let mut existed = HashSet::new();
-        for i in 0..10 {
-            existed.insert(i);
-            let result = db
-                .query(
-                    &tx,
-                    &format!("SELECT i1, i2 FROM t1, t2 WHERE i1 = i2 AND i1 = {}", i),
-                )
-                .unwrap();
-            while result.next().unwrap() {
-                assert_eq!(i, result.get_i32(&Element::raw("i1")).unwrap());
-                assert_eq!(i, result.get_i32(&Element::raw("i2")).unwrap());
-            }
+
+        let result = db
+            .query(
+                &tx,
+                "SELECT id, name, eid FROM users JOIN employees ON id = uid",
+            )
+            .unwrap();
+        let mut matched = HashSet::new();
+        while result.next().unwrap() {
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let eid = result.get_i32(&Element::raw("eid")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
+            assert_eq!(eid, id + 1000);
+            assert_eq!(name, format!("user{}", id));
+            assert!(matched.insert(id), "each user must match exactly once");
         }
+        assert_eq!(matched.len(), 100);
         tx.commit().unwrap();
+    }
+
+    #[test]
+    fn select_with_views_and_specs() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT, name VARCHAR(100))")
+            .unwrap();
+        tx.commit().unwrap();
+
+        db.execute(&tx, "INSERT INTO test(id, name) VALUES(1, 'User')")
+            .unwrap();
+
+        let result = db
+            .query(&tx, "SELECT id i, name n FROM test t WHERE t.id=1")
+            .unwrap();
+        assert!(result.next().unwrap());
+        assert_eq!(result.get_i32(&Element::raw("i")).unwrap(), 1);
+        assert_eq!(result.get_string(&Element::raw("n")).unwrap(), "User");
+
+        let result = db
+            .query(&tx, "SELECT id i, name n FROM test t WHERE t.id=2")
+            .unwrap();
+        assert!(!result.next().unwrap());
+    }
+
+    #[test]
+    fn select_with_specs() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT, name VARCHAR(100))")
+            .unwrap();
+        tx.commit().unwrap();
+
+        db.execute(&tx, "INSERT INTO test(id, name) VALUES(1, 'User')")
+            .unwrap();
+
+        let result = db
+            .query(&tx, "SELECT t.id, t.name FROM test t WHERE t.id=1")
+            .unwrap();
+        assert!(result.next().unwrap());
+        assert_eq!(result.get_i32(&Element::spec("t", "id")).unwrap(), 1);
+        assert_eq!(
+            result.get_string(&Element::spec("t", "name")).unwrap(),
+            "User"
+        );
     }
 }

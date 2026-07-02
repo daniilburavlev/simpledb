@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::plan::group::GroupByPlan;
 use crate::plan::order::SortPlan;
 use crate::{
@@ -25,8 +26,25 @@ impl HeuristicQueryPlannerInner {
     }
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
-        for table in &data.tables {
-            let tp = TablePlanner::new(table.as_raw()?, data.predicate.clone(), tx, &self.md)?;
+        let tables = match &data.table {
+            Element::Array(tables) => tables.to_vec(),
+            table => vec![table.clone()],
+        };
+        for table in tables {
+            let table = if let Some(source) = data.mapping.table(&table)
+                && *source != table
+            {
+                source.clone()
+            } else {
+                table
+            };
+            let tp = TablePlanner::new(
+                table,
+                data.predicate.clone(),
+                tx,
+                &self.md,
+                data.mapping.clone(),
+            )?;
             self.table_planners.push(tp);
         }
         let mut current = self.get_lowest_select_plan()?;
@@ -45,10 +63,14 @@ impl HeuristicQueryPlannerInner {
                 vec![],
             )?);
         }
-        if !data.sort_by.is_empty() {
-            current = Rc::new(SortPlan::new(tx, &current, data.sort_by.fields)?);
+        if !data.order_by.is_empty() {
+            current = Rc::new(SortPlan::new(tx, &current, data.order_by.fields)?);
         }
-        Ok(Rc::new(ProjectPlan::new(current, data.fields)?))
+        Ok(Rc::new(ProjectPlan::new(
+            current,
+            data.fields,
+            data.mapping,
+        )?))
     }
 
     fn get_lowest_select_plan(&mut self) -> DbResult<Rc<dyn Plan>> {

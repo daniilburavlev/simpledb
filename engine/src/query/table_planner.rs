@@ -4,6 +4,7 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::element::Element;
+use crate::schema_mapping::SchemaMapping;
 use crate::{
     index_mgr::IndexInfo,
     metadata_mgr::MetadataMgr,
@@ -24,14 +25,16 @@ pub(crate) struct TablePlanner {
     schema: Schema,
     indexes: HashMap<Element, IndexInfo>,
     tx: Arc<Transaction>,
+    mapping: SchemaMapping,
 }
 
 impl TablePlanner {
     pub(crate) fn new(
-        table: &str,
+        table: Element,
         predicate: Predicate,
         tx: &Arc<Transaction>,
         md: &MetadataMgr,
+        mapping: SchemaMapping,
     ) -> DbResult<Self> {
         let plan = TablePlan::new(tx, table.to_string(), md)?;
         Ok(Self {
@@ -39,7 +42,8 @@ impl TablePlanner {
             tx: Arc::clone(tx),
             schema: plan.schema()?,
             plan: Rc::new(plan),
-            indexes: md.get_index_info(table, tx)?,
+            indexes: md.get_index_info(table.as_raw()?, tx)?,
+            mapping,
         })
     }
 
@@ -117,7 +121,9 @@ impl TablePlanner {
     }
 
     fn add_select_pred(&self, p: &Rc<dyn Plan>) -> DbResult<Rc<dyn Plan>> {
-        let select_predicate = self.predicate.select_sub_pred(&self.schema)?;
+        let select_predicate = self
+            .predicate
+            .select_sub_pred(&self.schema, &self.mapping)?;
         Ok(Rc::new(SelectPlan::new(p.clone(), select_predicate)))
     }
 

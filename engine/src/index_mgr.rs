@@ -87,7 +87,7 @@ impl IndexMgr {
         tx: &Arc<Transaction>,
     ) -> DbResult<Self> {
         if is_new {
-            let schema = SchemaBuilder::default()
+            let schema = SchemaBuilder::new(Element::raw(IDX_TABLE))
                 .add_string_field(Element::raw(IDX_NAME), MAX_LENGTH)
                 .add_string_field(Element::raw(TABLE_NAME), MAX_LENGTH)
                 .add_string_field(Element::raw(FIELD_NAME), MAX_LENGTH)

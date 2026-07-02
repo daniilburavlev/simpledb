@@ -4,29 +4,30 @@ use crate::{element::Element, field_info::FieldInfo};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInner {
+    table: Element,
     fields: Vec<Element>,
     infos: HashMap<Element, FieldInfo>,
 }
 
 impl SchemaInner {
-    fn add_field(&mut self, fieldname: Element, field_info: FieldInfo) {
-        if !self.infos.contains_key(&fieldname) {
-            self.fields.push(fieldname.clone());
-            self.infos.insert(fieldname, field_info);
+    fn add_field(&mut self, field: Element, field_info: FieldInfo) {
+        if !self.infos.contains_key(&field) {
+            self.fields.push(field.clone());
+            self.infos.insert(field, field_info);
         }
     }
 
-    fn add_int_field(&mut self, fieldname: Element) {
-        self.add_field(fieldname, FieldInfo::Integer);
+    fn add_int_field(&mut self, field: Element) {
+        self.add_field(field, FieldInfo::Integer);
     }
 
-    fn add_string_field(&mut self, fieldname: Element, length: i32) {
-        self.add_field(fieldname, FieldInfo::Varchar(length));
+    fn add_string_field(&mut self, field: Element, length: i32) {
+        self.add_field(field, FieldInfo::Varchar(length));
     }
 
-    fn add(&mut self, fieldname: Element, schema: &Self) {
-        if let Some(info) = schema.info(&fieldname) {
-            self.add_field(fieldname, info);
+    fn add(&mut self, field: Element, other: &Self) {
+        if let Some(info) = other.info(&field) {
+            self.add_field(field, info);
         }
     }
 
@@ -36,8 +37,18 @@ impl SchemaInner {
         }
     }
 
-    fn info(&self, fieldname: &Element) -> Option<FieldInfo> {
-        self.infos.get(fieldname).cloned()
+    fn info(&self, field: &Element) -> Option<FieldInfo> {
+        match field {
+            Element::Raw(field) => self.infos.get(&Element::raw(field)).cloned(),
+            Element::Spec(table, field) => {
+                if self.table == Element::raw(table) {
+                    self.infos.get(&Element::raw(field)).cloned()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     fn fields(&self) -> Vec<(Element, FieldInfo)> {
@@ -59,8 +70,12 @@ impl SchemaInner {
 pub struct Schema(Rc<SchemaInner>);
 
 impl Schema {
-    pub fn info(&self, fieldname: &Element) -> Option<FieldInfo> {
-        self.0.info(fieldname)
+    pub fn table(&self) -> &Element {
+        &self.0.table
+    }
+
+    pub fn info(&self, field: &Element) -> Option<FieldInfo> {
+        self.0.info(field)
     }
 
     pub fn fields(&self) -> Vec<(Element, FieldInfo)> {
@@ -77,6 +92,16 @@ pub struct SchemaBuilder {
 }
 
 impl SchemaBuilder {
+    pub fn new(table: Element) -> Self {
+        Self {
+            schema: SchemaInner {
+                table,
+                fields: vec![],
+                infos: HashMap::new(),
+            },
+        }
+    }
+
     pub fn add_field(mut self, field: Element, info: FieldInfo) -> Self {
         self.schema.add_field(field, info);
         self
@@ -107,17 +132,6 @@ impl SchemaBuilder {
     }
 }
 
-impl Default for SchemaBuilder {
-    fn default() -> Self {
-        Self {
-            schema: SchemaInner {
-                fields: vec![],
-                infos: HashMap::new(),
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -125,16 +139,18 @@ mod tests {
 
     #[test]
     fn add() {
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("table"))
             .add_int_field(Element::raw("test"))
             .build();
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("table"))
             .add(Element::raw("test"), &schema)
             .build();
         assert!(schema.has_field(&Element::raw("test")));
-        let schema = SchemaBuilder::default().add_all(&schema).build();
+        let schema = SchemaBuilder::new(Element::raw("table"))
+            .add_all(&schema)
+            .build();
         assert!(schema.has_field(&Element::raw("test")));
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw("table"))
             .add_field(Element::raw("id"), FieldInfo::Integer)
             .build();
         assert!(schema.has_field(&Element::raw("id")));

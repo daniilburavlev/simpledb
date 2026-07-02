@@ -20,7 +20,14 @@ impl ProductPlan {
     pub fn new(p1: Rc<dyn Plan>, p2: Rc<dyn Plan>) -> DbResult<Self> {
         let s1 = p1.schema()?;
         let s2 = p2.schema()?;
-        let schema = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        let schema = SchemaBuilder::new(Element::Raw(format!(
+            "product_{}_{}",
+            s1.table(),
+            s2.table()
+        )))
+        .add_all(&s1)
+        .add_all(&s2)
+        .build();
         Ok(Self { p1, p2, schema })
     }
 }

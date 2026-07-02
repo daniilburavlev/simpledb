@@ -25,7 +25,7 @@ impl GroupByPlan {
         group_fields: Vec<Element>,
         aggregation_fn: Vec<AggregationFn>,
     ) -> DbResult<Self> {
-        let mut schema = SchemaBuilder::default();
+        let mut schema = SchemaBuilder::new(plan.schema()?.table().clone());
         let s = plan.schema()?;
         for field in &group_fields {
             schema = schema.add(field.clone(), &s);

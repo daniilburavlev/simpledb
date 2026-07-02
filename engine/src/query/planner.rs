@@ -13,11 +13,11 @@ use crate::{
     },
 };
 
-pub trait QueryPlanner {
+pub(crate) trait QueryPlanner {
     fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>>;
 }
 
-pub trait UpdatePlanner {
+pub(crate) trait UpdatePlanner {
     fn execute_insert(&self, data: InsertData, tx: &Arc<Transaction>) -> DbResult<i32>;
 
     fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32>;
@@ -31,7 +31,7 @@ pub trait UpdatePlanner {
     fn execute_create_index(&self, data: IndexData, tx: &Arc<Transaction>) -> DbResult<i32>;
 }
 
-pub struct Planner {
+pub(crate) struct Planner {
     query_planner: Rc<dyn QueryPlanner>,
     update_planner: Rc<dyn UpdatePlanner>,
 }

@@ -150,7 +150,14 @@ impl Scan for IndexJoinScan {
     fn schema(&self) -> DbResult<Schema> {
         let s1 = self.left.schema()?;
         let s2 = self.right.schema()?;
-        let s = SchemaBuilder::default().add_all(&s1).add_all(&s2).build();
+        let s = SchemaBuilder::new(Element::Raw(format!(
+            "index_joni_{}_{}",
+            s1.table(),
+            s2.table()
+        )))
+        .add_all(&s1)
+        .add_all(&s2)
+        .build();
         Ok(s)
     }
 }
@@ -179,21 +186,23 @@ mod tests {
         let gadyear = Element::raw("gadyear");
         let majorid = Element::raw("majorid");
 
-        let schema = SchemaBuilder::default()
+        let table = "users";
+
+        let schema = SchemaBuilder::new(Element::raw(table))
             .add_int_field(sid.clone())
             .add_string_field(sname.clone(), 16)
             .add_int_field(gadyear.clone())
             .add_int_field(majorid.clone())
             .build();
 
-        md.create_table("users", schema, &tx).unwrap();
-        md.create_index("users_ids", "users", "sid", &tx).unwrap();
+        md.create_table(table, schema, &tx).unwrap();
+        md.create_index("users_ids", table, "sid", &tx).unwrap();
 
-        let plan = TablePlan::new(&tx, "users".to_string(), &md).unwrap();
+        let plan = TablePlan::new(&tx, table.to_string(), &md).unwrap();
         let s = plan.open().unwrap();
 
         let mut indexes = HashMap::new();
-        let infos = md.get_index_info("users", &tx).unwrap();
+        let infos = md.get_index_info(table, &tx).unwrap();
         for (field, info) in infos {
             let index = info.open().unwrap();
             indexes.insert(field, index);

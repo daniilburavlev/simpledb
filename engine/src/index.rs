@@ -42,7 +42,7 @@ mod tests {
         let majorid = Element::raw("majorid");
 
         let setup_tx = db.get_tx().unwrap();
-        let schema = SchemaBuilder::default()
+        let schema = SchemaBuilder::new(Element::raw(table))
             .add_int_field(sid.clone())
             .add_string_field(sname.clone(), 16)
             .add_int_field(majorid.clone())
