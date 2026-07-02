@@ -10,24 +10,24 @@ pub struct SchemaInner {
 }
 
 impl SchemaInner {
-    fn add_field(&mut self, fieldname: Element, field_info: FieldInfo) {
-        if !self.infos.contains_key(&fieldname) {
-            self.fields.push(fieldname.clone());
-            self.infos.insert(fieldname, field_info);
+    fn add_field(&mut self, field: Element, field_info: FieldInfo) {
+        if !self.infos.contains_key(&field) {
+            self.fields.push(field.clone());
+            self.infos.insert(field, field_info);
         }
     }
 
-    fn add_int_field(&mut self, fieldname: Element) {
-        self.add_field(fieldname, FieldInfo::Integer);
+    fn add_int_field(&mut self, field: Element) {
+        self.add_field(field, FieldInfo::Integer);
     }
 
-    fn add_string_field(&mut self, fieldname: Element, length: i32) {
-        self.add_field(fieldname, FieldInfo::Varchar(length));
+    fn add_string_field(&mut self, field: Element, length: i32) {
+        self.add_field(field, FieldInfo::Varchar(length));
     }
 
-    fn add(&mut self, fieldname: Element, schema: &Self) {
-        if let Some(info) = schema.info(&fieldname) {
-            self.add_field(fieldname, info);
+    fn add(&mut self, field: Element, other: &Self) {
+        if let Some(info) = other.info(&field) {
+            self.add_field(field, info);
         }
     }
 
@@ -37,8 +37,20 @@ impl SchemaInner {
         }
     }
 
-    fn info(&self, fieldname: &Element) -> Option<FieldInfo> {
-        self.infos.get(fieldname).cloned()
+    fn info(&self, field: &Element) -> Option<FieldInfo> {
+        match field {
+            Element::Raw(field) => {
+                self.infos.get(&Element::raw(field)).cloned()
+            },
+            Element::Spec(table, field) => {
+                if self.table == Element::raw(table) {
+                    self.infos.get(&Element::raw(field)).cloned()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     fn fields(&self) -> Vec<(Element, FieldInfo)> {

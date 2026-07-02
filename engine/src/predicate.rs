@@ -106,7 +106,7 @@ impl std::fmt::Display for Expression {
 }
 
 #[derive(Clone, Debug)]
-pub struct Term {
+pub(crate) struct Term {
     left: Expression,
     right: Expression,
 }
@@ -198,7 +198,7 @@ impl std::fmt::Display for Term {
 }
 
 #[derive(Clone)]
-pub struct Predicate {
+pub(crate) struct Predicate {
     terms: Arc<RwLock<Vec<Term>>>,
 }
 

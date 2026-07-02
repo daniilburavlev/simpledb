@@ -54,7 +54,7 @@ impl Token {
             "on" => Some(Self::On),
             "as" => Some(Self::As),
             "group" => Some(Self::Group),
-            "sort" => Some(Self::Sort),
+            "order" => Some(Self::Sort),
             "by" => Some(Self::By),
             _ => None,
         }
@@ -151,7 +151,7 @@ impl std::fmt::Display for Token {
             Token::On => write!(f, "ON"),
             Token::As => write!(f, "AS"),
             Token::Group => write!(f, "GROUP"),
-            Token::Sort => write!(f, "SORT"),
+            Token::Sort => write!(f, "ORDER"),
             Token::By => write!(f, "BY"),
             Token::Field(field) => write!(f, "'{}'", field),
             Token::Delimiter(d) => write!(f, "'{}'", d),

@@ -3,7 +3,6 @@ use std::rc::Rc;
 use crate::element::Element;
 use crate::{scan::Scan, schema::Schema};
 use common::DbResult;
-use common::error::DbError;
 
 pub(crate) mod group;
 pub mod index;

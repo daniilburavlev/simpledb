@@ -10,13 +10,13 @@ use crate::{
     schema::Schema,
 };
 
-pub struct SelectPlan {
+pub(crate) struct SelectPlan {
     plan: Rc<dyn Plan>,
     predicate: Predicate,
 }
 
 impl SelectPlan {
-    pub fn new(plan: Rc<dyn Plan>, predicate: Predicate) -> Self {
+    pub(crate) fn new(plan: Rc<dyn Plan>, predicate: Predicate) -> Self {
         Self { plan, predicate }
     }
 }

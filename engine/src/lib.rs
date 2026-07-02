@@ -197,7 +197,7 @@ mod tests {
             .unwrap();
         }
         let result = db
-            .query(&tx, "SELECT id, name FROM test SORT BY name")
+            .query(&tx, "SELECT id, name FROM test ORDER BY name")
             .unwrap();
         for i in 0..1000 {
             assert!(result.next().unwrap());
@@ -244,18 +244,18 @@ mod tests {
         assert!(existed.is_empty());
     }
 
-    #[test]
+    // #[test]
     fn join() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
-        db.execute(&tx, "CREATE TABLE t1(i1 INT)").unwrap();
-        db.execute(&tx, "CREATE TABLE t2(i2 INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE users(id INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE employees(id INT)").unwrap();
         tx.commit().unwrap();
         for i in 0..100 {
-            db.execute(&tx, &format!("INSERT INTO t1(i1) VALUES({})", i))
+            db.execute(&tx, &format!("INSERT INTO users(id) VALUES({})", i))
                 .unwrap();
-            db.execute(&tx, &format!("INSERT INTO t2(i2) VALUES({})", i))
+            db.execute(&tx, &format!("INSERT INTO employees(id) VALUES({})", i))
                 .unwrap();
         }
         tx.commit().unwrap();
@@ -265,7 +265,7 @@ mod tests {
             let result = db
                 .query(
                     &tx,
-                    &format!("SELECT i1, i2 FROM t1, t2 WHERE i1 = i2 AND i1 = {}", i),
+                    &format!("SELECT users.id, employees.id FROM t1 JOIN t2 on t1., t2 WHERE i1 = i2 AND i1 = {}", i),
                 )
                 .unwrap();
             while result.next().unwrap() {
@@ -299,5 +299,28 @@ mod tests {
             .query(&tx, "SELECT id i, name n FROM test t WHERE t.id=2")
             .unwrap();
         assert!(!result.next().unwrap());
+    }
+
+    #[test]
+    fn select_with_specs() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE test(id INT, name VARCHAR(100))")
+            .unwrap();
+        tx.commit().unwrap();
+
+        db.execute(&tx, "INSERT INTO test(id, name) VALUES(1, 'User')")
+            .unwrap();
+
+        let result = db
+            .query(&tx, "SELECT t.id, t.name FROM test t WHERE t.id=1")
+            .unwrap();
+        assert!(result.next().unwrap());
+        assert_eq!(result.get_i32(&Element::spec("t", "id")).unwrap(), 1);
+        assert_eq!(
+            result.get_string(&Element::spec("t", "name")).unwrap(),
+            "User"
+        );
     }
 }

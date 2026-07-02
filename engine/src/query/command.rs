@@ -1,3 +1,4 @@
+use crate::schema_mapping::SchemaMapping;
 use crate::{
     element::Element,
     predicate::{Expression, Predicate},
@@ -5,9 +6,8 @@ use crate::{
     sort_by::SortByData,
     value::Value,
 };
-use crate::schema_mapping::SchemaMapping;
 
-pub enum Command {
+pub(crate) enum Command {
     Insert(InsertData),
     Update(UpdateData),
     Query(QueryData),
@@ -31,23 +31,25 @@ impl std::fmt::Display for Command {
     }
 }
 
-pub struct QueryData {
-    pub fields: Vec<Element>,
-    pub table: Element,
-    pub predicate: Predicate,
-    pub group_by: GroupByData,
-    pub order_by: SortByData,
-    pub mapping: SchemaMapping,
+pub(crate) struct QueryData {
+    pub(crate) fields: Vec<Element>,
+    pub(crate) table: Element,
+    pub(crate) predicate: Predicate,
+    pub(crate) group_by: GroupByData,
+    pub(crate) order_by: SortByData,
+    pub(crate) mapping: SchemaMapping,
 }
 
 impl std::fmt::Display for QueryData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SELECT ")?;
         for (i, field) in self.fields.iter().enumerate() {
-            let field = if let Some(source) = self.mapping.field(field) && source != field {
+            let field = if let Some(source) = self.mapping.field(field)
+                && source != field
+            {
                 match source {
                     Element::Raw(source) => &Element::view(source, field.as_raw().unwrap()),
-                    e => e
+                    e => e,
                 }
             } else {
                 field
@@ -59,10 +61,12 @@ impl std::fmt::Display for QueryData {
             }
         }
         let table = &self.table;
-        let table = if let Some(source) = self.mapping.table(table) && source != table {
+        let table = if let Some(source) = self.mapping.table(table)
+            && source != table
+        {
             match source {
                 Element::Raw(source) => &Element::view(source, table.as_raw().unwrap()),
-                e => e
+                e => e,
             }
         } else {
             table
@@ -82,9 +86,9 @@ impl std::fmt::Display for QueryData {
     }
 }
 
-pub struct ViewData {
-    pub name: String,
-    pub query: QueryData,
+pub(crate) struct ViewData {
+    pub(crate) name: String,
+    pub(crate) query: QueryData,
 }
 
 impl std::fmt::Display for ViewData {
@@ -93,9 +97,9 @@ impl std::fmt::Display for ViewData {
     }
 }
 
-pub struct DeleteData {
-    pub name: String,
-    pub predicate: Predicate,
+pub(crate) struct DeleteData {
+    pub(crate) name: String,
+    pub(crate) predicate: Predicate,
 }
 
 impl std::fmt::Display for DeleteData {
@@ -138,7 +142,7 @@ impl std::fmt::Display for InsertData {
     }
 }
 
-pub struct UpdateData {
+pub(crate) struct UpdateData {
     pub table: String,
     pub field: Element,
     pub value: Expression,
@@ -192,7 +196,7 @@ impl std::fmt::Display for TableData {
 }
 
 #[derive(Default)]
-pub struct GroupByData {
+pub(crate) struct GroupByData {
     pub fields: Vec<Element>,
 }
 

@@ -15,9 +15,13 @@ pub(crate) struct ProjectScan {
 impl ProjectScan {
     pub(crate) fn new(
         scan: Rc<dyn Scan>,
-        fields: HashSet<Element>,
+        table_fields: HashSet<Element>,
         mapping: SchemaMapping,
     ) -> Self {
+        let mut fields = HashSet::new();
+        for field in table_fields {
+            fields.insert(field);
+        }
         Self {
             scan,
             fields,
@@ -25,14 +29,20 @@ impl ProjectScan {
         }
     }
 
-    fn get_field<'a>(&'a self, field: &'a Element) -> DbResult<&'a Element> {
-        if self.fields.contains(field) {
+    fn get_field(&self, field: &Element) -> DbResult<Element> {
+        if !self.fields.contains(field) {
             return Err(DbError::FieldNotExists(field.to_string()));
         }
+        let field = match field {
+            Element::Spec(_, field) => {
+                &Element::raw(field)
+            }
+            e => e,
+        };
         if let Some(field) = self.mapping.field(field) {
-            Ok(field)
+            Ok(field.clone())
         } else {
-            Ok(field)
+            Ok(field.clone())
         }
     }
 }
@@ -48,17 +58,17 @@ impl Scan for ProjectScan {
 
     fn get_i32(&self, field: &Element) -> DbResult<i32> {
         let field = self.get_field(field)?;
-        self.scan.get_i32(field)
+        self.scan.get_i32(&field)
     }
 
     fn get_string(&self, field: &Element) -> DbResult<String> {
         let field = self.get_field(field)?;
-        self.scan.get_string(field)
+        self.scan.get_string(&field)
     }
 
     fn get_val(&self, field: &Element) -> DbResult<crate::value::Value> {
         let field = self.get_field(field)?;
-        self.scan.get_val(field)
+        self.scan.get_val(&field)
     }
 
     fn has_field(&self, field: &Element) -> DbResult<bool> {
