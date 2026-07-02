@@ -3,6 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 use common::DbResult;
 use transaction::transaction::Transaction;
 
+use crate::element::Element;
 use crate::plan::group::GroupByPlan;
 use crate::plan::order::SortPlan;
 use crate::{
@@ -25,22 +26,27 @@ impl HeuristicQueryPlannerInner {
     }
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
-        let table = &data.table;
-        let table = if let Some(source) = data.mapping.table(table)
-            && source != table
-        {
-            source
-        } else {
-            table
+        let tables = match &data.table {
+            Element::Array(tables) => tables.iter().map(|t| t.as_ref().clone()).collect(),
+            table => vec![table.clone()],
         };
-        let tp = TablePlanner::new(
-            table.clone(),
-            data.predicate,
-            tx,
-            &self.md,
-            data.mapping.clone(),
-        )?;
-        self.table_planners.push(tp);
+        for table in tables {
+            let table = if let Some(source) = data.mapping.table(&table)
+                && *source != table
+            {
+                source.clone()
+            } else {
+                table
+            };
+            let tp = TablePlanner::new(
+                table,
+                data.predicate.clone(),
+                tx,
+                &self.md,
+                data.mapping.clone(),
+            )?;
+            self.table_planners.push(tp);
+        }
         let mut current = self.get_lowest_select_plan()?;
         while !self.table_planners.is_empty() {
             if let Some(p) = self.get_lowest_join_plan(&current)? {

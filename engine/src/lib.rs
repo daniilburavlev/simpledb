@@ -249,30 +249,41 @@ mod tests {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
-        db.execute(&tx, "CREATE TABLE users(id INT)").unwrap();
-        db.execute(&tx, "CREATE TABLE employees(id INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE users(id INT, name VARCHAR(20))")
+            .unwrap();
+        db.execute(&tx, "CREATE TABLE employees(eid INT, uid INT)")
+            .unwrap();
         tx.commit().unwrap();
         for i in 0..100 {
-            db.execute(&tx, &format!("INSERT INTO users(id) VALUES({})", i))
-                .unwrap();
-            db.execute(&tx, &format!("INSERT INTO employees(id) VALUES({})", i))
-                .unwrap();
-        }
-        tx.commit().unwrap();
-        let mut existed = HashSet::new();
-        for i in 0..10 {
-            existed.insert(i);
-            let result = db
-                .query(
-                    &tx,
-                    "SELECT users.id, employees.id FROM users JOIN employees ON users.id = employees.id"
+            db.execute(
+                &tx,
+                &format!("INSERT INTO users(id, name) VALUES({}, 'user{}')", i, i),
             )
             .unwrap();
-            while result.next().unwrap() {
-                assert_eq!(i, result.get_i32(&Element::raw("i1")).unwrap());
-                assert_eq!(i, result.get_i32(&Element::raw("i2")).unwrap());
-            }
+            db.execute(
+                &tx,
+                &format!("INSERT INTO employees(eid, uid) VALUES({}, {})", i + 1000, i),
+            )
+            .unwrap();
         }
+        tx.commit().unwrap();
+
+        let result = db
+            .query(
+                &tx,
+                "SELECT id, name, eid FROM users JOIN employees ON id = uid",
+            )
+            .unwrap();
+        let mut matched = HashSet::new();
+        while result.next().unwrap() {
+            let id = result.get_i32(&Element::raw("id")).unwrap();
+            let eid = result.get_i32(&Element::raw("eid")).unwrap();
+            let name = result.get_string(&Element::raw("name")).unwrap();
+            assert_eq!(eid, id + 1000);
+            assert_eq!(name, format!("user{}", id));
+            assert!(matched.insert(id), "each user must match exactly once");
+        }
+        assert_eq!(matched.len(), 100);
         tx.commit().unwrap();
     }
 

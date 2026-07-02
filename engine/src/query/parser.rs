@@ -84,13 +84,18 @@ impl Parser {
         let fields = self.select_list()?;
 
         self.lexer.eat_keyword(Token::From)?;
-        let table = self.element()?;
+        let (tables, predicate) = self.from_clause()?;
 
-        let mut predicate = Predicate::default();
         if self.lexer.match_keyword(Token::Where) {
             self.lexer.eat_keyword(Token::Where)?;
-            predicate = self.predicate()?;
+            predicate.conjoin_with(&self.predicate()?)?;
         }
+
+        let table = if tables.len() == 1 {
+            tables.into_iter().next().unwrap()
+        } else {
+            Element::array(tables.into_iter().map(Box::new).collect())
+        };
 
         let mut group_by = GroupByData::default();
         if self.lexer.match_keyword(Token::Group) {
@@ -118,6 +123,29 @@ impl Parser {
             order_by,
             mapping,
         }))
+    }
+
+    /// Parses the table list following `FROM`, supporting both comma-separated
+    /// tables (`FROM a, b`) and explicit `JOIN ... ON ...` syntax. Any `ON`
+    /// predicates are folded into the returned `Predicate`, which the planner
+    /// later splits back into per-table select and join predicates.
+    fn from_clause(&self) -> DbResult<(Vec<Element>, Predicate)> {
+        let mut tables = vec![self.element()?];
+        let predicate = Predicate::default();
+        loop {
+            if self.lexer.match_delim(',') {
+                self.lexer.eat_delimiter(',')?;
+                tables.push(self.element()?);
+            } else if self.lexer.match_keyword(Token::Join) {
+                self.lexer.eat_keyword(Token::Join)?;
+                tables.push(self.element()?);
+                self.lexer.eat_keyword(Token::On)?;
+                predicate.conjoin_with(&self.predicate()?)?;
+            } else {
+                break;
+            }
+        }
+        Ok((tables, predicate))
     }
 
     fn select_list(&self) -> DbResult<Vec<Element>> {
@@ -335,14 +363,25 @@ fn process_schema(
     SchemaMapping,
 )> {
     let mut mapping = SchemaMappingBuilder::default();
-    let table = match table {
-        Element::Raw(table) => Element::Raw(table),
-        Element::View(source, id) => {
-            mapping = mapping.add_table(Element::raw(&id), Element::raw(&source));
-            Element::Raw(id)
-        }
-        _ => return Err(DbError::InvalidFieldType),
+    let raw_tables = match table {
+        Element::Array(tables) => tables.into_iter().map(|t| *t).collect(),
+        table => vec![table],
     };
+    let mut new_tables = Vec::with_capacity(raw_tables.len());
+    for table in raw_tables {
+        let table = match table {
+            Element::Raw(table) => Element::Raw(table),
+            Element::View(source, id) => {
+                mapping = mapping.add_table(Element::raw(&id), Element::raw(&source));
+                Element::Raw(id)
+            }
+            _ => return Err(DbError::InvalidFieldType),
+        };
+        new_tables.push(table);
+    }
+    // Field->table associations are keyed off the first table; `SchemaMapping`
+    // only uses them for aliasing, which is unaffected by the join expansion.
+    let table = new_tables[0].clone();
     let mut new_fields = Vec::with_capacity(fields.len());
     for field in fields {
         match field {
@@ -363,6 +402,11 @@ fn process_schema(
             _ => return Err(DbError::InvalidFieldType),
         }
     }
+    let table = if new_tables.len() == 1 {
+        new_tables.into_iter().next().unwrap()
+    } else {
+        Element::array(new_tables.into_iter().map(Box::new).collect())
+    };
     Ok((
         new_fields,
         table,
