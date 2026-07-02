@@ -360,6 +360,7 @@ fn process_schema(
                 mapping = mapping.add_table_field(Element::raw(&source), Element::raw(&target));
                 new_fields.push(Element::Spec(source, target));
             }
+            _ => return Err(DbError::InvalidFieldType),
         }
     }
     Ok((

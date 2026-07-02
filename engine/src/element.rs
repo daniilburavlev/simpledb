@@ -6,6 +6,7 @@ pub enum Element {
     Raw(String),
     View(String, String),
     Spec(String, String),
+    Array(Vec<Box<Self>>),
 }
 
 impl Element {
@@ -21,6 +22,10 @@ impl Element {
         Self::Spec(source.to_string(), target.to_string())
     }
 
+    pub(crate) fn array(values: Vec<Box<Self>>) -> Self {
+        Self::Array(values)
+    }
+
     pub fn as_raw(&self) -> DbResult<&str> {
         match self {
             Self::Raw(s) => Ok(s),
@@ -33,6 +38,13 @@ impl Element {
             Self::Raw(s) => s.len(),
             Self::View(source, name) => source.len() + 4 + name.len(),
             Self::Spec(source, target) => source.len() + 4 + target.len(),
+            Self::Array(values) => {
+                let mut len = 0;
+                for value in values {
+                    len += value.len();
+                }
+                len
+            }
         }
     }
 
@@ -47,6 +59,17 @@ impl std::fmt::Display for Element {
             Self::Raw(value) => write!(f, "{}", value),
             Self::View(source, name) => write!(f, "{} {}", source, name),
             Self::Spec(source, target) => write!(f, "{}.{}", source, target),
+            Self::Array(values) => {
+                write!(f, "(")?;
+                for (i, value) in values.iter().enumerate() {
+                    if i == 0 {
+                        write!(f, "{}", value)?;
+                    } else {
+                        write!(f, "{},", value)?;
+                    }
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -65,5 +88,11 @@ mod tests {
     fn spec() {
         let spec = Element::spec("t1", "f1");
         assert_eq!("t1.f1", spec.to_string());
+    }
+
+    #[test]
+    fn array() {
+        let spec = Element::array(vec![Box::new(Element::view("table", "t"))]);
+        assert_eq!("(table t)", spec.to_string());
     }
 }

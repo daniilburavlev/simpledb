@@ -244,7 +244,7 @@ mod tests {
         assert!(existed.is_empty());
     }
 
-    // #[test]
+    #[test]
     fn join() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
@@ -265,9 +265,9 @@ mod tests {
             let result = db
                 .query(
                     &tx,
-                    &format!("SELECT users.id, employees.id FROM t1 JOIN t2 on t1., t2 WHERE i1 = i2 AND i1 = {}", i),
-                )
-                .unwrap();
+                    "SELECT users.id, employees.id FROM users JOIN employees ON users.id = employees.id"
+            )
+            .unwrap();
             while result.next().unwrap() {
                 assert_eq!(i, result.get_i32(&Element::raw("i1")).unwrap());
                 assert_eq!(i, result.get_i32(&Element::raw("i2")).unwrap());
