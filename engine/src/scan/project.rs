@@ -34,9 +34,7 @@ impl ProjectScan {
             return Err(DbError::FieldNotExists(field.to_string()));
         }
         let field = match field {
-            Element::Spec(_, field) => {
-                &Element::raw(field)
-            }
+            Element::Spec(_, field) => &Element::raw(field),
             e => e,
         };
         if let Some(field) = self.mapping.field(field) {

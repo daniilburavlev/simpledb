@@ -27,7 +27,7 @@ impl ProjectPlan {
         for field in fields {
             let source_field = match &field {
                 Element::Spec(table, field) => {
-                    let source_table = Element::raw(&table);
+                    let source_table = Element::raw(table);
                     let table = if let Some(Element::Raw(table)) = mapping.table(&source_table) {
                         table
                     } else {

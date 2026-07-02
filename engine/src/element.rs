@@ -6,7 +6,7 @@ pub enum Element {
     Raw(String),
     View(String, String),
     Spec(String, String),
-    Array(Vec<Box<Self>>),
+    Array(Vec<Self>),
 }
 
 impl Element {
@@ -22,7 +22,7 @@ impl Element {
         Self::Spec(source.to_string(), target.to_string())
     }
 
-    pub(crate) fn array(values: Vec<Box<Self>>) -> Self {
+    pub(crate) fn array(values: Vec<Self>) -> Self {
         Self::Array(values)
     }
 
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn array() {
-        let spec = Element::array(vec![Box::new(Element::view("table", "t"))]);
+        let spec = Element::array(vec![Element::view("table", "t")]);
         assert_eq!("(table t)", spec.to_string());
     }
 }

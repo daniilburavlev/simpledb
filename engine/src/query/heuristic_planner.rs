@@ -27,7 +27,7 @@ impl HeuristicQueryPlannerInner {
 
     fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         let tables = match &data.table {
-            Element::Array(tables) => tables.iter().map(|t| t.as_ref().clone()).collect(),
+            Element::Array(tables) => tables.to_vec(),
             table => vec![table.clone()],
         };
         for table in tables {

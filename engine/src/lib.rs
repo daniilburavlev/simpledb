@@ -262,7 +262,11 @@ mod tests {
             .unwrap();
             db.execute(
                 &tx,
-                &format!("INSERT INTO employees(eid, uid) VALUES({}, {})", i + 1000, i),
+                &format!(
+                    "INSERT INTO employees(eid, uid) VALUES({}, {})",
+                    i + 1000,
+                    i
+                ),
             )
             .unwrap();
         }

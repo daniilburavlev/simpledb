@@ -39,9 +39,7 @@ impl SchemaInner {
 
     fn info(&self, field: &Element) -> Option<FieldInfo> {
         match field {
-            Element::Raw(field) => {
-                self.infos.get(&Element::raw(field)).cloned()
-            },
+            Element::Raw(field) => self.infos.get(&Element::raw(field)).cloned(),
             Element::Spec(table, field) => {
                 if self.table == Element::raw(table) {
                     self.infos.get(&Element::raw(field)).cloned()

@@ -87,10 +87,8 @@ impl Expression {
                     Element::raw(field)
                 }
             }
-            Element::Spec(_, target) => {
-                Element::raw(target)
-            }
-            _ => panic!("unprocessable field")
+            Element::Spec(_, target) => Element::raw(target),
+            _ => panic!("unprocessable field"),
         };
         Self::Field(field)
     }

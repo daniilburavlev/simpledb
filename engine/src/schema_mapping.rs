@@ -27,18 +27,14 @@ pub(crate) struct SchemaMappingBuilder(SchemaMappingInner);
 
 impl SchemaMappingBuilder {
     pub(crate) fn add_table_field(mut self, table: Element, field: Element) -> Self {
-        let fields = self.0.tables_fields.entry(table).or_insert(HashSet::new());
+        let fields = self.0.tables_fields.entry(table).or_default();
         fields.insert(field);
         self
     }
 
     pub(crate) fn add_field(mut self, table: Element, id: Element, source: Element) -> Self {
         self.0.fields_names.insert(id, source.clone());
-        let fields = self
-            .0
-            .tables_fields
-            .entry(table)
-            .or_insert_with(HashSet::new);
+        let fields = self.0.tables_fields.entry(table).or_default();
         fields.insert(source);
         self
     }

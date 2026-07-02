@@ -84,7 +84,7 @@ impl Parser {
         let fields = self.select_list()?;
 
         self.lexer.eat_keyword(Token::From)?;
-        let (tables, predicate) = self.from_clause()?;
+        let (tables, predicate) = self.claude_from()?;
 
         if self.lexer.match_keyword(Token::Where) {
             self.lexer.eat_keyword(Token::Where)?;
@@ -94,7 +94,7 @@ impl Parser {
         let table = if tables.len() == 1 {
             tables.into_iter().next().unwrap()
         } else {
-            Element::array(tables.into_iter().map(Box::new).collect())
+            Element::array(tables.into_iter().collect())
         };
 
         let mut group_by = GroupByData::default();
@@ -129,7 +129,7 @@ impl Parser {
     /// tables (`FROM a, b`) and explicit `JOIN ... ON ...` syntax. Any `ON`
     /// predicates are folded into the returned `Predicate`, which the planner
     /// later splits back into per-table select and join predicates.
-    fn from_clause(&self) -> DbResult<(Vec<Element>, Predicate)> {
+    fn claude_from(&self) -> DbResult<(Vec<Element>, Predicate)> {
         let mut tables = vec![self.element()?];
         let predicate = Predicate::default();
         loop {
@@ -364,7 +364,7 @@ fn process_schema(
 )> {
     let mut mapping = SchemaMappingBuilder::default();
     let raw_tables = match table {
-        Element::Array(tables) => tables.into_iter().map(|t| *t).collect(),
+        Element::Array(tables) => tables.into_iter().collect(),
         table => vec![table],
     };
     let mut new_tables = Vec::with_capacity(raw_tables.len());
@@ -405,7 +405,7 @@ fn process_schema(
     let table = if new_tables.len() == 1 {
         new_tables.into_iter().next().unwrap()
     } else {
-        Element::array(new_tables.into_iter().map(Box::new).collect())
+        Element::array(new_tables.into_iter().collect())
     };
     Ok((
         new_fields,
