@@ -40,6 +40,12 @@ pub enum DbError {
     UnexpectedToken(String),
     #[error("max size ({0}) exceeded: {1}")]
     MaxSize(usize, usize),
+    #[error("buffer is not ready")]
+    BufferNotReady,
+    #[error("invalid value")]
+    InvalidValue,
+    #[error("relation '{0}' not exists")]
+    RelationNotExists(String),
 }
 
 impl DbError {
@@ -50,6 +56,10 @@ impl DbError {
 
     pub fn field_not_exists(field_name: &str) -> Self {
         Self::FieldNotExists(field_name.to_string())
+    }
+
+    pub fn relation_not_exists(field_name: &str) -> Self {
+        Self::RelationNotExists(field_name.to_string())
     }
 
     pub fn other(msg: &str) -> Self {

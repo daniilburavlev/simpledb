@@ -85,6 +85,10 @@ impl Schema {
     pub fn has_field(&self, field: &Element) -> bool {
         self.0.has_field(field)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.fields.is_empty()
+    }
 }
 
 pub struct SchemaBuilder {
