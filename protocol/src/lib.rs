@@ -85,12 +85,13 @@ impl DbResponse {
             DbResponse::Ok => {
                 w.write_all(&[RESPONSE_OK])?;
                 write += TYPE_SIZE;
-            },
+            }
             DbResponse::Err(err) => {
                 let len = err.len();
                 let mut buffer = vec![0u8; TYPE_SIZE + LEN_SIZE + len];
                 buffer[0] = RESPONSE_ERR;
-                buffer[TYPE_SIZE..TYPE_SIZE + LEN_SIZE].copy_from_slice((len as u16).to_be_bytes().as_ref());
+                buffer[TYPE_SIZE..TYPE_SIZE + LEN_SIZE]
+                    .copy_from_slice((len as u16).to_be_bytes().as_ref());
                 buffer[TYPE_SIZE + LEN_SIZE..].copy_from_slice(err.as_bytes());
                 w.write_all(&buffer)?;
                 write += buffer.len();

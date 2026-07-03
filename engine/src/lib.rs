@@ -47,6 +47,7 @@ pub struct SimpleDB {
     lm: Arc<LogMgr>,
     bm: Arc<BufferMgr>,
     lock_table: Arc<LockTable>,
+    md: MetadataMgr,
 }
 
 impl SimpleDB {
@@ -67,13 +68,14 @@ impl SimpleDB {
             tracing::debug!("recovering existing database");
             tx.recover()?;
         }
-        MetadataMgr::new(is_new, &tx)?;
+        let md = MetadataMgr::new(is_new, &tx)?;
         tx.commit()?;
         Ok(Self {
             fm,
             lm,
             bm,
             lock_table,
+            md,
         })
     }
 
@@ -82,29 +84,25 @@ impl SimpleDB {
         Ok(Arc::new(tx))
     }
 
-    pub fn metadata_mgr(&self, tx: &Arc<Transaction>) -> DbResult<MetadataMgr> {
-        MetadataMgr::new(false, tx)
+    pub fn metadata_mgr(&self) -> MetadataMgr {
+        self.md.clone()
     }
 
     pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {
-        let planner = self.planner(tx)?;
+        let planner = self.planner();
         let plan = planner.create_query_plan(query, tx)?;
         plan.open()
     }
 
     pub fn execute(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<i32> {
-        let planner = self.planner(tx)?;
+        let planner = self.planner();
         planner.execute_update(query, tx)
     }
 
-    fn planner(&self, tx: &Arc<Transaction>) -> DbResult<Planner> {
-        let md = self.metadata_mgr(tx)?;
-        let query_planner = HeuristicQueryPlanner::new(md.clone());
-        let update_planner = BasicUpdatePlanner::new(md);
-        Ok(Planner::new(
-            Rc::new(query_planner),
-            Rc::new(update_planner),
-        ))
+    fn planner(&self) -> Planner {
+        let query_planner = HeuristicQueryPlanner::new(self.md.clone());
+        let update_planner = BasicUpdatePlanner::new(self.md.clone());
+        Planner::new(Rc::new(query_planner), Rc::new(update_planner))
     }
 }
 

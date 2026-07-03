@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt::Debug, rc::Rc};
-
 use crate::{element::Element, field_info::FieldInfo};
+use std::sync::Arc;
+use std::{collections::HashMap, fmt::Debug};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInner {
@@ -67,7 +67,7 @@ impl SchemaInner {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Schema(Rc<SchemaInner>);
+pub struct Schema(Arc<SchemaInner>);
 
 impl Schema {
     pub fn table(&self) -> &Element {
@@ -132,13 +132,12 @@ impl SchemaBuilder {
     }
 
     pub fn build(self) -> Schema {
-        Schema(Rc::new(self.schema))
+        Schema(Arc::new(self.schema))
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]

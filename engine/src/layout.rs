@@ -1,6 +1,6 @@
-use std::{collections::HashMap, rc::Rc};
-
 use file::page::I32_SIZE;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::{element::Element, schema::Schema};
 
@@ -52,15 +52,15 @@ impl LayoutInner {
 }
 
 #[derive(Debug, Clone)]
-pub struct Layout(Rc<LayoutInner>);
+pub struct Layout(Arc<LayoutInner>);
 
 impl Layout {
     pub fn new(schema: Schema) -> Self {
-        Self(Rc::new(LayoutInner::new(schema)))
+        Self(Arc::new(LayoutInner::new(schema)))
     }
 
     pub fn from(schema: Schema, offsets: HashMap<Element, i32>, slotsize: i32) -> Self {
-        Self(Rc::new(LayoutInner::from(schema, offsets, slotsize)))
+        Self(Arc::new(LayoutInner::from(schema, offsets, slotsize)))
     }
 
     pub fn offset(&self, field: &Element) -> i32 {

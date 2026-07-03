@@ -35,7 +35,7 @@ mod tests {
         let db = SimpleDB::configured(dir.path(), 512, 8).unwrap();
 
         let setup_tx = db.get_tx().unwrap();
-        let md = db.metadata_mgr(&setup_tx).unwrap();
+        let md = db.metadata_mgr();
 
         let table = "student";
 

@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    rc::Rc,
     sync::{Arc, RwLock},
 };
 
@@ -107,7 +106,7 @@ impl StatMgrLock {
 
 #[derive(Clone)]
 pub struct StatMgr {
-    lock: Rc<RwLock<StatMgrLock>>,
+    lock: Arc<RwLock<StatMgrLock>>,
 }
 
 impl StatMgr {
@@ -115,7 +114,7 @@ impl StatMgr {
         let mut lock = StatMgrLock::new(table_mgr);
         lock.refresh_statisic(tx)?;
         Ok(Self {
-            lock: Rc::new(RwLock::new(lock)),
+            lock: Arc::new(RwLock::new(lock)),
         })
     }
 

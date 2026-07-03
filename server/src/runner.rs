@@ -33,11 +33,11 @@ impl Runner {
 
 #[cfg(test)]
 mod tests {
-    use std::net::TcpStream;
-    use rand::RngExt;
-    use tempfile::tempdir;
-    use protocol::{DbRequest, DbResponse};
     use super::*;
+    use protocol::{DbRequest, DbResponse};
+    use rand::RngExt;
+    use std::net::TcpStream;
+    use tempfile::tempdir;
 
     #[test]
     fn runner_query() {
@@ -54,6 +54,9 @@ mod tests {
         let query = DbRequest::Query("select id, name from users".to_string());
         query.write(&mut stream).unwrap();
         let response = DbResponse::read(&mut stream).unwrap();
-        assert_eq!(response, DbResponse::Err("relation 'users' not exists".to_string()))
+        assert_eq!(
+            response,
+            DbResponse::Err("relation 'users' not exists".to_string())
+        )
     }
 }

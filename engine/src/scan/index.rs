@@ -180,7 +180,7 @@ mod tests {
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
 
-        let md = db.metadata_mgr(&tx).unwrap();
+        let md = db.metadata_mgr();
 
         let sid = Element::raw("sid");
         let sname = Element::raw("sname");
