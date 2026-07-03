@@ -8,3 +8,5 @@ clap = { workspace = true }
 common = { path = "../common" }
 engine = { path = "../engine" }
 
+[dev-dependencies]
+tempfile = { workspace = true }

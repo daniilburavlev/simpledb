@@ -5,12 +5,10 @@ version = "0.0.1"
 resolver = "2"
 members = [
     "buffer",
-    "client",
     "common",
     "engine",
     "file",
     "log",
-    "network",
     "server",
     "transaction",
 ]
