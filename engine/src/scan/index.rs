@@ -179,6 +179,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
+
         let md = db.metadata_mgr();
 
         let sid = Element::raw("sid");

@@ -1,9 +1,8 @@
 [package]
-name = "file"
+name = "protocol"
 edition = "2024"
 version.workspace = true
 
 [dependencies]
-bytes = { workspace = true }
 common = { path = "../common" }
-tempfile = { workspace = true }
+engine = { path = "../engine" }

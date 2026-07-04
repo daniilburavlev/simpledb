@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use common::DbResult;
+use common::error::DbError;
 use transaction::transaction::Transaction;
 
 use crate::scan::table::TableScan;
@@ -112,8 +113,11 @@ impl TableMgr {
                 offsets.insert(Element::Raw(field_name), offset);
             }
         }
-        let schema = schema.build();
         fcat.close()?;
+        let schema = schema.build();
+        if schema.is_empty() {
+            return Err(DbError::relation_not_exists(table_name));
+        }
         Ok(Layout::from(schema, offsets, size))
     }
 }

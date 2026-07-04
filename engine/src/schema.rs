@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fmt::Debug, rc::Rc};
-
 use crate::{element::Element, field_info::FieldInfo};
+use std::sync::Arc;
+use std::{collections::HashMap, fmt::Debug};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SchemaInner {
@@ -67,7 +67,7 @@ impl SchemaInner {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Schema(Rc<SchemaInner>);
+pub struct Schema(Arc<SchemaInner>);
 
 impl Schema {
     pub fn table(&self) -> &Element {
@@ -84,6 +84,10 @@ impl Schema {
 
     pub fn has_field(&self, field: &Element) -> bool {
         self.0.has_field(field)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.fields.is_empty()
     }
 }
 
@@ -128,13 +132,12 @@ impl SchemaBuilder {
     }
 
     pub fn build(self) -> Schema {
-        Schema(Rc::new(self.schema))
+        Schema(Arc::new(self.schema))
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]

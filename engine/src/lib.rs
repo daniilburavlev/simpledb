@@ -41,6 +41,7 @@ const LOG_FILE: &str = "wal.log";
 const BLOCK_SIZE: usize = 8 * 1024;
 const NUM_BUFFERS: usize = 1024;
 
+#[derive(Clone)]
 pub struct SimpleDB {
     fm: Arc<FileMgr>,
     lm: Arc<LogMgr>,
@@ -83,8 +84,8 @@ impl SimpleDB {
         Ok(Arc::new(tx))
     }
 
-    pub fn metadata_mgr(&self) -> &MetadataMgr {
-        &self.md
+    pub fn metadata_mgr(&self) -> MetadataMgr {
+        self.md.clone()
     }
 
     pub fn query(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<Rc<dyn Scan>> {

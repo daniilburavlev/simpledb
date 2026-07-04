@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use crate::runner::Runner;
+use common::DbResult;
+use std::path::Path;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod runner;
+mod session;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub fn run(port: u16, path: &Path) -> DbResult<()> {
+    let runner = Runner::new(port, path)?;
+    runner.run()
 }

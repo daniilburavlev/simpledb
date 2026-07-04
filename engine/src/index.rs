@@ -33,6 +33,8 @@ mod tests {
     fn index_retrieval() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::configured(dir.path(), 512, 8).unwrap();
+
+        let setup_tx = db.get_tx().unwrap();
         let md = db.metadata_mgr();
 
         let table = "student";
@@ -41,7 +43,6 @@ mod tests {
         let sname = Element::raw("sname");
         let majorid = Element::raw("majorid");
 
-        let setup_tx = db.get_tx().unwrap();
         let schema = SchemaBuilder::new(Element::raw(table))
             .add_int_field(sid.clone())
             .add_string_field(sname.clone(), 16)
