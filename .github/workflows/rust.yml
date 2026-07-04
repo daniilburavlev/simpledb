@@ -45,13 +45,13 @@ jobs:
         run: cargo install cargo-criterion
 
       - name: Run benchmarks
-        run: cargo criterion --message-format=json > benchmark_results.json
+        run: cargo bench -- --output-format bencher | tee output.txt
 
-      - name: Store benchmark resul
+      - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
-          output-file-path: benchmark_results.json
+          output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: '150%'
