@@ -10,18 +10,12 @@ use transaction::transaction::Transaction;
 const TYPE_SIZE: usize = U8_SIZE;
 const LEN_SIZE: usize = I32_SIZE;
 const PTR_SIZE: usize = I32_SIZE;
-/// Size of the overflow pointer stored inline in every entry. It holds the block
-/// number of the first overflow page for this key, or `-1` when the whole RID
-/// list fits inline.
 pub(crate) const OVERFLOW_SIZE: usize = I32_SIZE;
 
 #[derive(Clone, Debug)]
 pub(crate) struct BTreeEntry {
     pub(crate) value: Value,
-    /// The portion of the RID list stored inline in the leaf page. RIDs that do
-    /// not fit are spilled into the overflow chain pointed to by `overflow`.
     pub(crate) rid: Vec<RID>,
-    /// Block number of the first overflow page, or `-1` when there is none.
     pub(crate) overflow: i32,
 }
 

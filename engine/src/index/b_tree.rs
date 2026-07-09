@@ -12,7 +12,7 @@ use crate::{
     index::b_tree::{
         page::{
             BTreePage, POINTER_SIZE, TYPE_SIZE, insert_pointer, leaf_size, node_size,
-            pointer_index, split_entries, split_pointers,
+            pointer_index, split_entries, split_pointers, update_pointer,
         },
         pointer::BTreePointer,
     },
@@ -106,7 +106,8 @@ impl BTreeIndexInner {
     fn insert(&self, key: Value, rid: RID) -> DbResult<()> {
         let mut block = BlockId::new(&self.index_name, 0);
         let mut page = BTreePage::read(&self.tx, &block)?;
-        let mut new_offset = None::<(Value, i32)>;
+        // Pending split to fold into the parent: (left_key, left_block, right_key, right_block).
+        let mut split = None::<(Value, i32, Value, i32)>;
         let block_size = self.tx.block_size() as usize;
         let mut new_root = None::<i32>;
 
@@ -126,12 +127,15 @@ impl BTreeIndexInner {
                     mut children,
                     next,
                 } => {
-                    if let Some((key, offset)) = new_offset.take() {
+                    if let Some((left_key, left_block, right_key, right_block)) = split.take() {
+                        // Refresh the split child's separator (its min may have
+                        // dropped) and add the separator for its new right half.
+                        update_pointer(&mut children, left_block, left_key);
                         insert_pointer(
                             &mut children,
                             BTreePointer {
-                                value: key,
-                                block_num: offset,
+                                value: right_key,
+                                block_num: right_block,
                             },
                         );
                         if node_size(&children) <= block_size {
@@ -150,18 +154,18 @@ impl BTreeIndexInner {
                             let parent_block = self.tx.append(&self.index_name)?;
                             new_root = Some(parent_block.num);
                             let right_block = self.tx.append(&self.index_name)?;
+                            self.rewrite_parent(&right_children, right_block.num)?;
                             let left = BTreePage::Node {
                                 parent: parent_block.num,
                                 children,
                                 next: right_block.num,
                             };
-                            self.rewrite_parent(&right_children, parent_block.num)?;
                             let right = BTreePage::Node {
                                 parent: parent_block.num,
                                 children: right_children,
                                 next,
                             };
-                            let parent = BTreePage::Node {
+                            let root = BTreePage::Node {
                                 parent: 0,
                                 children: vec![
                                     BTreePointer {
@@ -175,7 +179,7 @@ impl BTreeIndexInner {
                                 ],
                                 next: -1,
                             };
-                            parent.write(&parent_block, &self.tx)?;
+                            root.write(&parent_block, &self.tx)?;
                             left.write(&block, &self.tx)?;
                             right.write(&right_block, &self.tx)?;
                             block = BlockId::new(&self.index_name, 0);
@@ -183,16 +187,23 @@ impl BTreeIndexInner {
                                 root: parent_block.num,
                             };
                         } else {
-                            block = BlockId::new(&self.index_name, parent);
-                            page = BTreePage::read(&self.tx, &block)?;
+                            let right_block = self.tx.append(&self.index_name)?;
+                            self.rewrite_parent(&right_children, right_block.num)?;
+                            let left = BTreePage::Node {
+                                parent,
+                                children,
+                                next: right_block.num,
+                            };
                             let right = BTreePage::Node {
                                 parent,
-                                children: right_children.clone(),
-                                next: -1,
+                                children: right_children,
+                                next,
                             };
-                            let right_block = self.tx.append(&self.index_name)?;
+                            left.write(&block, &self.tx)?;
                             right.write(&right_block, &self.tx)?;
-                            new_offset = Some((right_key, right_block.num));
+                            split = Some((left_key, block.num, right_key, right_block.num));
+                            block = BlockId::new(&self.index_name, parent);
+                            page = BTreePage::read(&self.tx, &block)?;
                         }
                     } else {
                         let idx = pointer_index(&children, &key);
@@ -208,7 +219,6 @@ impl BTreeIndexInner {
                     values: mut children,
                     next,
                 } => {
-                    let block_size = self.tx.block_size() as usize;
                     let entry_budget = block_size - leaf_header_size();
                     let min_entry = TYPE_SIZE + key.size() + OVERFLOW_SIZE + LEN_SIZE;
                     if min_entry > entry_budget {
@@ -240,7 +250,7 @@ impl BTreeIndexInner {
                             values: right_children,
                             next,
                         };
-                        let parent = BTreePage::Node {
+                        let root = BTreePage::Node {
                             parent: 0,
                             children: vec![
                                 BTreePointer {
@@ -254,7 +264,7 @@ impl BTreeIndexInner {
                             ],
                             next: -1,
                         };
-                        parent.write(&parent_block, &self.tx)?;
+                        root.write(&parent_block, &self.tx)?;
                         left.write(&block, &self.tx)?;
                         right.write(&right_block, &self.tx)?;
                         new_root = Some(parent_block.num);
@@ -263,12 +273,12 @@ impl BTreeIndexInner {
                             root: parent_block.num,
                         };
                     } else {
+                        let right_block = self.tx.append(&self.index_name)?;
                         let left = BTreePage::Leaf {
                             parent,
                             values: children,
-                            next,
+                            next: right_block.num,
                         };
-                        let right_block = self.tx.append(&self.index_name)?;
                         let right = BTreePage::Leaf {
                             parent,
                             values: right_children,
@@ -276,7 +286,7 @@ impl BTreeIndexInner {
                         };
                         left.write(&block, &self.tx)?;
                         right.write(&right_block, &self.tx)?;
-                        new_offset = Some((right_key, right_block.num));
+                        split = Some((left_key, block.num, right_key, right_block.num));
                         block = BlockId::new(&self.index_name, parent);
                         page = BTreePage::read(&self.tx, &block)?;
                     }
@@ -518,6 +528,41 @@ mod tests {
         for i in 0..1000 {
             index.before_first(Value::Integer(i)).unwrap();
             assert!(index.next().unwrap());
+        }
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn shuffled_insert_small_page() {
+        let (_dir, tx) = init_with_size(48);
+        let mut index = BTreeIndexInner::new("shuf", &tx).unwrap();
+        // Non-monotonic insertion order forces splits of non-leftmost leaves and
+        // inserts of keys below a leaf's current minimum — the case that a stale
+        // left separator (fixed via update_pointer) used to orphan.
+        let order = [5, 2, 8, 1, 9, 3, 7, 0, 6, 4];
+        for &i in &order {
+            index.insert(Value::Integer(i), RID::new(i, i)).unwrap();
+        }
+        for i in 0..10 {
+            index.before_first(Value::Integer(i)).unwrap();
+            assert!(index.next().unwrap(), "key {i} not found");
+            assert_eq!(index.get_data_rid().unwrap(), RID::new(i, i));
+        }
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn descending_insert() {
+        // Pure descending order: every insert goes to the leftmost leaf and
+        // repeatedly pushes its minimum down.
+        let (_dir, tx) = init_with_size(64);
+        let mut index = BTreeIndexInner::new("desc", &tx).unwrap();
+        for i in (0..200).rev() {
+            index.insert(Value::Integer(i), RID::new(i, i)).unwrap();
+        }
+        for i in 0..200 {
+            index.before_first(Value::Integer(i)).unwrap();
+            assert!(index.next().unwrap(), "key {i} not found");
         }
         tx.commit().unwrap();
     }

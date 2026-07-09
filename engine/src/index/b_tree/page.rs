@@ -36,8 +36,6 @@ pub(crate) enum BTreePage {
         values: Vec<BTreeEntry>,
         next: i32,
     },
-    /// A chained page holding the RIDs of a single key that did not fit inline
-    /// in its leaf entry. `next` links to the following overflow page, or `-1`.
     Overflow {
         rids: Vec<RID>,
         next: i32,
@@ -302,6 +300,15 @@ pub(crate) fn insert_pointer(values: &mut Vec<BTreePointer>, value: BTreePointer
     }
 }
 
+/// Updates the separator key of the pointer that references `block_num`. Used
+/// after a child splits: the left half keeps its block but its minimum key may
+/// have dropped, so the parent's separator for it must be refreshed.
+pub(crate) fn update_pointer(values: &mut [BTreePointer], block_num: i32, key: Value) {
+    if let Some(pointer) = values.iter_mut().find(|p| p.block_num == block_num) {
+        pointer.value = key;
+    }
+}
+
 pub(crate) fn split_pointers(
     mut values: Vec<BTreePointer>,
     block_size: usize,
@@ -350,14 +357,10 @@ pub(crate) fn leaf_size(values: &[BTreeEntry]) -> usize {
     size
 }
 
-/// Bytes consumed by a leaf page's fixed header (page type, parent pointer,
-/// entry count, and the trailing `next` pointer). The remaining space is the
-/// budget available for a single entry that must fit on its own page.
 pub(crate) fn leaf_header_size() -> usize {
     TYPE_SIZE + POINTER_SIZE + LEN_SIZE + NEXT_SIZE
 }
 
-/// Bytes an overflow page occupies when holding `len` RIDs.
 pub(crate) fn overflow_size(len: usize) -> usize {
     TYPE_SIZE + NEXT_SIZE + LEN_SIZE + len * 2 * POINTER_SIZE
 }

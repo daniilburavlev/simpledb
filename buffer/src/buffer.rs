@@ -86,6 +86,10 @@ impl<'a> BufferGuard<'a> {
         self.0.contents.get_u8(offset)
     }
 
+    pub fn get_u64(&self, offset: usize) -> u64 {
+        self.0.contents.get_u64(offset)
+    }
+
     pub fn get_i32(&self, offset: usize) -> i32 {
         self.0.contents.get_i32(offset)
     }
@@ -96,6 +100,10 @@ impl<'a> BufferGuard<'a> {
 
     pub fn set_u8(&mut self, offset: usize, value: u8) {
         self.0.contents.set_u8(offset, value);
+    }
+
+    pub fn set_u64(&mut self, offset: usize, value: u64) {
+        self.0.contents.set_u64(offset, value);
     }
 
     pub fn set_i32(&mut self, offset: usize, value: i32) {
@@ -175,6 +183,12 @@ impl Buffer {
         Ok(())
     }
 
+    pub fn set_u64(&self, offset: usize, value: u64) -> DbResult<()> {
+        let mut lock = self.buffer.lock().map_err(DbError::lock)?;
+        lock.contents.set_u64(offset, value);
+        Ok(())
+    }
+
     pub fn set_i32(&self, offset: usize, value: i32) -> DbResult<()> {
         let mut lock = self.buffer.lock().map_err(DbError::lock)?;
         lock.contents.set_i32(offset, value);
@@ -184,6 +198,11 @@ impl Buffer {
     pub fn get_u8(&self, offset: usize) -> DbResult<u8> {
         let lock = self.buffer.lock().map_err(DbError::lock)?;
         Ok(lock.contents.get_u8(offset))
+    }
+
+    pub fn get_u64(&self, offset: usize) -> DbResult<u64> {
+        let lock = self.buffer.lock().map_err(DbError::lock)?;
+        Ok(lock.contents.get_u64(offset))
     }
 
     pub fn get_i32(&self, offset: usize) -> DbResult<i32> {
