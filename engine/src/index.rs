@@ -3,6 +3,7 @@ use common::DbResult;
 use crate::{rid::RID, value::Value};
 
 pub mod b_tree;
+pub mod hash;
 
 pub trait Index {
     fn before_first(&self, key: Value) -> DbResult<()>;

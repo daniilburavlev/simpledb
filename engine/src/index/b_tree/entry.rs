@@ -10,11 +10,19 @@ use transaction::transaction::Transaction;
 const TYPE_SIZE: usize = U8_SIZE;
 const LEN_SIZE: usize = I32_SIZE;
 const PTR_SIZE: usize = I32_SIZE;
+/// Size of the overflow pointer stored inline in every entry. It holds the block
+/// number of the first overflow page for this key, or `-1` when the whole RID
+/// list fits inline.
+pub(crate) const OVERFLOW_SIZE: usize = I32_SIZE;
 
 #[derive(Clone, Debug)]
 pub(crate) struct BTreeEntry {
     pub(crate) value: Value,
+    /// The portion of the RID list stored inline in the leaf page. RIDs that do
+    /// not fit are spilled into the overflow chain pointed to by `overflow`.
     pub(crate) rid: Vec<RID>,
+    /// Block number of the first overflow page, or `-1` when there is none.
+    pub(crate) overflow: i32,
 }
 
 impl BTreeEntry {
@@ -32,6 +40,8 @@ impl BTreeEntry {
             _ => return Err(DbError::other("unexpected value type")),
         };
         read += value.size();
+        let overflow = tx.get_i32(block, offset + read)?;
+        read += OVERFLOW_SIZE;
         let mut rid = vec![];
         let len = tx.get_i32(block, offset + read)?;
         read += LEN_SIZE;
@@ -42,7 +52,14 @@ impl BTreeEntry {
             read += I32_SIZE;
             rid.push(RID::new(block_num, slot));
         }
-        Ok((Self { value, rid }, read))
+        Ok((
+            Self {
+                value,
+                rid,
+                overflow,
+            },
+            read,
+        ))
     }
 
     pub(crate) fn write(
@@ -66,6 +83,8 @@ impl BTreeEntry {
                 write += Page::str_space(value);
             }
         }
+        tx.set_i32(block, offset + write, self.overflow, true)?;
+        write += OVERFLOW_SIZE;
         let len = self.rid.len() as i32;
         tx.set_i32(block, offset + write, len, true)?;
         write += LEN_SIZE;
@@ -79,7 +98,7 @@ impl BTreeEntry {
     }
 
     pub(crate) fn size(&self) -> usize {
-        let mut size = TYPE_SIZE + self.value.size() + LEN_SIZE;
+        let mut size = TYPE_SIZE + self.value.size() + OVERFLOW_SIZE + LEN_SIZE;
         for _ in &self.rid {
             size += 2 * PTR_SIZE;
         }
@@ -121,6 +140,7 @@ mod tests {
         let entry = BTreeEntry {
             value: Value::Integer(10),
             rid: vec![RID::new(1, 0), RID::new(2, 10), RID::new(3, 100)],
+            overflow: -1,
         };
         entry.write(&tx, &block, 0).unwrap();
         let restored = BTreeEntry::read(&tx, &block, 0).unwrap();
