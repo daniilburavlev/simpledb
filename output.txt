@@ -1,6 +1,0 @@
-test insert ... bench:     158,375 ns/iter (+/- 37,529)
-
-test join ... bench:   9,382,354 ns/iter (+/- 829,066)
-
-test index_insert ... bench:     212,233 ns/iter (+/- 29,084)
-
