@@ -77,19 +77,19 @@ mod tests {
         let response = DbResponse::read(&mut stream).unwrap();
         assert_eq!(response, DbResponse::HasNext(true));
 
-        let select = DbRequest::GetField("id".to_string());
-        select.write(&mut stream).unwrap();
+        let get_int = DbRequest::GetField("id".to_string());
+        get_int.write(&mut stream).unwrap();
 
         let response = DbResponse::read(&mut stream).unwrap();
         assert_eq!(response, DbResponse::Value(Value::Integer(1)));
 
-        // let select = DbRequest::GetField("name".to_string());
-        // select.write(&mut stream).unwrap();
-        //
-        // let response = DbResponse::read(&mut stream).unwrap();
-        // assert_eq!(
-        //     response,
-        //     DbResponse::Value(Value::Varchar("User".to_string()))
-        // );
+        let get_string = DbRequest::GetField("name".to_string());
+        get_string.write(&mut stream).unwrap();
+
+        let response = DbResponse::read(&mut stream).unwrap();
+        assert_eq!(
+            response,
+            DbResponse::Value(Value::Varchar("User".to_string()))
+        );
     }
 }

@@ -150,15 +150,17 @@ impl Frame for DbResponse {
                     buffer[1] = INTEGER_TYPE;
                     buffer[2 * TYPE_SIZE..].copy_from_slice(&value.to_be_bytes());
                     w.write_all(&buffer)?;
+                    write += buffer.len();
                 }
                 Value::Varchar(value) => {
                     let len = value.len();
                     let mut buffer = vec![0u8; TYPE_SIZE + TYPE_SIZE + LEN_SIZE + len];
                     buffer[0] = RESPONSE_VALUE;
                     buffer[1] = VARCHAR_TYPE;
-                    buffer[2..2 + LEN_SIZE].copy_from_slice((len as u16).to_le_bytes().as_ref());
+                    buffer[2..(2 + LEN_SIZE)].copy_from_slice((len as u16).to_be_bytes().as_ref());
                     buffer[2 + LEN_SIZE..2 + LEN_SIZE + len].copy_from_slice(value.as_ref());
                     w.write_all(&buffer)?;
+                    write += buffer.len();
                 }
             },
         }
@@ -249,6 +251,18 @@ mod tests {
     fn write_read_execute_response() {
         let query = DbResponse::Execute(0);
         write_read(query, 5);
+    }
+
+    #[test]
+    fn write_read_get_int_value_response() {
+        let query = DbResponse::Value(Value::Integer(1));
+        write_read(query, 6);
+    }
+
+    #[test]
+    fn write_read_get_str_value_response() {
+        let query = DbResponse::Value(Value::Varchar("value".to_string()));
+        write_read(query, 9);
     }
 
     fn write_read<F: Frame>(f: F, size: usize) {
