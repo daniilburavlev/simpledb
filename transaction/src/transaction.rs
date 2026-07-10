@@ -102,6 +102,28 @@ impl Transaction {
         Ok(())
     }
 
+    pub fn set_u64(
+        &self,
+        block: &BlockId,
+        offset: usize,
+        value: u64,
+        ok_to_log: bool,
+    ) -> DbResult<()> {
+        self.concurrency_mgr.x_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::UnexistedBuffer);
+        };
+        let mut guard = buffer.lock()?;
+        let lsn = if ok_to_log {
+            self.rm.set_u64(&guard, offset, value)?
+        } else {
+            -1
+        };
+        guard.set_u64(offset, value);
+        guard.set_modified(self.txnum, lsn);
+        Ok(())
+    }
+
     pub fn set_i32(
         &self,
         block: &BlockId,
@@ -130,6 +152,14 @@ impl Transaction {
             return Err(DbError::BufferAbort);
         };
         buffer.get_u8(offset)
+    }
+
+    pub fn get_u64(&self, block: &BlockId, offset: usize) -> DbResult<u64> {
+        self.concurrency_mgr.s_lock(block)?;
+        let Some(buffer) = self.buffers.get_buffer(block)? else {
+            return Err(DbError::BufferAbort);
+        };
+        buffer.get_u64(offset)
     }
 
     pub fn get_i32(&self, block: &BlockId, offset: usize) -> DbResult<i32> {

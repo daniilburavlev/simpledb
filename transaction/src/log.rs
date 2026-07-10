@@ -1,7 +1,7 @@
 use common::{DbResult, error::DbError};
 use file::{
     block::BlockId,
-    page::{I32_SIZE, Page, U8_SIZE, U16_SIZE},
+    page::{I32_SIZE, Page, U8_SIZE, U16_SIZE, U64_SIZE},
 };
 use log::mgr::LogMgr;
 
@@ -14,7 +14,8 @@ const COMMIT: u8 = 2;
 const ROLLBACK: u8 = 3;
 const SETSTRING: u8 = 4;
 const SETU8: u8 = 6;
-const SETI32: u8 = 7;
+const SETU64: u8 = 7;
+const SETI32: u8 = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogRecord {
@@ -32,6 +33,12 @@ pub enum LogRecord {
         txnum: i32,
         offset: usize,
         value: i32,
+        block: BlockId,
+    },
+    SetU64 {
+        txnum: i32,
+        offset: usize,
+        value: u64,
         block: BlockId,
     },
     SetString {
@@ -53,6 +60,7 @@ impl LogRecord {
             ROLLBACK => Ok(Self::rollback(&page)),
             SETU8 => Ok(Self::set_u8(&page)),
             SETI32 => Ok(Self::set_i32(&page)),
+            SETU64 => Ok(Self::set_u64(&page)),
             SETSTRING => Ok(Self::set_string(&page)),
             _ => Err(DbError::Decoding),
         }
@@ -102,6 +110,17 @@ impl LogRecord {
         }
     }
 
+    fn set_u64(page: &Page) -> Self {
+        let (txnum, offset, block, value_offset) = Self::get_header(page);
+        let value = page.get_u64(value_offset);
+        Self::SetU64 {
+            txnum,
+            offset,
+            value,
+            block,
+        }
+    }
+
     pub fn set_string(page: &Page) -> Self {
         let (txnum, offset, block, value_offset) = Self::get_header(page);
         let value = page.get_string(value_offset);
@@ -140,6 +159,7 @@ impl LogRecord {
             Self::Rollback(_) => ROLLBACK,
             Self::SetU8 { .. } => SETU8,
             Self::SetI32 { .. } => SETI32,
+            Self::SetU64 { .. } => SETU64,
             Self::SetString { .. } => SETSTRING,
         }
     }
@@ -168,6 +188,7 @@ impl LogRecord {
             Self::Rollback(txnum) => *txnum,
             Self::SetU8 { txnum, .. } => *txnum,
             Self::SetI32 { txnum, .. } => *txnum,
+            Self::SetU64 { txnum, .. } => *txnum,
             Self::SetString { txnum, .. } => *txnum,
         }
     }
@@ -192,6 +213,16 @@ impl LogRecord {
             } => {
                 tx.pin(block)?;
                 tx.set_i32(block, *offset, *value, false)?;
+                tx.unpin(block)?;
+            }
+            Self::SetU64 {
+                txnum: _,
+                offset,
+                value,
+                block,
+            } => {
+                tx.pin(block)?;
+                tx.set_u64(block, *offset, *value, false)?;
                 tx.unpin(block)?;
             }
             Self::SetString {
@@ -244,6 +275,18 @@ pub fn write_u8_to_log(
 ) -> DbResult<i32> {
     let (mut page, value_pos) = write_header_to_log(SETU8, txnum, block, offset, U8_SIZE)?;
     page.set_u8(value_pos, value);
+    lm.append(page.contents())
+}
+
+pub fn write_u64_to_log(
+    lm: &LogMgr,
+    txnum: i32,
+    block: &BlockId,
+    offset: usize,
+    value: u64,
+) -> DbResult<i32> {
+    let (mut page, value_pos) = write_header_to_log(SETU64, txnum, block, offset, U64_SIZE)?;
+    page.set_u64(value_pos, value);
     lm.append(page.contents())
 }
 

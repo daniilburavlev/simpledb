@@ -77,7 +77,7 @@ impl BufferListLock {
     }
 
     pub fn unpin_all(&mut self) -> DbResult<()> {
-        for (block, _) in self.pins.0.iter() {
+        for block in self.pins.0.keys() {
             if let Some(buffer) = self.buffers.get(block).cloned() {
                 self.bm.unpin(buffer)?;
             }

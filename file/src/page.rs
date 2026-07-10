@@ -5,6 +5,7 @@ use bytes::BytesMut;
 pub const U8_SIZE: usize = 1;
 pub const U16_SIZE: usize = 2;
 pub const U32_SIZE: usize = 4;
+pub const U64_SIZE: usize = 8;
 pub const I32_SIZE: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +37,16 @@ impl Page {
     pub fn get_u16(&self, offset: usize) -> u16 {
         let buffer = &self.buffer;
         u16::from_be_bytes(buffer[offset..offset + U16_SIZE].try_into().unwrap())
+    }
+
+    pub fn set_u64(&mut self, offset: usize, value: u64) {
+        let buffer = &mut self.buffer;
+        buffer[offset..offset + U64_SIZE].copy_from_slice(&value.to_be_bytes());
+    }
+
+    pub fn get_u64(&self, offset: usize) -> u64 {
+        let buffer = &self.buffer;
+        u64::from_be_bytes(buffer[offset..offset + U64_SIZE].try_into().unwrap())
     }
 
     pub fn set_i32(&mut self, offset: usize, value: i32) {
