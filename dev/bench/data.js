@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783667248893,
+  "lastUpdate": 1783667852256,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -155,6 +155,48 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 252701,
             "range": "± 32995",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e686c929b060d4d6b79277772b2eda73b879461",
+          "message": "Refactor B-Tree index (#7)\n\n* Update B-Tree index splits\n\n* fix B-Tree index\n\n* Delete file\n\n* Fix clippy",
+          "timestamp": "2026-07-10T10:16:19+03:00",
+          "tree_id": "4bd3b2019a13b5f4733eae99cf22c8cd07ee721f",
+          "url": "https://github.com/daniilburavlev/simpledb/commit/3e686c929b060d4d6b79277772b2eda73b879461"
+        },
+        "date": 1783667851424,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 235337,
+            "range": "± 37584",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 13024345,
+            "range": "± 154158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 254028,
+            "range": "± 32777",
             "unit": "ns/iter"
           }
         ]
