@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783630128601,
+  "lastUpdate": 1783666781721,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -79,6 +79,44 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 275205,
             "range": "± 35376",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "id": "e85cd930bba9deaab06a06ce5e8e1432a040f394",
+          "message": "Refactor B-Tree index",
+          "timestamp": "2026-07-09T20:47:28Z",
+          "url": "https://github.com/daniilburavlev/simpledb/pull/7/commits/e85cd930bba9deaab06a06ce5e8e1432a040f394"
+        },
+        "date": 1783666781371,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 227217,
+            "range": "± 35364",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 12894119,
+            "range": "± 140139",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 253674,
+            "range": "± 45091",
             "unit": "ns/iter"
           }
         ]
