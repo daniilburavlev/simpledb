@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783667852256,
+  "lastUpdate": 1786032167770,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -197,6 +197,44 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 254028,
             "range": "± 32777",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "id": "4b66bc33a54830c8e1c77b3e937d2766870824b9",
+          "message": "Save index on inserts, filling index on creation, if table is not empty",
+          "timestamp": "2026-07-10T07:16:39Z",
+          "url": "https://github.com/daniilburavlev/simpledb/pull/8/commits/4b66bc33a54830c8e1c77b3e937d2766870824b9"
+        },
+        "date": 1786032167211,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 233663,
+            "range": "± 34835",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 13113728,
+            "range": "± 154643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 987897,
+            "range": "± 76200",
             "unit": "ns/iter"
           }
         ]
