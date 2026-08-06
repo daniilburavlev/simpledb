@@ -19,6 +19,7 @@ const MAX_WAIT: Duration = if cfg!(test) {
 } else {
     Duration::from_secs(10)
 };
+
 const SLEEP: Duration = Duration::from_millis(1);
 
 struct BufferPool {

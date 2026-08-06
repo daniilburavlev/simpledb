@@ -9,8 +9,8 @@ use transaction::{lock_table::LockTable, transaction::Transaction};
 use crate::{
     metadata_mgr::MetadataMgr,
     query::{
-        basic_planner::BasicUpdatePlanner, heuristic_planner::HeuristicQueryPlanner,
-        planner::Planner,
+        heuristic_planner::{query::HeuristicQueryPlanner, update::HeuristicUpdatePlanner},
+        planner::{Planner, QueryPlanner},
     },
     scan::Scan,
 };
@@ -96,13 +96,14 @@ impl SimpleDB {
 
     pub fn execute(&self, tx: &Arc<Transaction>, query: &str) -> DbResult<i32> {
         let planner = self.planner();
-        planner.execute_update(query, tx)
+        planner.execute(query, tx)
     }
 
     fn planner(&self) -> Planner {
-        let query_planner = HeuristicQueryPlanner::new(self.md.clone());
-        let update_planner = BasicUpdatePlanner::new(self.md.clone());
-        Planner::new(Rc::new(query_planner), Rc::new(update_planner))
+        let query_planner: Rc<dyn QueryPlanner> =
+            Rc::new(HeuristicQueryPlanner::new(self.md.clone()));
+        let update_planner = HeuristicUpdatePlanner::new(&query_planner, self.md.clone());
+        Planner::new(query_planner, Rc::new(update_planner))
     }
 }
 

@@ -63,7 +63,7 @@ mod tests {
         insert.write(&mut stream).unwrap();
 
         let response = DbResponse::read(&mut stream).unwrap();
-        assert_eq!(response, DbResponse::Execute(2));
+        assert_eq!(response, DbResponse::Execute(1));
 
         let select = DbRequest::Query("SELECT id, name FROM users WHERE id=1".to_string());
         select.write(&mut stream).unwrap();
