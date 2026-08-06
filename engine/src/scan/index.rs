@@ -218,7 +218,7 @@ mod tests {
         let rid = s.get_rid().unwrap();
         for (field, index) in indexes.iter() {
             let value = s.get_val(field).unwrap();
-            index.insert(value, rid.clone()).unwrap();
+            index.insert(value, rid).unwrap();
         }
 
         s.before_first().unwrap();
@@ -227,7 +227,7 @@ mod tests {
                 let rid = s.get_rid().unwrap();
                 for (field, index) in indexes.iter() {
                     let value = s.get_val(field).unwrap();
-                    index.delete(value, rid.clone()).unwrap();
+                    index.delete(value, rid).unwrap();
                 }
                 s.delete().unwrap();
                 break;

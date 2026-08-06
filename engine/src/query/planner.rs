@@ -54,9 +54,9 @@ impl Planner {
         }
     }
 
-    pub fn execute_update(&self, query: &str, tx: &Arc<Transaction>) -> DbResult<i32> {
+    pub fn execute(&self, query: &str, tx: &Arc<Transaction>) -> DbResult<i32> {
         let parser = Parser::new(query)?;
-        match parser.update_cmd()? {
+        match parser.is_update_cmd()? {
             Command::Insert(data) => self.update_planner.execute_insert(data, tx),
             Command::Delete(data) => self.update_planner.execute_delete(data, tx),
             Command::Update(data) => self.update_planner.execute_update(data, tx),

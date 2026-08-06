@@ -195,7 +195,7 @@ impl std::fmt::Display for Term {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Predicate {
     terms: Arc<RwLock<Vec<Term>>>,
 }

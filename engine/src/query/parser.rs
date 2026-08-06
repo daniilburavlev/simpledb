@@ -157,7 +157,7 @@ impl Parser {
         Ok(fields)
     }
 
-    pub fn update_cmd(&self) -> DbResult<Command> {
+    pub fn is_update_cmd(&self) -> DbResult<Command> {
         if self.lexer.match_keyword(Token::Insert) {
             self.insert()
         } else if self.lexer.match_keyword(Token::Delete) {
@@ -457,7 +457,7 @@ mod tests {
     fn update() {
         let query = "UPDATE users SET name='User' WHERE age=18";
         let parser = Parser::new(query).unwrap();
-        let update = parser.update_cmd().unwrap();
+        let update = parser.is_update_cmd().unwrap();
         assert_eq!(query, update.to_string());
     }
 
@@ -465,7 +465,7 @@ mod tests {
     fn delete() {
         let query = "DELETE FROM users WHERE age=18";
         let parser = Parser::new(query).unwrap();
-        let insert = parser.update_cmd().unwrap();
+        let insert = parser.is_update_cmd().unwrap();
         assert_eq!(query, insert.to_string());
     }
 

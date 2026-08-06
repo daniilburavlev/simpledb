@@ -1,4 +1,4 @@
-use crate::schema_mapping::SchemaMapping;
+use crate::schema_mapping::{SchemaMapping, SchemaMappingBuilder};
 use crate::{
     element::Element,
     predicate::{Expression, Predicate},
@@ -38,6 +38,19 @@ pub(crate) struct QueryData {
     pub(crate) group_by: GroupByData,
     pub(crate) order_by: SortByData,
     pub(crate) mapping: SchemaMapping,
+}
+
+impl QueryData {
+    pub(crate) fn new(table: Element) -> Self {
+        Self {
+            fields: vec![],
+            table,
+            predicate: Predicate::default(),
+            group_by: GroupByData::default(),
+            order_by: SortByData::default(),
+            mapping: SchemaMappingBuilder::default().build(),
+        }
+    }
 }
 
 impl std::fmt::Display for QueryData {
@@ -86,6 +99,32 @@ impl std::fmt::Display for QueryData {
     }
 }
 
+impl From<UpdateData> for QueryData {
+    fn from(update: UpdateData) -> Self {
+        Self {
+            table: Element::Raw(update.table),
+            fields: vec![update.field],
+            group_by: GroupByData::default(),
+            order_by: SortByData::default(),
+            predicate: update.predicate,
+            mapping: SchemaMappingBuilder::default().build(),
+        }
+    }
+}
+
+impl From<DeleteData> for QueryData {
+    fn from(delete: DeleteData) -> Self {
+        Self {
+            table: Element::Raw(delete.name),
+            fields: vec![],
+            group_by: GroupByData::default(),
+            order_by: SortByData::default(),
+            predicate: delete.predicate,
+            mapping: SchemaMappingBuilder::default().build(),
+        }
+    }
+}
+
 pub(crate) struct ViewData {
     pub(crate) name: String,
     pub(crate) query: QueryData,
@@ -97,6 +136,7 @@ impl std::fmt::Display for ViewData {
     }
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct DeleteData {
     pub(crate) name: String,
     pub(crate) predicate: Predicate,
@@ -142,6 +182,7 @@ impl std::fmt::Display for InsertData {
     }
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct UpdateData {
     pub table: String,
     pub field: Element,

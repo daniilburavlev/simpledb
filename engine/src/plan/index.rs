@@ -1,18 +1,12 @@
-use std::{rc::Rc, sync::Arc};
+use std::rc::Rc;
 
 use common::DbResult;
-use transaction::transaction::Transaction;
 
 use crate::element::Element;
 use crate::schema::SchemaBuilder;
 use crate::{
     index_mgr::IndexInfo,
-    metadata_mgr::MetadataMgr,
-    plan::{Plan, select::SelectPlan, table::TablePlan},
-    query::{
-        command::{DeleteData, IndexData, InsertData, TableData, UpdateData, ViewData},
-        planner::UpdatePlanner,
-    },
+    plan::Plan,
     scan::index::{IndexJoinScan, IndexSelectScan},
     schema::Schema,
     value::Value,
@@ -130,103 +124,5 @@ impl Plan for IndexJoinPlan {
 
     fn schema(&self) -> DbResult<Schema> {
         Ok(self.schema.clone())
-    }
-}
-
-pub struct IndexUpdatePlanner {
-    mg: Arc<MetadataMgr>,
-}
-
-impl UpdatePlanner for IndexUpdatePlanner {
-    fn execute_insert(&self, data: InsertData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let table = data.table;
-        let indexes = self.mg.get_index_info(&table, tx)?;
-        let plan = TablePlan::new(tx, table, &self.mg)?;
-
-        let s = plan.open()?;
-        s.insert()?;
-        let rid = s.get_rid()?;
-
-        for (field, value) in data.fields.iter().zip(data.values) {
-            tracing::debug!("Modify field: {} {}", field, value);
-            s.set_val(field, value.clone())?;
-
-            if let Some(info) = indexes.get(field) {
-                let index = info.open()?;
-                index.insert(value, rid.clone())?;
-                index.close()?;
-            }
-        }
-        s.close()?;
-        Ok(1)
-    }
-
-    fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let table = data.table;
-        let field = data.field;
-        let index = if let Some(info) = self.mg.get_index_info(&table, tx)?.get(&field) {
-            Some(info.open()?)
-        } else {
-            None
-        };
-        let plan = TablePlan::new(tx, table, &self.mg)?;
-        let plan = SelectPlan::new(Rc::new(plan), data.predicate);
-        let s = plan.open()?;
-        let mut count = 0;
-        while s.next()? {
-            let new_val = data.value.evaluate(&s)?;
-            let oldval = s.get_val(&field)?;
-            s.set_val(&field, new_val.clone())?;
-            if let Some(index) = &index {
-                let rid = s.get_rid()?;
-                index.delete(oldval, rid.clone())?;
-                index.delete(new_val, rid.clone())?;
-            }
-            count += 1;
-        }
-        if let Some(index) = index {
-            index.close()?;
-        }
-        s.close()?;
-        Ok(count)
-    }
-
-    fn execute_delete(&self, data: DeleteData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let table = data.name;
-        let indexes = self.mg.get_index_info(&table, tx)?;
-        let plan = TablePlan::new(tx, table, &self.mg)?;
-        let plan = SelectPlan::new(Rc::new(plan), data.predicate);
-        let s = plan.open()?;
-        let mut count = 0;
-        while s.next()? {
-            let rid = s.get_rid()?;
-            for (field, value) in indexes.iter() {
-                let val = s.get_val(field)?;
-                let index = value.open()?;
-                index.delete(val, rid.clone())?;
-                index.close()?;
-            }
-            s.delete()?;
-            count += 1;
-        }
-        s.close()?;
-        Ok(count)
-    }
-
-    fn execute_create_table(&self, data: TableData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        self.mg.create_table(&data.name, data.schema.clone(), tx)?;
-        Ok(0)
-    }
-
-    fn execute_create_view(&self, data: ViewData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        self.mg
-            .create_view(&data.name, &data.query.to_string(), tx)?;
-        Ok(0)
-    }
-
-    fn execute_create_index(&self, data: IndexData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        self.mg
-            .create_index(&data.index, &data.table, &data.field, tx)?;
-        Ok(0)
     }
 }

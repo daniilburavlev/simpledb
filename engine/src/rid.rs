@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct RID(i32, i32);
 
 impl RID {

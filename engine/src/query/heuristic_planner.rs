@@ -12,6 +12,9 @@ use crate::{
     query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner},
 };
 
+pub(crate) mod query;
+pub(crate) mod update;
+
 struct HeuristicQueryPlannerInner {
     table_planners: Vec<TablePlanner>,
     md: MetadataMgr,

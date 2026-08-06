@@ -100,7 +100,7 @@ impl BTreeIndexInner {
     }
 
     fn get_data_rid(&self) -> DbResult<RID> {
-        Ok(self.rid[self.position as usize].clone())
+        Ok(self.rid[self.position as usize])
     }
 
     fn insert(&self, key: Value, rid: RID) -> DbResult<()> {
@@ -224,7 +224,7 @@ impl BTreeIndexInner {
                     if min_entry > entry_budget {
                         return Err(DbError::MaxSize(entry_budget, min_entry));
                     }
-                    self.leaf_insert_rid(&mut children, key.clone(), rid.clone(), entry_budget)?;
+                    self.leaf_insert_rid(&mut children, key.clone(), rid, entry_budget)?;
                     if leaf_size(&children) <= block_size {
                         let page = BTreePage::Leaf {
                             parent,

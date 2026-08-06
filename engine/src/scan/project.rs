@@ -1,4 +1,5 @@
 use crate::element::Element;
+use crate::rid::RID;
 use crate::scan::Scan;
 use crate::schema::{Schema, SchemaBuilder};
 use crate::schema_mapping::SchemaMapping;
@@ -86,5 +87,9 @@ impl Scan for ProjectScan {
             }
         }
         Ok(project.build())
+    }
+
+    fn get_rid(&self) -> DbResult<RID> {
+        self.scan.get_rid()
     }
 }
