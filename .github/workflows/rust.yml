@@ -1,4 +1,4 @@
-name: Quotes CI
+name: DB CI
 
 on:
   push:
