@@ -9,7 +9,7 @@ use transaction::{lock_table::LockTable, transaction::Transaction};
 use crate::{
     metadata_mgr::MetadataMgr,
     query::{
-        heuristic_planner::{HeuristicQueryPlanner, update::HeuristicUpdatePlanner},
+        heuristic_planner::{query::HeuristicQueryPlanner, update::HeuristicUpdatePlanner},
         planner::{Planner, QueryPlanner},
     },
     scan::Scan,
