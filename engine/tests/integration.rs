@@ -79,7 +79,8 @@ mod tests {
         let tx = db.get_tx().unwrap();
         db.execute(&tx, "CREATE TABLE users(id INT)").unwrap();
         db.execute(&tx, "INSERT INTO users(id) VALUES(1)").unwrap();
-        db.execute(&tx, "CREATE INDEX users_ids ON users(id)").unwrap();
+        db.execute(&tx, "CREATE INDEX users_ids ON users(id)")
+            .unwrap();
         let result = db.query(&tx, "SELECT id FROM users WHERE id = 1").unwrap();
         assert!(result.next().unwrap());
         assert_eq!(result.get_i32(&Element::raw("id")).unwrap(), 1);
