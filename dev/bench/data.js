@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786094519802,
+  "lastUpdate": 1786095740778,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -395,6 +395,48 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 1887391,
             "range": "± 170496",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "60474756aa236a3bea1a931ff54bab0e45fbcee3",
+          "message": "Fix three joins issue  (#9)\n\n* Add test for triple join\n\n* Fix join issue",
+          "timestamp": "2026-08-07T12:40:49+03:00",
+          "tree_id": "8bfe59ac902491daf25f1821a84c7fc0e179d217",
+          "url": "https://github.com/daniilburavlev/simpledb/commit/60474756aa236a3bea1a931ff54bab0e45fbcee3"
+        },
+        "date": 1786095740339,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 421649,
+            "range": "± 67294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 22260471,
+            "range": "± 1571822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 1833437,
+            "range": "± 189468",
             "unit": "ns/iter"
           }
         ]
