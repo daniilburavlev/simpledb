@@ -41,8 +41,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      - name: Clear stale criterion data
+        run: rm -rf target/criterion
+
       - name: Run benchmarks
-        run: cargo bench -p engine --bench db_benchmark -- --output-format bencher | tee output.txt
+        run: |
+          set -o pipefail 
+          cargo bench -p engine --bench db_benchmark -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
