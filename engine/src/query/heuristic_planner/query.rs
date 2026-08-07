@@ -74,7 +74,7 @@ impl HeuristicQueryPlannerInner {
     fn get_lowest_select_plan(&mut self) -> DbResult<Rc<dyn Plan>> {
         let mut index = 0;
         let mut best_plan = self.table_planners.first().unwrap().make_select_plan()?;
-        for (i, tp) in self.table_planners.iter().skip(1).enumerate() {
+        for (i, tp) in self.table_planners.iter().enumerate().skip(1) {
             let plan = tp.make_select_plan()?;
             if plan.records_output()? < best_plan.records_output()? {
                 index = i;

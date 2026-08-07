@@ -112,17 +112,12 @@ mod tests {
         assert!(matches!(err, DbError::FieldNotExists(s) if s == "value"));
     }
 
-    /// FIXES.md §1.2: `HeuristicQueryPlanner::get_lowest_select_plan` applies
-    /// `enumerate()` after `skip(1)`, so it keeps table `k`'s plan but removes
-    /// table `k - 1` from the list. The dropped table never appears in the
-    /// result and the chosen one is joined twice.
     #[test]
     fn cross_join_of_three_tables() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
         let tx = db.get_tx().unwrap();
 
-        // Distinct cardinalities, so the planner's cost comparison is not a tie.
         db.execute(&tx, "CREATE TABLE a(x INT)").unwrap();
         db.execute(&tx, "CREATE TABLE b(y INT)").unwrap();
         db.execute(&tx, "CREATE TABLE c(z INT)").unwrap();
@@ -140,9 +135,6 @@ mod tests {
         }
         tx.commit().unwrap();
 
-        // StatMgr caches the zero-row stats taken when the tables were still
-        // empty and only refreshes every 100 calls (§3.2). Without a refresh
-        // every plan costs the same and the off-by-one stays hidden.
         for _ in 0..110 {
             db.query(&tx, "SELECT x FROM a").unwrap();
         }
@@ -152,12 +144,9 @@ mod tests {
         while result.next().unwrap() {
             rows += 1;
             result.get_i32(&Element::raw("x")).unwrap();
-            // Today this fails with FieldNotExists("y"): `b` was removed from
-            // the planner list, so its column is absent from the join schema.
             result.get_i32(&Element::raw("y")).unwrap();
             result.get_i32(&Element::raw("z")).unwrap();
         }
-        // Actual: 20 rows (a x a x c) — `a` joined twice, `b` missing.
         assert_eq!(
             rows,
             2 * 3 * 5,
