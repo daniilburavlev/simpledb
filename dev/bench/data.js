@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786044507519,
+  "lastUpdate": 1786086487663,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -315,6 +315,48 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 1017994,
             "range": "± 78574",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "distinct": true,
+          "id": "2668dd76381ce2bbfeb004e79daae8d77db82e33",
+          "message": "Clera criterion folder, pipefail for benches",
+          "timestamp": "2026-08-07T10:05:24+03:00",
+          "tree_id": "81aa53df6098c82bb915318da7330190779ec90e",
+          "url": "https://github.com/daniilburavlev/simpledb/commit/2668dd76381ce2bbfeb004e79daae8d77db82e33"
+        },
+        "date": 1786086487240,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 412270,
+            "range": "± 50437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 21781812,
+            "range": "± 1567700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 1828783,
+            "range": "± 195100",
             "unit": "ns/iter"
           }
         ]
