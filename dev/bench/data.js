@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786095740778,
+  "lastUpdate": 1786099104166,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -437,6 +437,48 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 1833437,
             "range": "± 189468",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "distinct": true,
+          "id": "fd0a43248e539e507eae1b97a825f03f28f0b70c",
+          "message": "Update ClAUDE",
+          "timestamp": "2026-08-07T12:35:04+02:00",
+          "tree_id": "bbaac9b0dffcf9b7cf6dc0f920fed20677940ae8",
+          "url": "https://github.com/daniilburavlev/simpledb/commit/fd0a43248e539e507eae1b97a825f03f28f0b70c"
+        },
+        "date": 1786099098696,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 403415,
+            "range": "± 53913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 21319935,
+            "range": "± 1347951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 1791774,
+            "range": "± 170886",
             "unit": "ns/iter"
           }
         ]
