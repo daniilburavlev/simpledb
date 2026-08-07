@@ -9,6 +9,7 @@ use crate::{
     plan::{Plan, table::TablePlan},
     query::{
         command::{DeleteData, IndexData, InsertData, QueryData, TableData, UpdateData, ViewData},
+        heuristic_planner::check_layout,
         planner::{QueryPlanner, UpdatePlanner},
     },
 };
@@ -32,6 +33,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
         if data.fields.len() != data.values.len() {
             return Err(DbError::InvalidValuesAmount);
         }
+        check_layout(&self.md, &data.table, &data.fields, tx)?;
         let index = self.md.get_index_info(&data.table, tx)?;
         let p = Rc::new(TablePlan::new(tx, data.table.clone(), &self.md)?);
         let s = p.open()?;
@@ -88,10 +90,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
 
     fn execute_create_index(&self, data: IndexData, tx: &Arc<Transaction>) -> DbResult<i32> {
         let field = Element::raw(&data.field);
-        let layout = self.md.get_layout(&data.table, tx)?;
-        if !layout.schema().has_field(&field) {
-            return Err(DbError::FieldNotExists(field.to_string()));
-        }
+        check_layout(&self.md, &data.table, std::slice::from_ref(&field), tx)?;
         self.md
             .create_index(&data.index, &data.table, &data.field, tx)?;
         let table = Element::raw(&data.table);

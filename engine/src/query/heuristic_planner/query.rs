@@ -1,13 +1,16 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use common::DbResult;
+use common::{DbResult, error::DbError};
 use transaction::transaction::Transaction;
 
 use crate::{
     element::Element,
     metadata_mgr::MetadataMgr,
     plan::{Plan, group::GroupByPlan, order::SortPlan, project::ProjectPlan},
-    query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner},
+    query::{
+        command::QueryData, heuristic_planner::check_layout, planner::QueryPlanner,
+        table_planner::TablePlanner,
+    },
 };
 
 struct HeuristicQueryPlannerInner {
@@ -36,6 +39,11 @@ impl HeuristicQueryPlannerInner {
             } else {
                 table
             };
+            if let Some(fields) = data.mapping.table_fields(&table) {
+                check_layout(&self.md, table.try_as_str()?, fields, tx)?;
+            } else {
+                return Err(DbError::RelationNotExists(table.to_string()));
+            }
             let tp = TablePlanner::new(
                 table,
                 data.predicate.clone(),

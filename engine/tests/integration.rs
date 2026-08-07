@@ -34,7 +34,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn insert_unknown_name() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();
@@ -53,7 +52,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn select_unknown_name() {
         let dir = tempdir().unwrap();
         let db = SimpleDB::new(dir.path()).unwrap();

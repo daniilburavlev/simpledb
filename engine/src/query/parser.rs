@@ -125,10 +125,6 @@ impl Parser {
         }))
     }
 
-    /// Parses the table list following `FROM`, supporting both comma-separated
-    /// tables (`FROM a, b`) and explicit `JOIN ... ON ...` syntax. Any `ON`
-    /// predicates are folded into the returned `Predicate`, which the planner
-    /// later splits back into per-table select and join predicates.
     fn claude_from(&self) -> DbResult<(Vec<Element>, Predicate)> {
         let mut tables = vec![self.element()?];
         let predicate = Predicate::default();
@@ -364,7 +360,7 @@ fn process_schema(
 )> {
     let mut mapping = SchemaMappingBuilder::default();
     let raw_tables = match table {
-        Element::Array(tables) => tables.into_iter().collect(),
+        Element::Array(tables) => tables,
         table => vec![table],
     };
     let mut new_tables = Vec::with_capacity(raw_tables.len());
@@ -379,8 +375,6 @@ fn process_schema(
         };
         new_tables.push(table);
     }
-    // Field->table associations are keyed off the first table; `SchemaMapping`
-    // only uses them for aliasing, which is unaffected by the join expansion.
     let table = new_tables[0].clone();
     let mut new_fields = Vec::with_capacity(fields.len());
     for field in fields {

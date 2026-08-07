@@ -51,6 +51,13 @@ impl Element {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    pub fn try_as_str(&self) -> DbResult<&str> {
+        match self {
+            Self::Raw(value) => Ok(value),
+            _ => Err(DbError::other("cannot get str value")),
+        }
+    }
 }
 
 impl std::fmt::Display for Element {
