@@ -111,4 +111,47 @@ mod tests {
         let err = result.err().unwrap();
         assert!(matches!(err, DbError::FieldNotExists(s) if s == "value"));
     }
+
+    #[test]
+    fn cross_join_of_three_tables() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+        let tx = db.get_tx().unwrap();
+
+        db.execute(&tx, "CREATE TABLE a(x INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE b(y INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE c(z INT)").unwrap();
+        for i in 0..2 {
+            db.execute(&tx, &format!("INSERT INTO a(x) VALUES({})", i))
+                .unwrap();
+        }
+        for i in 0..3 {
+            db.execute(&tx, &format!("INSERT INTO b(y) VALUES({})", i))
+                .unwrap();
+        }
+        for i in 0..5 {
+            db.execute(&tx, &format!("INSERT INTO c(z) VALUES({})", i))
+                .unwrap();
+        }
+        tx.commit().unwrap();
+
+        for _ in 0..110 {
+            db.query(&tx, "SELECT x FROM a").unwrap();
+        }
+
+        let result = db.query(&tx, "SELECT x, y, z FROM c, b, a").unwrap();
+        let mut rows = 0;
+        while result.next().unwrap() {
+            rows += 1;
+            result.get_i32(&Element::raw("x")).unwrap();
+            result.get_i32(&Element::raw("y")).unwrap();
+            result.get_i32(&Element::raw("z")).unwrap();
+        }
+        assert_eq!(
+            rows,
+            2 * 3 * 5,
+            "cross join must produce |a| * |b| * |c| rows"
+        );
+        tx.commit().unwrap();
+    }
 }
