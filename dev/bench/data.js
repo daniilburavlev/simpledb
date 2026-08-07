@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786086487663,
+  "lastUpdate": 1786094519802,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -357,6 +357,44 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 1828783,
             "range": "± 195100",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "id": "61cc83d90af81544d9aff7f8d009358251b9a144",
+          "message": "Fix three joins issue ",
+          "timestamp": "2026-08-07T07:06:30Z",
+          "url": "https://github.com/daniilburavlev/simpledb/pull/9/commits/61cc83d90af81544d9aff7f8d009358251b9a144"
+        },
+        "date": 1786094519332,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 433905,
+            "range": "± 60123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 22339662,
+            "range": "± 1382608",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 1887391,
+            "range": "± 170496",
             "unit": "ns/iter"
           }
         ]
