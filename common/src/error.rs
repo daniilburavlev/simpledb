@@ -46,6 +46,8 @@ pub enum DbError {
     InvalidValue,
     #[error("relation '{0}' not exists")]
     RelationNotExists(String),
+    #[error("cannot map value '{0}' to source, try to specify")]
+    Specify(String),
 }
 
 impl DbError {
@@ -68,6 +70,10 @@ impl DbError {
 
     pub fn unexpected_token(msg: &str) -> Self {
         Self::UnexpectedToken(msg.to_string())
+    }
+
+    pub fn specify(msg: &str) -> Self {
+        Self::Specify(msg.to_string())
     }
 }
 

@@ -1,14 +1,15 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use common::{DbResult, error::DbError};
+use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    element::Element,
     metadata_mgr::MetadataMgr,
     plan::{Plan, group::GroupByPlan, order::SortPlan, project::ProjectPlan},
     query::{
-        command::QueryData, heuristic_planner::check_layout, planner::QueryPlanner,
+        analyzer::Analyzer,
+        data::query::{ParsedQuery, Query},
+        planner::QueryPlanner,
         table_planner::TablePlanner,
     },
 };
@@ -26,11 +27,13 @@ impl HeuristicQueryPlannerInner {
         }
     }
 
-    fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
-        let tables = match &data.table {
-            Element::Array(tables) => tables.to_vec(),
-            table => vec![table.clone()],
-        };
+    fn analyze(&self, data: ParsedQuery, tx: &Arc<Transaction>) -> DbResult<Query> {
+        let analyzer = Analyzer::new(self.md.clone(), tx);
+        analyzer.query(data)
+    }
+
+    fn create_plan(&mut self, data: Query, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+        let tables = data.tables;
         for table in tables {
             let table = if let Some(source) = data.mapping.table(&table)
                 && *source != table
@@ -39,11 +42,6 @@ impl HeuristicQueryPlannerInner {
             } else {
                 table
             };
-            if let Some(fields) = data.mapping.table_fields(&table) {
-                check_layout(&self.md, table.try_as_str()?, fields, tx)?;
-            } else {
-                return Err(DbError::RelationNotExists(table.to_string()));
-            }
             let tp = TablePlanner::new(
                 table,
                 data.predicate.clone(),
@@ -144,8 +142,9 @@ impl HeuristicQueryPlanner {
 }
 
 impl QueryPlanner for HeuristicQueryPlanner {
-    fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+    fn create_plan(&self, data: ParsedQuery, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         let mut write = self.0.borrow_mut();
+        let data = write.analyze(data, tx)?;
         write.create_plan(data, tx)
     }
 }

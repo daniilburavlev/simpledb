@@ -8,8 +8,8 @@ use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, table::TablePlan},
     query::{
-        command::{DeleteData, IndexData, InsertData, QueryData, TableData, UpdateData, ViewData},
-        heuristic_planner::check_layout,
+        command::{DeleteData, IndexData, InsertData, TableData, UpdateData, ViewData},
+        data::query::ParsedQuery,
         planner::{QueryPlanner, UpdatePlanner},
     },
 };
@@ -33,7 +33,6 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
         if data.fields.len() != data.values.len() {
             return Err(DbError::InvalidValuesAmount);
         }
-        check_layout(&self.md, &data.table, &data.fields, tx)?;
         let index = self.md.get_index_info(&data.table, tx)?;
         let p = Rc::new(TablePlan::new(tx, data.table.clone(), &self.md)?);
         let s = p.open()?;
@@ -51,7 +50,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
     }
 
     fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let query_data: QueryData = data.clone().into();
+        let query_data: ParsedQuery = data.clone().into();
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;
         let mut count = 0;
@@ -65,7 +64,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
     }
 
     fn execute_delete(&self, data: DeleteData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let query_data: QueryData = data.clone().into();
+        let query_data: ParsedQuery = data.clone().into();
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;
         let mut count = 0;
@@ -90,11 +89,10 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
 
     fn execute_create_index(&self, data: IndexData, tx: &Arc<Transaction>) -> DbResult<i32> {
         let field = Element::raw(&data.field);
-        check_layout(&self.md, &data.table, std::slice::from_ref(&field), tx)?;
         self.md
             .create_index(&data.index, &data.table, &data.field, tx)?;
         let table = Element::raw(&data.table);
-        let mut query_data = QueryData::new(table);
+        let mut query_data = ParsedQuery::new(table);
         query_data.fields = vec![field.clone()];
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;

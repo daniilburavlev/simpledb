@@ -1,0 +1,24 @@
+  You already made the right call in 077e419 by moving this out of the parser and into check_layout. The real issue is that it's now scattered across three call sites (query.rs:43,
+  update.rs:36, update.rs:93), so coverage is ad-hoc — execute_delete and the query path's join handling can drift out of sync.
+
+  Introduce an explicit binder/analyzer stage between parser and planner — the standard tokenizer → parser → binder → planner pipeline. Sciore's book folds the binder into the
+  planner, which is why you don't have one yet:
+
+  pub(crate) struct Binder { md: Arc<MetadataMgr> }
+
+  impl Binder {
+      fn bind(&self, cmd: Command, tx: &Arc<Transaction>) -> DbResult<Command>;
+  }
+
+  Called once in Planner::create_query_plan and Planner::execute (planner.rs:48,58), right after parser.query()?. That gives you every benefit you're actually after:
+
+  - Fail early — before any plan construction or buffer pinning.
+  - One place to handle each Command variant, so CREATE TABLE vs INSERT semantics are explicit rather than implied by which call site remembered to validate.
+  - Uniform errors — DbError::FieldNotExists / relation-not-found raised consistently.
+  - Parser stays pure and its tests stay cheap.
+  - Natural home for the next things you'll need: view expansion, alias resolution, type checking of Constant against FieldInfo.
+
+  Then delete check_layout and its three call sites once the binder covers them.
+
+  The one legitimate case for parse-time catalog access is resolving genuine grammar ambiguity that needs the catalog to disambiguate. Your SQL subset doesn't have that, so there's
+  no reason to pay the cost.    

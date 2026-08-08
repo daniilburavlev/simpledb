@@ -110,7 +110,11 @@ impl SimpleDB {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::element::Element;
+    use crate::{
+        element::Element,
+        query::{analyzer::Analyzer, command::Command, data::query::ParsedQuery, parser::Parser},
+    };
+    use common::error::DbError;
     use std::collections::HashSet;
     use tempfile::{TempDir, tempdir};
 
@@ -339,5 +343,107 @@ mod tests {
             result.get_string(&Element::spec("t", "name")).unwrap(),
             "User"
         );
+    }
+
+    #[test]
+    fn analyze_select_unknown_field() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+
+        let tx = db.get_tx().unwrap();
+        let md = db.md.clone();
+
+        db.execute(&tx, "CREATE TABLE t1(id INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE t2(id INT)").unwrap();
+
+        let parser = Parser::new("SELECT unexisted FROM t1").unwrap();
+        let analyzer = Analyzer::new(md.clone(), &tx);
+        let query = parsed_query(parser);
+        assert!(matches!(
+            analyzer.query(query).err().unwrap(),
+            DbError::FieldNotExists(field) if field == "unexisted"
+        ));
+
+        let parser = Parser::new("SELECT id FROM t1 JOIN t2 ON t1.id = t2.id").unwrap();
+        let parsed_query = parsed_query(parser);
+        let analyzer = Analyzer::new(md, &tx);
+        assert!(matches!(
+            analyzer.query(parsed_query).err().unwrap(),
+            DbError::Specify(field) if field == "id"
+        ));
+    }
+
+    #[test]
+    fn analyze_select_from_unknown_table() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+
+        let tx = db.get_tx().unwrap();
+        let md = db.md.clone();
+
+        let parser = Parser::new("SELECT id FROM unknown").unwrap();
+        let query = parsed_query(parser);
+        let analyzer = Analyzer::new(md, &tx);
+        let err = analyzer.query(query).err().unwrap();
+        assert!(
+            matches!(err, DbError::RelationNotExists(table) if table == "unknown"),
+            "table existance not checked"
+        );
+    }
+
+    #[test]
+    fn analyze_select_unspecified_field() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+
+        let tx = db.get_tx().unwrap();
+        let md = db.md.clone();
+
+        db.execute(&tx, "CREATE TABLE t1(id INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE t2(id INT)").unwrap();
+
+        let parser = Parser::new("SELECT id FROM t1 JOIN t2 ON t1.id = t2.id").unwrap();
+        let query = parsed_query(parser);
+        let analyzer = Analyzer::new(md, &tx);
+        assert!(matches!(
+            analyzer.query(query).err().unwrap(),
+            DbError::Specify(field) if field == "id"
+        ));
+    }
+
+    #[test]
+    fn analyze_select_specified_fields() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+
+        let tx = db.get_tx().unwrap();
+        let md = db.md.clone();
+
+        db.execute(&tx, "CREATE TABLE t1(id INT)").unwrap();
+        db.execute(&tx, "CREATE TABLE t2(id INT)").unwrap();
+
+        let parser = Parser::new("SELECT t1.id, t2.id FROM t1 JOIN t2 ON t1.id = t2.id").unwrap();
+        let query = parsed_query(parser);
+        let analyzer = Analyzer::new(md, &tx);
+        let query = analyzer.query(query).unwrap();
+
+        assert_eq!(
+            query.fields,
+            vec![Element::spec("t1", "id"), Element::spec("t2", "id")],
+            "fields parse error"
+        );
+        assert_eq!(
+            query.tables,
+            vec![Element::raw("t1"), Element::raw("t2")],
+            "tables parse error"
+        );
+    }
+
+    fn parsed_query(parser: Parser) -> ParsedQuery {
+        if let Command::Query(parsed_query) = parser.query().unwrap() {
+            parsed_query
+        } else {
+            panic!("not query");
+        }
     }
 }

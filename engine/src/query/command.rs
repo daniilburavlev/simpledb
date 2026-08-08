@@ -1,16 +1,15 @@
-use crate::schema_mapping::{SchemaMapping, SchemaMappingBuilder};
+use crate::query::data::query::ParsedQuery;
 use crate::{
     element::Element,
     predicate::{Expression, Predicate},
     schema::Schema,
-    sort_by::SortByData,
     value::Value,
 };
 
 pub(crate) enum Command {
     Insert(InsertData),
     Update(UpdateData),
-    Query(QueryData),
+    Query(ParsedQuery),
     CreateTable(TableData),
     CreateIndex(IndexData),
     CreateView(ViewData),
@@ -31,103 +30,9 @@ impl std::fmt::Display for Command {
     }
 }
 
-pub(crate) struct QueryData {
-    pub(crate) fields: Vec<Element>,
-    pub(crate) table: Element,
-    pub(crate) predicate: Predicate,
-    pub(crate) group_by: GroupByData,
-    pub(crate) order_by: SortByData,
-    pub(crate) mapping: SchemaMapping,
-}
-
-impl QueryData {
-    pub(crate) fn new(table: Element) -> Self {
-        Self {
-            fields: vec![],
-            table,
-            predicate: Predicate::default(),
-            group_by: GroupByData::default(),
-            order_by: SortByData::default(),
-            mapping: SchemaMappingBuilder::default().build(),
-        }
-    }
-}
-
-impl std::fmt::Display for QueryData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SELECT ")?;
-        for (i, field) in self.fields.iter().enumerate() {
-            let field = if let Some(source) = self.mapping.field(field)
-                && source != field
-            {
-                match source {
-                    Element::Raw(source) => &Element::view(source, field.as_raw().unwrap()),
-                    e => e,
-                }
-            } else {
-                field
-            };
-            if i == 0 {
-                write!(f, "{}", field)?;
-            } else {
-                write!(f, ", {}", field)?;
-            }
-        }
-        let table = &self.table;
-        let table = if let Some(source) = self.mapping.table(table)
-            && source != table
-        {
-            match source {
-                Element::Raw(source) => &Element::view(source, table.as_raw().unwrap()),
-                e => e,
-            }
-        } else {
-            table
-        };
-        write!(f, " FROM {}", table)?;
-        let predicate = self.predicate.to_string();
-        if !predicate.is_empty() {
-            write!(f, " WHERE {}", predicate)?;
-        }
-        if !self.group_by.is_empty() {
-            write!(f, " {}", self.group_by)?;
-        }
-        if !self.order_by.is_empty() {
-            write!(f, " {}", self.order_by)?;
-        }
-        Ok(())
-    }
-}
-
-impl From<UpdateData> for QueryData {
-    fn from(update: UpdateData) -> Self {
-        Self {
-            table: Element::Raw(update.table),
-            fields: vec![update.field],
-            group_by: GroupByData::default(),
-            order_by: SortByData::default(),
-            predicate: update.predicate,
-            mapping: SchemaMappingBuilder::default().build(),
-        }
-    }
-}
-
-impl From<DeleteData> for QueryData {
-    fn from(delete: DeleteData) -> Self {
-        Self {
-            table: Element::Raw(delete.name),
-            fields: vec![],
-            group_by: GroupByData::default(),
-            order_by: SortByData::default(),
-            predicate: delete.predicate,
-            mapping: SchemaMappingBuilder::default().build(),
-        }
-    }
-}
-
 pub(crate) struct ViewData {
     pub(crate) name: String,
-    pub(crate) query: QueryData,
+    pub(crate) query: ParsedQuery,
 }
 
 impl std::fmt::Display for ViewData {

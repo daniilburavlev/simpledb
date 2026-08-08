@@ -1,14 +1,14 @@
 use common::{DbResult, error::DbError};
 
+use crate::query::data::query::ParsedQuery;
 use crate::schema::SchemaBuilder;
-use crate::schema_mapping::{SchemaMapping, SchemaMappingBuilder};
 use crate::{
     element::Element,
     predicate::{Expression, Predicate, Term},
     query::{
         command::{
-            Command, DeleteData, GroupByData, IndexData, InsertData, QueryData, TableData,
-            UpdateData, ViewData,
+            Command, DeleteData, GroupByData, IndexData, InsertData, TableData, UpdateData,
+            ViewData,
         },
         lexer::Lexer,
         token::Token,
@@ -29,7 +29,7 @@ impl Parser {
         })
     }
 
-    pub(crate) fn element(&self) -> DbResult<Element> {
+    fn element(&self) -> DbResult<Element> {
         let id = self.lexer.eat_id()?;
         if self.lexer.match_delim('.') {
             self.lexer.eat_delimiter('.')?;
@@ -43,11 +43,11 @@ impl Parser {
         }
     }
 
-    pub(crate) fn field(&self) -> DbResult<String> {
+    fn field(&self) -> DbResult<String> {
         self.lexer.eat_id()
     }
 
-    pub(crate) fn constant(&self) -> DbResult<Value> {
+    fn constant(&self) -> DbResult<Value> {
         if self.lexer.match_string_constant() {
             self.lexer.eat_string_constant()
         } else {
@@ -55,7 +55,7 @@ impl Parser {
         }
     }
 
-    pub(crate) fn expression(&self) -> DbResult<Expression> {
+    fn expression(&self) -> DbResult<Expression> {
         if self.lexer.match_id() {
             Ok(Expression::Field(self.element()?))
         } else {
@@ -63,14 +63,14 @@ impl Parser {
         }
     }
 
-    pub(crate) fn term(&self) -> DbResult<Term> {
+    fn term(&self) -> DbResult<Term> {
         let left = self.expression()?;
         self.lexer.eat_delimiter('=')?;
         let right = self.expression()?;
         Ok(Term::new(left, right))
     }
 
-    pub(crate) fn predicate(&self) -> DbResult<Predicate> {
+    fn predicate(&self) -> DbResult<Predicate> {
         let pred = Predicate::new(self.term()?);
         if self.lexer.match_keyword(Token::And) {
             self.lexer.eat_keyword(Token::And)?;
@@ -110,18 +110,13 @@ impl Parser {
             self.lexer.eat_keyword(Token::By)?;
             order_by = self.order_by()?;
         }
-
-        let (fields, table, predicate, group_by, order_by, mapping) =
-            process_schema(fields, table, predicate, group_by, order_by)?;
-
         self.check_remainder()?;
-        Ok(Command::Query(QueryData {
+        Ok(Command::Query(ParsedQuery {
             fields,
             table,
             predicate,
             group_by,
             order_by,
-            mapping,
         }))
     }
 
@@ -344,73 +339,6 @@ impl Parser {
     }
 }
 
-fn process_schema(
-    fields: Vec<Element>,
-    table: Element,
-    predicate: Predicate,
-    group_by: GroupByData,
-    order_by: SortByData,
-) -> DbResult<(
-    Vec<Element>,
-    Element,
-    Predicate,
-    GroupByData,
-    SortByData,
-    SchemaMapping,
-)> {
-    let mut mapping = SchemaMappingBuilder::default();
-    let raw_tables = match table {
-        Element::Array(tables) => tables,
-        table => vec![table],
-    };
-    let mut new_tables = Vec::with_capacity(raw_tables.len());
-    for table in raw_tables {
-        let table = match table {
-            Element::Raw(table) => Element::Raw(table),
-            Element::View(source, id) => {
-                mapping = mapping.add_table(Element::raw(&id), Element::raw(&source));
-                Element::Raw(id)
-            }
-            _ => return Err(DbError::InvalidFieldType),
-        };
-        new_tables.push(table);
-    }
-    let table = new_tables[0].clone();
-    let mut new_fields = Vec::with_capacity(fields.len());
-    for field in fields {
-        match field {
-            Element::Raw(field) => {
-                mapping = mapping.add_table_field(table.clone(), Element::raw(&field));
-                new_fields.push(Element::Raw(field));
-            }
-            Element::View(source, id) => {
-                mapping = mapping.add_table_field(table.clone(), Element::raw(&source));
-                mapping =
-                    mapping.add_field(table.clone(), Element::raw(&id), Element::raw(&source));
-                new_fields.push(Element::Raw(id));
-            }
-            Element::Spec(source, target) => {
-                mapping = mapping.add_table_field(Element::raw(&source), Element::raw(&target));
-                new_fields.push(Element::Spec(source, target));
-            }
-            _ => return Err(DbError::InvalidFieldType),
-        }
-    }
-    let table = if new_tables.len() == 1 {
-        new_tables.into_iter().next().unwrap()
-    } else {
-        Element::array(new_tables.into_iter().collect())
-    };
-    Ok((
-        new_fields,
-        table,
-        predicate,
-        group_by,
-        order_by,
-        mapping.build(),
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -502,5 +430,13 @@ mod tests {
         let parser = Parser::new(query).unwrap();
         let select = parser.query().unwrap();
         assert_eq!(query, select.to_string());
+    }
+
+    #[test]
+    fn parsed_select() {
+        let query = "SELECT id, name, age FROM users WHERE id=10";
+        let parser = Parser::new(query).unwrap();
+        let parsed = parser.query().unwrap();
+        assert_eq!(parsed.to_string(), query);
     }
 }

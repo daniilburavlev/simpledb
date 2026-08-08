@@ -1,4 +1,6 @@
+pub(crate) mod analyzer;
 pub mod command;
+pub(crate) mod data;
 pub(crate) mod heuristic_planner;
 pub mod lexer;
 pub mod parser;

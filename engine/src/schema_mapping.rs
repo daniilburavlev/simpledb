@@ -20,10 +20,6 @@ impl SchemaMapping {
     pub(crate) fn table(&self, name: &Element) -> Option<&Element> {
         self.0.tables_names.get(name)
     }
-
-    pub(crate) fn table_fields(&self, name: &Element) -> Option<&HashSet<Element>> {
-        self.0.tables_fields.get(name)
-    }
 }
 
 #[derive(Default)]
