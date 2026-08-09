@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Arc};
 
-use common::{DbResult, error::DbError};
+use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
@@ -40,26 +40,22 @@ impl HeuristicUpdatePlanner {
 impl UpdatePlanner for HeuristicUpdatePlanner {
     fn execute_insert(&self, data: ParsedInsertQuery, tx: &Arc<Transaction>) -> DbResult<i32> {
         let data = self.analyze(data, tx)?;
-        let index = self.md.get_index_info(data.table.as_raw()?, tx)?;
-        let p = Rc::new(TablePlan::new(
-            tx,
-            data.table.as_raw()?.to_owned(),
-            &self.md,
-        )?);
+        let table = data.table.as_raw()?.to_owned();
+        let index = self.md.get_index_info(&table, tx)?;
+        let p = Rc::new(TablePlan::new(tx, table, &self.md)?);
         let s = p.open()?;
-        s.insert()?;
-        let rid = s.get_rid()?;
-        for (field, value) in data
-            .fields
-            .iter()
-            .zip(data.values.first().ok_or(DbError::BadSyntax)?)
-        {
-            s.set_val(field, value.clone())?;
-            if let Some(index_info) = index.get(field) {
-                let index = index_info.open()?;
-                index.insert(value.clone(), rid)?;
+        for values in data.values {
+            s.insert()?;
+            let rid = s.get_rid()?;
+            for (field, value) in data.fields.iter().zip(values) {
+                s.set_val(field, value.clone())?;
+                if let Some(index_info) = index.get(field) {
+                    let index = index_info.open()?;
+                    index.insert(value.clone(), rid)?;
+                }
             }
         }
+
         s.close()?;
         Ok(1)
     }

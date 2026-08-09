@@ -119,7 +119,7 @@ mod tests {
         },
     };
     use common::error::DbError;
-    use std::collections::HashSet;
+    use std::collections::{BTreeSet, HashSet};
     use tempfile::{TempDir, tempdir};
 
     pub(crate) fn init() -> (TempDir, Arc<Transaction>) {
@@ -441,6 +441,33 @@ mod tests {
             vec![Element::raw("t1"), Element::raw("t2")],
             "tables parse error"
         );
+    }
+
+    #[test]
+    fn multiply_inserts() {
+        let dir = tempdir().unwrap();
+        let db = SimpleDB::new(dir.path()).unwrap();
+
+        let tx = db.get_tx().unwrap();
+        db.execute(&tx, "CREATE TABLE t(id INT)").unwrap();
+        let mut ids: BTreeSet<i32> = (1..10).collect();
+        let mut insert = String::from("INSERT INTO t(id) VALUES");
+        for id in &ids {
+            let id = *id;
+            if id == 1 {
+                insert.push_str(&format!("({})", id));
+            } else {
+                insert.push_str(&format!(", ({})", id));
+            }
+        }
+        db.execute(&tx, &insert).unwrap();
+        let scan = db.query(&tx, "SELECT id FROM t").unwrap();
+        let field = Element::raw("id");
+        while scan.next().unwrap() {
+            let id = scan.get_i32(&field).unwrap();
+            ids.remove(&id);
+        }
+        assert!(ids.is_empty());
     }
 
     fn parsed_query(parser: Parser) -> ParsedSelectQuery {
