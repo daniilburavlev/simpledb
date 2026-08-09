@@ -15,7 +15,7 @@ fn bench_insert(c: &mut Criterion) {
             let id = rng.random::<i32>();
             db.execute(&tx, &format!("INSERT INTO test(id) VALUES({})", id))
                 .unwrap();
-            db.query(&tx, "SELECT * FROM test").unwrap();
+            db.query(&tx, "SELECT id FROM test").unwrap();
         });
     });
 }
