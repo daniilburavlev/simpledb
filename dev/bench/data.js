@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786286184229,
+  "lastUpdate": 1786286374497,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -517,6 +517,48 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 2014078,
             "range": "± 190620",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "burravlev@icloud.com",
+            "name": "Daniil Buravlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99db3a6359ee53d32e8baed1f7c828fe1abe5f4b",
+          "message": "Adding query field existence checks, multiply inserts in one query (#10)\n\n* Fix unknown relation/field bug\n\n* Added query analyzer\n\n* Validate insert query, multiply inserts\n\n* Add multiply inserts support\n\n* Fix benches\n\n---------\n\nCo-authored-by: Daniil Buravlev <burravlev@Daniils-MacBook-Air.local>\nCo-authored-by: Daniil Buravlev <burravlev@Mac.lan>",
+          "timestamp": "2026-08-09T17:38:35+03:00",
+          "tree_id": "1c999164df957eb401c76d9bbd3b7b5a6f961b41",
+          "url": "https://github.com/daniilburavlev/simpledb/commit/99db3a6359ee53d32e8baed1f7c828fe1abe5f4b"
+        },
+        "date": 1786286374067,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 561464,
+            "range": "± 80082",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 24466794,
+            "range": "± 1577821",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 1966864,
+            "range": "± 146705",
             "unit": "ns/iter"
           }
         ]
