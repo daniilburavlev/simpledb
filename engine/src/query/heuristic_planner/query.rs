@@ -4,10 +4,14 @@ use common::DbResult;
 use transaction::transaction::Transaction;
 
 use crate::{
-    element::Element,
     metadata_mgr::MetadataMgr,
     plan::{Plan, group::GroupByPlan, order::SortPlan, project::ProjectPlan},
-    query::{command::QueryData, planner::QueryPlanner, table_planner::TablePlanner},
+    query::{
+        analyzer::Analyzer,
+        command::select::{ParsedSelectQuery, SelectQuery},
+        planner::QueryPlanner,
+        table_planner::TablePlanner,
+    },
 };
 
 struct HeuristicQueryPlannerInner {
@@ -23,11 +27,13 @@ impl HeuristicQueryPlannerInner {
         }
     }
 
-    fn create_plan(&mut self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
-        let tables = match &data.table {
-            Element::Array(tables) => tables.to_vec(),
-            table => vec![table.clone()],
-        };
+    fn analyze(&self, data: ParsedSelectQuery, tx: &Arc<Transaction>) -> DbResult<SelectQuery> {
+        let analyzer = Analyzer::new(self.md.clone(), tx);
+        analyzer.query(data)
+    }
+
+    fn create_plan(&mut self, data: SelectQuery, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+        let tables = data.tables;
         for table in tables {
             let table = if let Some(source) = data.mapping.table(&table)
                 && *source != table
@@ -136,8 +142,13 @@ impl HeuristicQueryPlanner {
 }
 
 impl QueryPlanner for HeuristicQueryPlanner {
-    fn create_plan(&self, data: QueryData, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+    fn create_plan(
+        &self,
+        data: ParsedSelectQuery,
+        tx: &Arc<Transaction>,
+    ) -> DbResult<Rc<dyn Plan>> {
         let mut write = self.0.borrow_mut();
+        let data = write.analyze(data, tx)?;
         write.create_plan(data, tx)
     }
 }
