@@ -1,15 +1,13 @@
 use common::{DbResult, error::DbError};
 
-use crate::query::data::query::ParsedQuery;
+use crate::query::command::insert::ParsedInsertQuery;
+use crate::query::command::select::ParsedSelectQuery;
 use crate::schema::SchemaBuilder;
 use crate::{
     element::Element,
     predicate::{Expression, Predicate, Term},
     query::{
-        command::{
-            Command, DeleteData, GroupByData, IndexData, InsertData, TableData, UpdateData,
-            ViewData,
-        },
+        command::{Command, DeleteData, GroupByData, IndexData, TableData, UpdateData, ViewData},
         lexer::Lexer,
         token::Token,
     },
@@ -111,7 +109,7 @@ impl Parser {
             order_by = self.order_by()?;
         }
         self.check_remainder()?;
-        Ok(Command::Query(ParsedQuery {
+        Ok(Command::Query(ParsedSelectQuery {
             fields,
             table,
             predicate,
@@ -206,19 +204,38 @@ impl Parser {
     fn insert(&self) -> DbResult<Command> {
         self.lexer.eat_keyword(Token::Insert)?;
         self.lexer.eat_keyword(Token::Into)?;
-        let table = self.lexer.eat_id()?;
+
+        let table = self.element()?;
+
         self.lexer.eat_delimiter('(')?;
         let fields = self.field_list()?;
         self.lexer.eat_delimiter(')')?;
+
         self.lexer.eat_keyword(Token::Values)?;
-        self.lexer.eat_delimiter('(')?;
-        let values = self.constants_list()?;
-        self.lexer.eat_delimiter(')')?;
-        Ok(Command::Insert(InsertData {
+
+        let values = self.insert_values()?;
+
+        Ok(Command::Insert(ParsedInsertQuery {
             table,
             fields,
             values,
         }))
+    }
+
+    fn insert_values(&self) -> DbResult<Vec<Vec<Value>>> {
+        let mut all = vec![];
+        loop {
+            self.lexer.eat_delimiter('(')?;
+            let values = self.values_list()?;
+            all.push(values);
+            self.lexer.eat_delimiter(')')?;
+            if self.lexer.match_delim(',') {
+                self.lexer.eat_delimiter(',')?;
+            } else {
+                break;
+            }
+        }
+        Ok(all)
     }
 
     fn field_list(&self) -> DbResult<Vec<Element>> {
@@ -231,7 +248,7 @@ impl Parser {
         Ok(fields)
     }
 
-    fn constants_list(&self) -> DbResult<Vec<Value>> {
+    fn values_list(&self) -> DbResult<Vec<Value>> {
         let mut constants = vec![];
         constants.push(self.constant()?);
         while self.lexer.match_delim(',') {
@@ -433,10 +450,13 @@ mod tests {
     }
 
     #[test]
-    fn parsed_select() {
-        let query = "SELECT id, name, age FROM users WHERE id=10";
+    fn insert_many_values() {
+        let query = "INSERT INTO users(id, name) VALUES(1, 'Alice'), (2, 'Bob')";
         let parser = Parser::new(query).unwrap();
-        let parsed = parser.query().unwrap();
-        assert_eq!(parsed.to_string(), query);
+        let Command::Insert(insert) = parser.insert().unwrap() else {
+            panic!("cannot parse insert query");
+        };
+        assert_eq!(2, insert.values.len());
+        assert_eq!(query, insert.to_string());
     }
 }

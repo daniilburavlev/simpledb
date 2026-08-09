@@ -8,8 +8,12 @@ use crate::{
     metadata_mgr::MetadataMgr,
     plan::{Plan, table::TablePlan},
     query::{
-        command::{DeleteData, IndexData, InsertData, TableData, UpdateData, ViewData},
-        data::query::ParsedQuery,
+        analyzer::Analyzer,
+        command::{
+            DeleteData, IndexData, TableData, UpdateData, ViewData,
+            insert::{InsertQuery, ParsedInsertQuery},
+            select::ParsedSelectQuery,
+        },
         planner::{QueryPlanner, UpdatePlanner},
     },
 };
@@ -26,23 +30,34 @@ impl HeuristicUpdatePlanner {
             md,
         }
     }
+
+    fn analyze(&self, data: ParsedInsertQuery, tx: &Arc<Transaction>) -> DbResult<InsertQuery> {
+        let analyzer = Analyzer::new(self.md.clone(), tx);
+        analyzer.insert(data)
+    }
 }
 
 impl UpdatePlanner for HeuristicUpdatePlanner {
-    fn execute_insert(&self, data: InsertData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        if data.fields.len() != data.values.len() {
-            return Err(DbError::InvalidValuesAmount);
-        }
-        let index = self.md.get_index_info(&data.table, tx)?;
-        let p = Rc::new(TablePlan::new(tx, data.table.clone(), &self.md)?);
+    fn execute_insert(&self, data: ParsedInsertQuery, tx: &Arc<Transaction>) -> DbResult<i32> {
+        let data = self.analyze(data, tx)?;
+        let index = self.md.get_index_info(data.table.as_raw()?, tx)?;
+        let p = Rc::new(TablePlan::new(
+            tx,
+            data.table.as_raw()?.to_owned(),
+            &self.md,
+        )?);
         let s = p.open()?;
         s.insert()?;
         let rid = s.get_rid()?;
-        for (field, value) in data.fields.iter().zip(data.values) {
+        for (field, value) in data
+            .fields
+            .iter()
+            .zip(data.values.first().ok_or(DbError::BadSyntax)?)
+        {
             s.set_val(field, value.clone())?;
             if let Some(index_info) = index.get(field) {
                 let index = index_info.open()?;
-                index.insert(value, rid)?;
+                index.insert(value.clone(), rid)?;
             }
         }
         s.close()?;
@@ -50,7 +65,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
     }
 
     fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let query_data: ParsedQuery = data.clone().into();
+        let query_data: ParsedSelectQuery = data.clone().into();
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;
         let mut count = 0;
@@ -64,7 +79,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
     }
 
     fn execute_delete(&self, data: DeleteData, tx: &Arc<Transaction>) -> DbResult<i32> {
-        let query_data: ParsedQuery = data.clone().into();
+        let query_data: ParsedSelectQuery = data.clone().into();
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;
         let mut count = 0;
@@ -92,7 +107,7 @@ impl UpdatePlanner for HeuristicUpdatePlanner {
         self.md
             .create_index(&data.index, &data.table, &data.field, tx)?;
         let table = Element::raw(&data.table);
-        let mut query_data = ParsedQuery::new(table);
+        let mut query_data = ParsedSelectQuery::new(table);
         query_data.fields = vec![field.clone()];
         let p = self.query_planner.create_plan(query_data, tx)?;
         let s = p.open()?;

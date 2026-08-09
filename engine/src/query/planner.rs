@@ -6,18 +6,21 @@ use transaction::transaction::Transaction;
 use crate::{
     plan::Plan,
     query::{
-        command::{Command, DeleteData, IndexData, InsertData, TableData, UpdateData, ViewData},
-        data::query::ParsedQuery,
+        command::{
+            Command, DeleteData, IndexData, TableData, UpdateData, ViewData,
+            insert::ParsedInsertQuery, select::ParsedSelectQuery,
+        },
         parser::Parser,
     },
 };
 
 pub(crate) trait QueryPlanner {
-    fn create_plan(&self, data: ParsedQuery, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>>;
+    fn create_plan(&self, data: ParsedSelectQuery, tx: &Arc<Transaction>)
+    -> DbResult<Rc<dyn Plan>>;
 }
 
 pub(crate) trait UpdatePlanner {
-    fn execute_insert(&self, data: InsertData, tx: &Arc<Transaction>) -> DbResult<i32>;
+    fn execute_insert(&self, data: ParsedInsertQuery, tx: &Arc<Transaction>) -> DbResult<i32>;
 
     fn execute_update(&self, data: UpdateData, tx: &Arc<Transaction>) -> DbResult<i32>;
 

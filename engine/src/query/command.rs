@@ -1,15 +1,17 @@
-use crate::query::data::query::ParsedQuery;
 use crate::{
     element::Element,
     predicate::{Expression, Predicate},
+    query::command::{insert::ParsedInsertQuery, select::ParsedSelectQuery},
     schema::Schema,
-    value::Value,
 };
 
+pub(crate) mod insert;
+pub(crate) mod select;
+
 pub(crate) enum Command {
-    Insert(InsertData),
+    Insert(ParsedInsertQuery),
     Update(UpdateData),
-    Query(ParsedQuery),
+    Query(ParsedSelectQuery),
     CreateTable(TableData),
     CreateIndex(IndexData),
     CreateView(ViewData),
@@ -32,7 +34,7 @@ impl std::fmt::Display for Command {
 
 pub(crate) struct ViewData {
     pub(crate) name: String,
-    pub(crate) query: ParsedQuery,
+    pub(crate) query: ParsedSelectQuery,
 }
 
 impl std::fmt::Display for ViewData {
@@ -54,35 +56,6 @@ impl std::fmt::Display for DeleteData {
         if !predicate.is_empty() {
             write!(f, " WHERE {}", predicate)?;
         }
-        Ok(())
-    }
-}
-
-pub struct InsertData {
-    pub table: String,
-    pub fields: Vec<Element>,
-    pub values: Vec<Value>,
-}
-
-impl std::fmt::Display for InsertData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "INSERT INTO {}(", self.table)?;
-        for (i, field) in self.fields.iter().enumerate() {
-            if i == 0 {
-                write!(f, "{}", field)?;
-            } else {
-                write!(f, ", {}", field)?;
-            }
-        }
-        write!(f, ") VALUES(")?;
-        for (i, value) in self.values.iter().enumerate() {
-            if i == 0 {
-                write!(f, "{}", value)?;
-            } else {
-                write!(f, ", {}", value)?;
-            }
-        }
-        write!(f, ")")?;
         Ok(())
     }
 }

@@ -7,7 +7,10 @@ use crate::{
     element::Element,
     layout::Layout,
     metadata_mgr::MetadataMgr,
-    query::data::query::{ParsedQuery, Query},
+    query::command::{
+        insert::{InsertQuery, ParsedInsertQuery},
+        select::{ParsedSelectQuery, SelectQuery},
+    },
     schema_mapping::SchemaMappingBuilder,
 };
 
@@ -24,7 +27,7 @@ impl Analyzer {
         }
     }
 
-    pub(crate) fn query(&self, data: ParsedQuery) -> DbResult<Query> {
+    pub(crate) fn query(&self, data: ParsedSelectQuery) -> DbResult<SelectQuery> {
         let raw_tables = match data.table {
             Element::Array(tables) => tables,
             table => vec![table],
@@ -70,7 +73,7 @@ impl Analyzer {
                     }
                     Element::View(source_name, id) => {
                         let source = Element::raw(source_name);
-                        if !layout.schema().has_field(&field) {
+                        if !layout.schema().has_field(&source) {
                             continue;
                         }
                         if existed {
@@ -105,13 +108,41 @@ impl Analyzer {
             }
         }
         let mapping = mapping.build();
-        Ok(Query {
+        Ok(SelectQuery {
             fields,
             tables,
             predicate: data.predicate,
             group_by: data.group_by,
             order_by: data.order_by,
             mapping,
+        })
+    }
+
+    pub(crate) fn insert(&self, data: ParsedInsertQuery) -> DbResult<InsertQuery> {
+        let table = data.table;
+        if !matches!(table, Element::Raw(_)) {
+            return Err(DbError::InvalidFieldType);
+        }
+        let fields = data.fields;
+        let values = data.values;
+        for values in &values {
+            if fields.len() != values.len() {
+                return Err(DbError::InvalidValuesAmount);
+            }
+        }
+        let layout = self.md.get_layout(table.as_raw()?, &self.tx)?;
+        for field in &fields {
+            if !matches!(field, Element::Raw(_)) {
+                return Err(DbError::InvalidFieldType);
+            }
+            if !layout.schema().has_field(field) {
+                return Err(DbError::field_not_exists(field.as_raw()?));
+            }
+        }
+        Ok(InsertQuery {
+            fields,
+            table,
+            values,
         })
     }
 }

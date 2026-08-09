@@ -8,7 +8,7 @@ use crate::{
     plan::{Plan, group::GroupByPlan, order::SortPlan, project::ProjectPlan},
     query::{
         analyzer::Analyzer,
-        data::query::{ParsedQuery, Query},
+        command::select::{ParsedSelectQuery, SelectQuery},
         planner::QueryPlanner,
         table_planner::TablePlanner,
     },
@@ -27,12 +27,12 @@ impl HeuristicQueryPlannerInner {
         }
     }
 
-    fn analyze(&self, data: ParsedQuery, tx: &Arc<Transaction>) -> DbResult<Query> {
+    fn analyze(&self, data: ParsedSelectQuery, tx: &Arc<Transaction>) -> DbResult<SelectQuery> {
         let analyzer = Analyzer::new(self.md.clone(), tx);
         analyzer.query(data)
     }
 
-    fn create_plan(&mut self, data: Query, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+    fn create_plan(&mut self, data: SelectQuery, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
         let tables = data.tables;
         for table in tables {
             let table = if let Some(source) = data.mapping.table(&table)
@@ -142,7 +142,11 @@ impl HeuristicQueryPlanner {
 }
 
 impl QueryPlanner for HeuristicQueryPlanner {
-    fn create_plan(&self, data: ParsedQuery, tx: &Arc<Transaction>) -> DbResult<Rc<dyn Plan>> {
+    fn create_plan(
+        &self,
+        data: ParsedSelectQuery,
+        tx: &Arc<Transaction>,
+    ) -> DbResult<Rc<dyn Plan>> {
         let mut write = self.0.borrow_mut();
         let data = write.analyze(data, tx)?;
         write.create_plan(data, tx)

@@ -112,7 +112,11 @@ mod tests {
     use super::*;
     use crate::{
         element::Element,
-        query::{analyzer::Analyzer, command::Command, data::query::ParsedQuery, parser::Parser},
+        query::{
+            analyzer::Analyzer,
+            command::{Command, select::ParsedSelectQuery},
+            parser::Parser,
+        },
     };
     use common::error::DbError;
     use std::collections::HashSet;
@@ -439,7 +443,7 @@ mod tests {
         );
     }
 
-    fn parsed_query(parser: Parser) -> ParsedQuery {
+    fn parsed_query(parser: Parser) -> ParsedSelectQuery {
         if let Command::Query(parsed_query) = parser.query().unwrap() {
             parsed_query
         } else {

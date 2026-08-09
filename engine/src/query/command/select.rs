@@ -6,7 +6,7 @@ use crate::{
     sort_by::SortByData,
 };
 
-pub(crate) struct ParsedQuery {
+pub(crate) struct ParsedSelectQuery {
     pub(crate) fields: Vec<Element>,
     pub(crate) table: Element,
     pub(crate) predicate: Predicate,
@@ -14,7 +14,7 @@ pub(crate) struct ParsedQuery {
     pub(crate) order_by: SortByData,
 }
 
-impl ParsedQuery {
+impl ParsedSelectQuery {
     pub(crate) fn new(table: Element) -> Self {
         Self {
             fields: vec![],
@@ -26,7 +26,7 @@ impl ParsedQuery {
     }
 }
 
-impl From<UpdateData> for ParsedQuery {
+impl From<UpdateData> for ParsedSelectQuery {
     fn from(update: UpdateData) -> Self {
         Self {
             fields: vec![update.field],
@@ -38,7 +38,7 @@ impl From<UpdateData> for ParsedQuery {
     }
 }
 
-impl From<DeleteData> for ParsedQuery {
+impl From<DeleteData> for ParsedSelectQuery {
     fn from(delete: DeleteData) -> Self {
         Self {
             fields: vec![],
@@ -50,7 +50,7 @@ impl From<DeleteData> for ParsedQuery {
     }
 }
 
-impl std::fmt::Display for ParsedQuery {
+impl std::fmt::Display for ParsedSelectQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SELECT ")?;
         for (i, field) in self.fields.iter().enumerate() {
@@ -75,7 +75,7 @@ impl std::fmt::Display for ParsedQuery {
     }
 }
 
-pub(crate) struct Query {
+pub(crate) struct SelectQuery {
     pub(crate) fields: Vec<Element>,
     pub(crate) tables: Vec<Element>,
     pub(crate) predicate: Predicate,
@@ -84,7 +84,7 @@ pub(crate) struct Query {
     pub(crate) mapping: SchemaMapping,
 }
 
-impl std::fmt::Display for Query {
+impl std::fmt::Display for SelectQuery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SELECT ")?;
         for (i, field) in self.fields.iter().enumerate() {
