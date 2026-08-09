@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786099104166,
+  "lastUpdate": 1786286184229,
   "repoUrl": "https://github.com/daniilburavlev/simpledb",
   "entries": {
     "Benchmark": [
@@ -479,6 +479,44 @@ window.BENCHMARK_DATA = {
             "name": "index_insert",
             "value": 1791774,
             "range": "± 170886",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "committer": {
+            "name": "daniilburavlev",
+            "username": "daniilburavlev"
+          },
+          "id": "9718e81d7735cce99a599bcfd722d3df560c3618",
+          "message": "Adding query field existence checks, multiply inserts in one query",
+          "timestamp": "2026-08-07T10:37:04Z",
+          "url": "https://github.com/daniilburavlev/simpledb/pull/10/commits/9718e81d7735cce99a599bcfd722d3df560c3618"
+        },
+        "date": 1786286183781,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "insert",
+            "value": 568371,
+            "range": "± 64559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "join",
+            "value": 24242059,
+            "range": "± 1671429",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "index_insert",
+            "value": 2014078,
+            "range": "± 190620",
             "unit": "ns/iter"
           }
         ]
